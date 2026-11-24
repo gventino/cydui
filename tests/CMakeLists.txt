@@ -54,8 +54,17 @@ if(CYDUI_BUILD_FUZZ)
     add_test(NAME fuzz_cmds_smoke COMMAND fuzz_cmds -runs=3000 -max_len=1200)
     # Seed inputs for text and fonts built from the input. Passed as files, each is run once and
     # nothing is written back into the source tree.
-    file(GLOB CYDUI_FUZZ_SEEDS ${CMAKE_CURRENT_SOURCE_DIR}/fuzz_seeds/*.bin)
+    file(GLOB CYDUI_FUZZ_SEEDS ${CMAKE_CURRENT_SOURCE_DIR}/fuzz_seeds/cmds_*.bin)
     add_test(NAME fuzz_cmds_seeds COMMAND fuzz_cmds ${CYDUI_FUZZ_SEEDS})
+
+    add_executable(fuzz_ui fuzz_ui.c)
+    target_link_libraries(fuzz_ui PRIVATE cydui cydui_mem cydui_fonts)
+    target_compile_options(fuzz_ui PRIVATE -fsanitize=fuzzer ${CYDUI_STRICT_FLAGS})
+    target_link_options(fuzz_ui PRIVATE -fsanitize=fuzzer)
+    set_target_properties(fuzz_ui PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+    add_test(NAME fuzz_ui_smoke COMMAND fuzz_ui -runs=400 -max_len=1500)
+    file(GLOB CYDUI_FUZZ_UI_SEEDS ${CMAKE_CURRENT_SOURCE_DIR}/fuzz_seeds/ui_*.bin)
+    add_test(NAME fuzz_ui_seeds COMMAND fuzz_ui ${CYDUI_FUZZ_UI_SEEDS})
 
     add_executable(fuzz_utf8 fuzz_utf8.c)
     target_link_libraries(fuzz_utf8 PRIVATE cydui)
