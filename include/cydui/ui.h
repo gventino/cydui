@@ -50,6 +50,63 @@ extern "C" {
 #endif
 #endif
 
+/* ---- ids ---- */
+
+/**
+ * Identity of a widget: a 32-bit hash of its label (mixed with any pushed ids) plus a 16-bit check
+ * computed a different way, which keeps two labels that collide in the hash apart in the state table.
+ */
+typedef struct {
+    uint32_t h;
+    uint16_t c;
+} cydui_id;
+
+static inline bool cydui_id_eq(cydui_id a, cydui_id b)
+{
+    return a.h == b.h && a.c == b.c;
+}
+
+/* ---- layout ---- */
+
+/** Containers nested inside one another; deeper ones are ignored (CT-02). */
+#ifndef CYDUI_MAX_LAYOUT_DEPTH
+#define CYDUI_MAX_LAYOUT_DEPTH 8
+#endif
+
+typedef enum {
+    CYDUI_LAYOUT_ROOT,
+    CYDUI_LAYOUT_ROW,
+    CYDUI_LAYOUT_COLUMN,
+    CYDUI_LAYOUT_GRID,
+    CYDUI_LAYOUT_PADDING
+} cydui_layout_kind;
+
+/** Size modifiers for the next widget or container only (set with the cydui_next_* functions). */
+typedef struct {
+    int16_t w, h;  /**< -1 = not set */
+    bool fill;     /**< take a share of the space left along the container's main axis */
+    bool stretch;  /**< take all the space across the container's main axis */
+    bool disabled; /**< the widget does not react and is drawn dimmed */
+} cydui_mods;
+
+/** One open container: where it starts, how much room it has, and where its next child goes. */
+typedef struct {
+    uint8_t kind;
+    int16_t x0, y0;        /**< top-left corner */
+    int16_t avail_w, avail_h; /**< room it was given */
+    int16_t cx, cy;        /**< where the next child starts */
+    int16_t ext_w, ext_h;  /**< extent of the children placed so far, from (x0, y0) */
+    int16_t spacing;
+    int16_t pad;           /**< padding containers */
+    int16_t cell_w, row_h; /**< grids */
+    int16_t fix_w, fix_h;  /**< size the container takes in its parent; -1 = its content */
+    uint16_t cols, count, child_idx;
+    bool was_fill; /**< the container asked to fill its parent's main axis */
+    uint16_t fills_prev, fills_now, fill_idx; /**< `fill` children: last frame, this frame, handed out so far */
+    int16_t fixed_prev, fixed_now; /**< main-axis space taken by the others (and the gaps), same two frames */
+    cydui_id sid;          /**< key of the container's entry in the state table */
+} cydui_region;
+
 /* ---- input ---- */
 
 /** Events polled from the backend and not yet processed (CT-05). */
@@ -100,22 +157,6 @@ typedef struct {
     uint32_t press_ms, now;
 } cydui_input;
 
-/* ---- ids ---- */
-
-/**
- * Identity of a widget: a 32-bit hash of its label (mixed with any pushed ids) plus a 16-bit check
- * computed a different way, which keeps two labels that collide in the hash apart in the state table.
- */
-typedef struct {
-    uint32_t h;
-    uint16_t c;
-} cydui_id;
-
-static inline bool cydui_id_eq(cydui_id a, cydui_id b)
-{
-    return a.h == b.h && a.c == b.c;
-}
-
 /* ---- per-widget state ---- */
 
 /** One entry of the state table. `a` and `b` are free for the owner of the id. */
@@ -165,6 +206,11 @@ typedef struct cydui_ui {
     uint8_t id_depth;
     cydui_id active; /**< the widget that owns the current press, or all zero */
     cydui_input in;
+    cydui_mods mods;
+    cydui_region regions[CYDUI_MAX_LAYOUT_DEPTH + 1]; /**< [0] is the whole screen */
+    uint8_t depth;   /**< containers open right now */
+    uint8_t skipped; /**< containers that were too deep to open, whose end must be skipped too */
+    bool relayout;   /**< the layout changed shape: ask for another frame */
     uint32_t frame;
     uint16_t widgets;
     uint16_t tap_slop, long_press_ms;
@@ -212,6 +258,71 @@ void cydui_pop_id(cydui_ui *ui);
  * Widgets call this; custom widgets should too.
  */
 bool cydui_id_claim(cydui_ui *ui, cydui_id id);
+
+/* ---- layout functions ---- */
+
+/**
+ * Containers place their children one after the other. A row goes left to right, a column (and the
+ * screen itself) top to bottom, a grid fills rows of `cols` equal cells. Positions are final when
+ * a widget is placed. Each begin needs its end; a container left open is closed at the end of the
+ * frame (CYDUI_ERR_LAYOUT), and one nested beyond CYDUI_MAX_LAYOUT_DEPTH is ignored together with
+ * its end, its children flowing into the enclosing container.
+ */
+void cydui_begin_row(cydui_ui *ui);
+void cydui_end_row(cydui_ui *ui);
+void cydui_begin_column(cydui_ui *ui);
+void cydui_end_column(cydui_ui *ui);
+void cydui_begin_grid(cydui_ui *ui, int cols);
+void cydui_end_grid(cydui_ui *ui);
+/** A column whose children are inset by `px` on every side. */
+void cydui_begin_padding(cydui_ui *ui, int px);
+void cydui_end_padding(cydui_ui *ui);
+
+/** Gap before each of the next children of the current container (the style's spacing by default). */
+void cydui_set_spacing(cydui_ui *ui, int px);
+/** A gap of `px` along the container's main axis. */
+void cydui_spacer(cydui_ui *ui, int px);
+/** A gap that takes a share of the space left along the main axis. */
+void cydui_spacer_fill(cydui_ui *ui);
+
+/* One-shot modifiers: they apply to the next widget or container and are then forgotten. */
+void cydui_next_width(cydui_ui *ui, int px);
+void cydui_next_height(cydui_ui *ui, int px);
+/**
+ * Fill the main axis (a row's width, a column's height): the space left, shared by all the `fill`
+ * children. How many there are is known from the previous frame, so the first frame of a changed
+ * layout is approximate; cydui_ui_end then asks for another frame.
+ */
+void cydui_next_fill(cydui_ui *ui);
+/** Take all the room across the main axis (a column's width, a row's height). */
+void cydui_next_stretch(cydui_ui *ui);
+void cydui_next_disabled(cydui_ui *ui);
+
+/** Reads and clears the pending modifiers. For widgets; widgets that ignore them can skip this. */
+cydui_mods cydui_take_mods(cydui_ui *ui);
+
+/** Places a w x h child, honoring (and clearing) the pending modifiers. */
+cydui_rect cydui_alloc_rect(cydui_ui *ui, int w, int h);
+/** The same with modifiers already taken by cydui_take_mods. */
+cydui_rect cydui_alloc(cydui_ui *ui, const cydui_mods *mods, int w, int h);
+
+/** The room left in the current container, from where the next child would start. */
+cydui_rect cydui_layout_avail(const cydui_ui *ui);
+
+/*
+ * Scope sugar over begin/end:  CYDUI_ROW(ui) { ... }
+ * A `break` or `return` inside the block skips the end call; the container is then closed at the
+ * end of the frame, with a CYDUI_ERR_LAYOUT warning.
+ */
+#define CYDUI_CAT2_(a, b) a##b
+#define CYDUI_CAT_(a, b) CYDUI_CAT2_(a, b)
+#define CYDUI_SCOPE_(begin, end) \
+    for (int CYDUI_CAT_(cydui_once_, __LINE__) = ((begin), 1); CYDUI_CAT_(cydui_once_, __LINE__); \
+         CYDUI_CAT_(cydui_once_, __LINE__) = ((end), 0))
+#define CYDUI_ROW(ui) CYDUI_SCOPE_(cydui_begin_row(ui), cydui_end_row(ui))
+#define CYDUI_COLUMN(ui) CYDUI_SCOPE_(cydui_begin_column(ui), cydui_end_column(ui))
+#define CYDUI_GRID(ui, cols) CYDUI_SCOPE_(cydui_begin_grid((ui), (cols)), cydui_end_grid(ui))
+#define CYDUI_PADDING(ui, px) CYDUI_SCOPE_(cydui_begin_padding((ui), (px)), cydui_end_padding(ui))
 
 /* ---- interaction ---- */
 

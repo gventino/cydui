@@ -1,4 +1,4 @@
-#include "cydui/ui.h"
+#include "ui_internal.h"
 
 #include <string.h>
 
@@ -15,7 +15,7 @@ static cydui_id id_root(void)
     return id;
 }
 
-static cydui_id id_mix(cydui_id parent, const void *bytes, size_t n)
+cydui_id cydui__id_mix(cydui_id parent, const void *bytes, size_t n)
 {
     const uint8_t *p = (const uint8_t *)bytes;
     uint32_t h = parent.h, c = parent.c;
@@ -132,7 +132,7 @@ uint32_t cydui_ui_init(cydui_ui *ui, const cydui_ui_config *cfg)
 }
 
 /* CT-11: in debug builds, flag a call from the wrong task. The call itself still goes through. */
-static void check_thread(cydui_ui *ui)
+void cydui__check_thread(cydui_ui *ui)
 {
 #if CYDUI_DEBUG_THREAD
     if (ui->thread_id && ui->thread_id() != ui->thread) {
@@ -298,7 +298,7 @@ cydui_response cydui_interact(cydui_ui *ui, cydui_id id, cydui_rect r, unsigned 
     cydui_input *in = &ui->in;
 
     memset(&resp, 0, sizeof(resp));
-    check_thread(ui);
+    cydui__check_thread(ui);
     if (flags & CYDUI_DISABLED) {
         return resp;
     }
@@ -332,7 +332,7 @@ bool cydui_ui_begin(cydui_ui *ui, cydui_color clear)
 {
     const cydui_backend *be = ui->ctx.backend;
 
-    check_thread(ui);
+    cydui__check_thread(ui);
     ui->in.has_clock = be->now_ms != NULL;
     ui->in.now = ui->in.has_clock ? be->now_ms(be->user) : 0;
     poll_backend(ui);
@@ -340,6 +340,7 @@ bool cydui_ui_begin(cydui_ui *ui, cydui_color clear)
     cydui_begin_frame(&ui->ctx, clear);
     ui->widgets = 0;
     ui->id_depth = 0;
+    cydui__layout_begin_frame(ui);
     if (ui->idset_cap) {
         memset(ui->idset, 0, (size_t)ui->idset_cap * sizeof(uint32_t));
     }
@@ -362,8 +363,9 @@ static void sweep_state(cydui_ui *ui)
 
 bool cydui_ui_end(cydui_ui *ui)
 {
-    check_thread(ui);
+    cydui__check_thread(ui);
     ui->id_depth = 0;
+    cydui__layout_end_frame(ui);
     if (ui->state_cap) {
         sweep_state(ui);
     }
@@ -372,7 +374,11 @@ bool cydui_ui_end(cydui_ui *ui)
     }
     cydui_end_frame(&ui->ctx);
     ui->frame++;
-    return ui->in.down || ui->in.q_len > 0;
+    {
+        bool more = ui->in.down || ui->in.q_len > 0 || ui->relayout;
+        ui->relayout = false;
+        return more;
+    }
 }
 
 uint32_t cydui_ui_errors(const cydui_ui *ui)
@@ -394,12 +400,12 @@ uint32_t cydui_ui_frame(const cydui_ui *ui)
 
 cydui_id cydui_id_str(const cydui_ui *ui, const char *label)
 {
-    return id_mix(id_top(ui), label ? label : "", label ? label_len(label) : 0);
+    return cydui__id_mix(id_top(ui), label ? label : "", label ? label_len(label) : 0);
 }
 
 static void push_id(cydui_ui *ui, cydui_id id)
 {
-    check_thread(ui);
+    cydui__check_thread(ui);
     if (ui->id_depth >= CYDUI_MAX_ID_DEPTH) {
         ui->ctx.errors |= CYDUI_ERR_LAYOUT;
         return;
@@ -409,7 +415,7 @@ static void push_id(cydui_ui *ui, cydui_id id)
 
 void cydui_push_id_str(cydui_ui *ui, const char *s)
 {
-    push_id(ui, id_mix(id_top(ui), s ? s : "", s ? label_len(s) : 0));
+    push_id(ui, cydui__id_mix(id_top(ui), s ? s : "", s ? label_len(s) : 0));
 }
 
 void cydui_push_id_int(cydui_ui *ui, int32_t v)
@@ -420,7 +426,7 @@ void cydui_push_id_int(cydui_ui *ui, int32_t v)
     b[1] = (uint8_t)(u >> 8);
     b[2] = (uint8_t)(u >> 16);
     b[3] = (uint8_t)(u >> 24);
-    push_id(ui, id_mix(id_top(ui), b, sizeof(b)));
+    push_id(ui, cydui__id_mix(id_top(ui), b, sizeof(b)));
 }
 
 void cydui_push_id_ptr(cydui_ui *ui, const void *p)
@@ -431,12 +437,12 @@ void cydui_push_id_ptr(cydui_ui *ui, const void *p)
     for (i = 0; i < sizeof(b); i++) {
         b[i] = (uint8_t)(u >> (8u * i));
     }
-    push_id(ui, id_mix(id_top(ui), b, sizeof(b)));
+    push_id(ui, cydui__id_mix(id_top(ui), b, sizeof(b)));
 }
 
 void cydui_pop_id(cydui_ui *ui)
 {
-    check_thread(ui);
+    cydui__check_thread(ui);
     if (ui->id_depth == 0) {
         ui->ctx.errors |= CYDUI_ERR_LAYOUT;
         return;

@@ -27,6 +27,7 @@ cydui_test(test_text)
 cydui_test(test_fonts_bundled)
 cydui_test(test_ui_ids)
 cydui_test(test_ui_input)
+cydui_test(test_ui_layout)
 target_link_libraries(test_fonts_bundled PRIVATE cydui_fonts)
 
 # Golden images: hashes live in tests/golden, PNGs for inspection go to <build>/golden.
