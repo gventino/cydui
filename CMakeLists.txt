@@ -4,7 +4,7 @@
 #   * ESP-IDF component: picked up automatically via EXTRA_COMPONENT_DIRS / managed components.
 #   * Plain CMake (PC): builds the core library, the backends, the examples and the tests.
 
-set(CYDUI_CORE_SRCS src/arena.c src/ctx.c src/font.c src/layout.c src/raster.c src/text.c src/types.c src/ui.c src/utf8.c src/version.c)
+set(CYDUI_CORE_SRCS src/arena.c src/ctx.c src/font.c src/layout.c src/raster.c src/text.c src/types.c src/ui.c src/utf8.c src/version.c src/widgets.c)
 
 if(ESP_PLATFORM)
     idf_component_register(
@@ -81,6 +81,10 @@ endif()
 if(CYDUI_BUILD_EXAMPLES OR CYDUI_BUILD_TESTS)
     add_subdirectory(examples/shapes) # the golden test reuses its scene
     add_subdirectory(examples/text)
+    add_subdirectory(examples/widgets)
+    if(TARGET cydui_sdl)
+        add_subdirectory(examples/hello)
+    endif()
 endif()
 
 if(CYDUI_BUILD_TESTS)

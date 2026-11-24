@@ -324,6 +324,64 @@ cydui_rect cydui_layout_avail(const cydui_ui *ui);
 #define CYDUI_GRID(ui, cols) CYDUI_SCOPE_(cydui_begin_grid((ui), (cols)), cydui_end_grid(ui))
 #define CYDUI_PADDING(ui, px) CYDUI_SCOPE_(cydui_begin_padding((ui), (px)), cydui_end_padding(ui))
 
+/* ---- widgets ---- */
+
+/*
+ * Each widget takes the pending cydui_next_* modifiers, is placed by the current container and drawn
+ * with the style. Labels are UTF-8; text after a "##" is not shown (it only tells widgets apart).
+ * A widget call beyond CYDUI_MAX_WIDGETS in a frame does nothing (CYDUI_ERR_TOO_MANY_WIDGETS).
+ */
+
+/** One line of text. */
+void cydui_label(cydui_ui *ui, const char *text);
+
+/** Text that wraps at the room left in the current container. */
+void cydui_label_wrapped(cydui_ui *ui, const char *text);
+
+/** A button. Returns true in the frame in which it is tapped. */
+bool cydui_button(cydui_ui *ui, const char *label);
+
+/** A check box bound to *value. Returns true in the frame in which it was toggled. */
+bool cydui_checkbox(cydui_ui *ui, const char *label, bool *value);
+
+/** A switch bound to *value. Returns true in the frame in which it was toggled. */
+bool cydui_toggle(cydui_ui *ui, const char *label, bool *value);
+
+/* ---- setting up with static memory ---- */
+
+/**
+ * Declares, as one static object, all the memory a UI needs for a `w` x `h` screen: `cmds` draw
+ * commands, `strip_rows` rows of render strip, `text_bytes` for the strings of one frame and
+ * `state_entries` state entries.
+ *
+ *     CYDUI_STORAGE(mem, 320, 240, 20, 64, 512, 16);
+ *     ...
+ *     cydui_ui_init(&ui, &CYDUI_CONFIG(mem, backend, &style));
+ */
+#define CYDUI_STORAGE(name, w, h, strip_rows, cmds, text_bytes, state_entries) \
+    static struct {                                                            \
+        cydui_cmd cmd[cmds];                                                   \
+        cydui_color strip[(w) * (strip_rows)];                                 \
+        char text[text_bytes];                                                 \
+        cydui_state state[state_entries];                                      \
+        uint32_t ids[(cmds) * 2];                                              \
+    } name
+
+/** A cydui_ui_config over a CYDUI_STORAGE object. */
+#define CYDUI_CONFIG(storage, backend_ptr, style_ptr)                                           \
+    ((cydui_ui_config){.core = {.backend = (backend_ptr),                                       \
+                                .cmd_mem = (storage).cmd,                                       \
+                                .cmd_mem_size = sizeof((storage).cmd),                          \
+                                .strip_mem = (storage).strip,                                   \
+                                .strip_mem_size = sizeof((storage).strip),                      \
+                                .text_mem = (storage).text,                                     \
+                                .text_mem_size = sizeof((storage).text)},                       \
+                       .state_mem = (storage).state,                                            \
+                       .state_mem_size = sizeof((storage).state),                               \
+                       .idset_mem = (storage).ids,                                              \
+                       .idset_mem_size = sizeof((storage).ids),                                 \
+                       .style = (style_ptr)})
+
 /* ---- interaction ---- */
 
 /**

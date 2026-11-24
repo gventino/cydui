@@ -28,6 +28,9 @@ cydui_test(test_fonts_bundled)
 cydui_test(test_ui_ids)
 cydui_test(test_ui_input)
 cydui_test(test_ui_layout)
+cydui_test(test_ui_widgets)
+cydui_test(test_hello)
+target_compile_definitions(test_hello PRIVATE HELLO_SRC="${CMAKE_SOURCE_DIR}/examples/hello/main.c")
 target_link_libraries(test_fonts_bundled PRIVATE cydui_fonts)
 
 # Golden images: hashes live in tests/golden, PNGs for inspection go to <build>/golden.

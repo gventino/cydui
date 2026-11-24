@@ -7,6 +7,7 @@
 #include "cydui_sans_16.h"
 #include "cydui_sans_24.h"
 #include "scene.h"
+#include "uirig.h"
 #include "unity.h"
 
 void setUp(void) {}
@@ -210,6 +211,125 @@ static void scene_text_hostile(cydui_ctx *c)
     (void)put_line(c, &cydui_sans_12, y + 2, long_text, CYDUI_RGB(120, 220, 160));
 }
 
+/* ---- complete UIs, driven by synthetic touches ---- */
+
+static uirig ui_rig;
+
+/*
+ * Every widget in its states. The first widget is a button at (8,8): with `press` the pointer goes
+ * down on it from frame 2 on and stays there, so the last frame shows it pressed.
+ */
+static void run_ui_widgets(uirig *r, bool press)
+{
+    bool wifi = true, dark = false, locked = true, on = true, off = false, off_dim = true;
+    int frame;
+
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(r));
+    for (frame = 0; frame < 4; frame++) {
+        if (press && frame == 2) {
+            rig_down(r, 20, 24);
+        }
+        cydui_ui_begin(&r->ui, r->style.bg);
+        CYDUI_ROW(&r->ui) {
+            cydui_button(&r->ui, "Add");
+            cydui_next_disabled(&r->ui);
+            cydui_button(&r->ui, "Remove");
+            cydui_spacer_fill(&r->ui);
+            cydui_label(&r->ui, "3 tarefas");
+        }
+        CYDUI_ROW(&r->ui) {
+            cydui_next_width(&r->ui, 150);
+            CYDUI_COLUMN(&r->ui) {
+                cydui_checkbox(&r->ui, "Wi-Fi", &wifi);
+                cydui_checkbox(&r->ui, "Modo escuro", &dark);
+                cydui_next_disabled(&r->ui);
+                cydui_checkbox(&r->ui, "Bloqueado", &locked);
+            }
+            CYDUI_COLUMN(&r->ui) {
+                cydui_toggle(&r->ui, "Ligado", &on);
+                cydui_toggle(&r->ui, "Desligado", &off);
+                cydui_next_disabled(&r->ui);
+                cydui_toggle(&r->ui, "Inativo", &off_dim);
+            }
+        }
+        cydui_label_wrapped(&r->ui, "Cada controle tem alvo de toque de pelo menos 32 px. Os "
+                                    "desabilitados aparecem esmaecidos e nao respondem.");
+        cydui_ui_end(&r->ui);
+        r->mem.now += 16;
+    }
+}
+
+static void test_ui_widgets(void)
+{
+    run_ui_widgets(&ui_rig, false);
+    golden_check_mem("ui_widgets", &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+static void test_ui_widgets_pressed(void)
+{
+    run_ui_widgets(&ui_rig, true);
+    golden_check_mem("ui_widgets_pressed", &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+static void ui_box(cydui_ui *ui, int w, int h, int hue)
+{
+    static const cydui_color c[] = {CYDUI_RGB(230, 90, 90), CYDUI_RGB(240, 180, 60), CYDUI_RGB(110, 210, 120),
+                                    CYDUI_RGB(80, 170, 240), CYDUI_RGB(180, 120, 240)};
+    cydui_color color = c[hue % 5];
+    cydui_rect r = cydui_alloc_rect(ui, w, h);
+
+    cydui_draw_rrect(&ui->ctx, r, 3, cydui_blend(0, color, 90), 255);
+    cydui_draw_rrect_outline(&ui->ctx, r, 3, 1, color, 255);
+}
+
+/* Layout: row, spacer, fill, grid, padding, nested containers. Boxes show the geometry. */
+static void test_ui_layouts(void)
+{
+    int frame, i;
+
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    for (frame = 0; frame < 4; frame++) { /* the fill shares settle in the second frame */
+        cydui_ui_begin(&ui_rig.ui, ui_rig.style.bg);
+        CYDUI_ROW(&ui_rig.ui) { /* three boxes, then one pushed to the right edge */
+            ui_box(&ui_rig.ui, 40, 24, 0);
+            ui_box(&ui_rig.ui, 40, 24, 1);
+            ui_box(&ui_rig.ui, 40, 24, 2);
+            cydui_spacer_fill(&ui_rig.ui);
+            ui_box(&ui_rig.ui, 40, 24, 3);
+        }
+        CYDUI_ROW(&ui_rig.ui) { /* two flexible boxes around a fixed one */
+            cydui_next_fill(&ui_rig.ui);
+            ui_box(&ui_rig.ui, 1, 24, 4);
+            ui_box(&ui_rig.ui, 60, 24, 1);
+            cydui_next_fill(&ui_rig.ui);
+            ui_box(&ui_rig.ui, 1, 24, 2);
+        }
+        CYDUI_GRID(&ui_rig.ui, 4) { /* eight cells that fill their columns */
+            for (i = 0; i < 8; i++) {
+                cydui_next_fill(&ui_rig.ui);
+                ui_box(&ui_rig.ui, 1, 20, i);
+            }
+        }
+        CYDUI_ROW(&ui_rig.ui) {
+            CYDUI_PADDING(&ui_rig.ui, 8) { /* padded column: the box is inset by 8 */
+                ui_box(&ui_rig.ui, 60, 20, 3);
+                ui_box(&ui_rig.ui, 90, 20, 0);
+            }
+            CYDUI_COLUMN(&ui_rig.ui) {
+                CYDUI_ROW(&ui_rig.ui) { /* a row inside a column inside a row */
+                    ui_box(&ui_rig.ui, 30, 16, 2);
+                    cydui_set_spacing(&ui_rig.ui, 20);
+                    ui_box(&ui_rig.ui, 30, 16, 4);
+                }
+                cydui_next_stretch(&ui_rig.ui);
+                ui_box(&ui_rig.ui, 10, 24, 1);
+            }
+        }
+        cydui_ui_end(&ui_rig.ui);
+    }
+    golden_check_mem("ui_layouts", &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
 static void test_shapes(void) { golden_check("shapes", scene_shapes); }
 static void test_rounded_cards(void) { golden_check("rounded_cards", scene_rounded_cards); }
 static void test_lines_fan(void) { golden_check("lines_fan", scene_lines_fan); }
@@ -255,6 +375,9 @@ int main(void)
     RUN_TEST(test_text_sizes);
     RUN_TEST(test_text_wrap);
     RUN_TEST(test_text_hostile);
+    RUN_TEST(test_ui_widgets);
+    RUN_TEST(test_ui_widgets_pressed);
+    RUN_TEST(test_ui_layouts);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();
 }

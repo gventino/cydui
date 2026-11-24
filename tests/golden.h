@@ -12,4 +12,7 @@
  */
 void golden_check(const char *name, tu_scene scene);
 
+/** The same for what an in-memory backend has on screen (a complete UI driven by the test). */
+void golden_check_mem(const char *name, const cydui_mem *mem, uint32_t errors);
+
 #endif /* GOLDEN_H */
