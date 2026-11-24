@@ -13,6 +13,7 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 - **Deliverables:** basic types, arenas, command list, strip rasterizer with clipping (rect, antialiased rounded rect, antialiased line, bitmap, gradient), RGB565 blending; `cydui_backend` interface; SDL backend (window + headless/hash); golden-image harness.
 - **Acceptance:** example draws shapes in the SDL window; goldens pass under ASan/UBSan; core compiles with `-std=c99 -pedantic -Werror`; no `malloc` after init.
 - **Covers:** FR-01..04, 06, 60, 61; NFR-11, 12, 20, 21, 22, 30; CT-01, 10, 12.
+- **Status: done.** Design and the numeric conventions are in `docs/10-core-design.md`. Deviations: `frame_end` added to the backend interface; the headless/hash mode lives in the separate `mem` backend instead of the SDL one.
 
 ## It2 — Text and fonts
 - **Deliverables:** `tools/fontgen.py` (TTF→C 4bpp, subset); text rendering with measurement, alignment and optional wrapping; strict UTF-8 decoder; glyph fallback; UTF-8 fuzzing.
