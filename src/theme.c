@@ -297,7 +297,7 @@ static void paint_tab(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_inf
         cydui_draw_rrect(&ui->ctx, bar, 1, w->accent, 255);
     }
     if (p->text && p->text_len) {
-        cydui__draw_text_in(ui, r, r.x + (r.w - e.w) / 2, r.y + (r.h - e.h) / 2, p->text, p->text_len, w->text);
+        cydui_draw_text_in(ui, r, r.x + (r.w - e.w) / 2, r.y + (r.h - e.h) / 2, p->text, p->text_len, w->text);
     }
 }
 
@@ -332,7 +332,7 @@ static void paint_button(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_
         cydui_draw_rrect_outline(&ui->ctx, r, w->radius, w->border_w, w->border, 255);
     }
     if (p->text && p->text_len) {
-        cydui__draw_text_in(ui, r, r.x + (r.w - e.w) / 2, r.y + (r.h - e.h) / 2, p->text, p->text_len,
+        cydui_draw_text_in(ui, r, r.x + (r.w - e.w) / 2, r.y + (r.h - e.h) / 2, p->text, p->text_len,
                             w->text);
     }
 }

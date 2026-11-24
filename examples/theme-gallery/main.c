@@ -2,7 +2,7 @@
  * theme-gallery: the widgets in every theme, with a switch at run time.
  *   theme-gallery                       window; the mouse is the touch screen
  *   theme-gallery --frames N            window, quits by itself after N frames
- *   theme-gallery --headless [--theme 0|1|2] [--tab 0|1] [--press X,Y [--release]] [--hash] [--png FILE]
+ *   theme-gallery --headless [--theme 0|1|2] [--tab 0|1|2] [--press X,Y [--release]] [--hash] [--png FILE]
  *                                       renders into memory (themes: 0 default, 1 clean, 2 clean_dark)
  */
 
@@ -15,6 +15,7 @@
 #include "cydui_mem.h"
 #include "cydui_sans_16.h"
 #include "cydui_themes.h"
+#include "rating.h"
 #ifdef CYDUI_HAVE_SDL
 #include "cydui_sdl.h"
 #endif
@@ -34,6 +35,7 @@ typedef struct {
     int tab;
     bool done[3], wifi, dark, notify;
     bool task_done[200];
+    int stars[3];
     int saves;
 } app_t;
 
@@ -63,14 +65,23 @@ static void task_list(cydui_ui *ui, app_t *app)
 static void ui_frame(cydui_ui *ui, app_t *app)
 {
     static const char *const names[3] = {"Wi-Fi", "Modo escuro", "Bloqueado"};
-    static const char *const tabs[2] = {"Controles", "Lista"};
+    static const char *const tabs[3] = {"Controles", "Lista", "Estrelas"};
     char text[48];
     bool locked = true;
     int i;
 
-    cydui_tabs(ui, tabs, 2, &app->tab);
+    cydui_tabs(ui, tabs, 3, &app->tab);
     if (app->tab == 1) {
         task_list(ui, app);
+        return;
+    }
+    if (app->tab == 2) {
+        CYDUI_CARD(ui) {
+            rating(ui, "Comida", &app->stars[0]);
+            rating(ui, "Servico", &app->stars[1]);
+            cydui_next_disabled(ui);
+            rating(ui, "Preco", &app->stars[2]);
+        }
         return;
     }
     CYDUI_ROW(ui) {
@@ -144,6 +155,9 @@ static int run_headless(int theme, int tab, int px, int py, bool press, bool rel
     memset(&app, 0, sizeof(app));
     app.want_theme = theme;
     app.tab = tab;
+    app.stars[0] = 3;
+    app.stars[1] = 5;
+    app.stars[2] = 2;
     app.wifi = true;
     for (frame = 0; frame < 6; frame++) {
         if (press && frame == 3) {
@@ -226,7 +240,8 @@ int main(int argc, char **argv)
             theme = atoi(argv[++i]);
             theme = theme < 0 ? 0 : (theme >= N_THEMES ? N_THEMES - 1 : theme);
         } else if (!strcmp(argv[i], "--tab") && i + 1 < argc) {
-            tab = atoi(argv[++i]) ? 1 : 0;
+            tab = atoi(argv[++i]);
+            tab = tab < 0 ? 0 : (tab > 2 ? 2 : tab);
         } else if (!strcmp(argv[i], "--press") && i + 1 < argc) {
             press = sscanf(argv[++i], "%d,%d", &px, &py) == 2;
         } else {

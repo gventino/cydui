@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 #include "cydui_themes.h"
+#include "rating.h"
 #include "uirig.h"
 #include "unity.h"
 
@@ -476,6 +477,35 @@ static void card_scene(cydui_ui *ui)
     cydui_ui_end(ui);
 }
 
+/* The rating widget of the example, in both themes (it is 160 px of stars, so one above the other). */
+static void rating_scene(cydui_ui *ui)
+{
+    static int v[4] = {2, 5, 4, 1};
+
+    cydui_ui_begin(ui, 0);
+    cydui_draw_rect(&ui->ctx, (cydui_rect){0, 0, 320, 96}, th_light.style.bg, 255);
+    cydui_draw_rect(&ui->ctx, (cydui_rect){0, 96, 320, 144}, th_dark.style.bg, 255);
+    cydui_set_theme(ui, &th_light);
+    rating(ui, "Comida", &v[0]);
+    cydui_next_disabled(ui);
+    rating(ui, "Preco", &v[1]);
+    cydui_spacer(ui, 8);
+    cydui_set_theme(ui, &th_dark);
+    rating(ui, "Comida##dark", &v[2]); /* the same text again in one frame: told apart by the suffix */
+    cydui_next_disabled(ui);
+    rating(ui, "Preco##dark", &v[3]);
+    cydui_ui_end(ui);
+}
+
+static void test_clean_rating(void)
+{
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    cydui_theme_init_clean(&th_light);
+    cydui_theme_init_clean_dark(&th_dark);
+    rating_scene(&ui_rig.ui);
+    golden_check_mem("clean_rating", &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
 static void test_clean_card(void)
 {
     int i;
@@ -622,6 +652,7 @@ int main(void)
     RUN_TEST(test_clean_scroll);
     RUN_TEST(test_clean_list);
     RUN_TEST(test_clean_card);
+    RUN_TEST(test_clean_rating);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();
 }

@@ -33,6 +33,8 @@ cydui_test(test_ui_widgets)
 cydui_test(test_ui_widgets2)
 cydui_test(test_ui_scroll)
 cydui_test(test_ui_align)
+cydui_test(test_custom_widget)
+target_link_libraries(test_custom_widget PRIVATE cydui_rating cydui_themes cydui_fonts)
 cydui_test(test_hello)
 target_compile_definitions(test_hello PRIVATE HELLO_SRC="${CMAKE_SOURCE_DIR}/examples/hello/main.c")
 target_link_libraries(test_fonts_bundled PRIVATE cydui_fonts)
@@ -46,7 +48,7 @@ target_compile_definitions(golden PUBLIC GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}
 set_target_properties(golden PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(golden PRIVATE ${CYDUI_STRICT_FLAGS})
 cydui_test(test_golden)
-target_link_libraries(test_golden PRIVATE golden shapes_scene cydui_fonts cydui_themes)
+target_link_libraries(test_golden PRIVATE golden shapes_scene cydui_fonts cydui_themes cydui_rating)
 
 # Fuzzing (CT-12): the harness is also a short ctest run so that every build exercises it.
 if(CYDUI_BUILD_FUZZ)

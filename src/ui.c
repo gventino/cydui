@@ -290,6 +290,8 @@ cydui_response cydui_interact(cydui_ui *ui, cydui_id id, cydui_rect r, unsigned 
     if (!cydui_id_eq(ui->active, id)) {
         return resp;
     }
+    resp.x = in->x;
+    resp.y = in->y;
     resp.pressed = (in->down || in->frame_up) && hit(ui, r, in->x, in->y);
     resp.dragging = in->moved_far;
     resp.long_pressed = in->frame_long;

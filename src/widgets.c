@@ -13,10 +13,9 @@
 #define KNOB 18
 #define LABEL_GAP 8
 
-/* ---- helpers ---- */
+/* ---- the helpers a widget of your own needs too (see "writing a widget" in ui.h) ---- */
 
-/* Counts a widget against the per-frame limit (AB-07). False means: ignore this call. */
-static bool count_widget(cydui_ui *ui)
+bool cydui_widget_begin(cydui_ui *ui)
 {
     cydui__check_thread(ui);
     if (ui->widgets >= CYDUI_MAX_WIDGETS) {
@@ -27,11 +26,13 @@ static bool count_widget(cydui_ui *ui)
     return true;
 }
 
-/* How much of a label is shown: up to a "##", at most CYDUI_MAX_STR bytes. */
-static size_t shown_len(const char *s)
+size_t cydui_label_len(const char *s)
 {
     size_t n = 0;
 
+    if (!s) {
+        return 0;
+    }
     while (n < CYDUI_MAX_STR && s[n] != '\0') {
         /* the byte after a '#' is only looked at if it is still inside the limit */
         if (s[n] == '#' && n + 1 < CYDUI_MAX_STR && s[n + 1] == '#') {
@@ -42,9 +43,7 @@ static size_t shown_len(const char *s)
     return n;
 }
 
-/* Draws text inside `box` only, however long it is. */
-void cydui__draw_text_in(cydui_ui *ui, cydui_rect box, int x, int y, const char *s, size_t n,
-                         cydui_color color)
+void cydui_draw_text_in(cydui_ui *ui, cydui_rect box, int x, int y, const char *s, size_t n, cydui_color color)
 {
     cydui_rect saved = ui->ctx.clip;
 
@@ -54,7 +53,7 @@ void cydui__draw_text_in(cydui_ui *ui, cydui_rect box, int x, int y, const char 
     ui->ctx.clip = saved;
 }
 
-static cydui_widget_state widget_state(bool disabled, bool pressed)
+cydui_widget_state cydui_state_of(bool disabled, bool pressed)
 {
     return disabled ? CYDUI_STATE_DISABLED : (pressed ? CYDUI_STATE_PRESSED : CYDUI_STATE_NORMAL);
 }
@@ -68,14 +67,14 @@ void cydui_label(cydui_ui *ui, const char *text)
     cydui_text_extent e;
     cydui_rect r;
 
-    if (!count_widget(ui)) {
+    if (!cydui_widget_begin(ui)) {
         return;
     }
     text = text ? text : "";
-    n = shown_len(text);
+    n = cydui_label_len(text);
     e = cydui_text_size(ui->theme->style.font, text, n, 0);
     r = cydui_alloc(ui, &m, e.w, e.h);
-    cydui__draw_text_in(ui, r, r.x, r.y, text, n, m.disabled ? ui->theme->style.text_muted : ui->theme->style.text);
+    cydui_draw_text_in(ui, r, r.x, r.y, text, n, m.disabled ? ui->theme->style.text_muted : ui->theme->style.text);
 }
 
 void cydui_label_wrapped(cydui_ui *ui, const char *text)
@@ -86,11 +85,11 @@ void cydui_label_wrapped(cydui_ui *ui, const char *text)
     cydui_text_extent e;
     cydui_rect r;
 
-    if (!count_widget(ui)) {
+    if (!cydui_widget_begin(ui)) {
         return;
     }
     text = text ? text : "";
-    n = shown_len(text);
+    n = cydui_label_len(text);
     wrap = cydui_layout_avail(ui).w;
     if (wrap < 1) {
         wrap = 1;
@@ -117,13 +116,13 @@ bool cydui_button(cydui_ui *ui, const char *label)
     size_t n;
     int h;
 
-    if (!count_widget(ui)) {
+    if (!cydui_widget_begin(ui)) {
         return false;
     }
     label = label ? label : "";
     id = cydui_id_str(ui, label);
     cydui_id_claim(ui, id);
-    n = shown_len(label);
+    n = cydui_label_len(label);
     e = cydui_text_size(st->font, label, n, 0);
     h = e.h + 2 * st->pad_y;
     r = cydui_alloc(ui, &m, e.w + 2 * st->pad_x, h < st->min_target ? st->min_target : h);
@@ -132,7 +131,7 @@ bool cydui_button(cydui_ui *ui, const char *label)
         cydui_paint_info pi;
         memset(&pi, 0, sizeof(pi));
         pi.kind = CYDUI_WIDGET_BUTTON;
-        pi.state = widget_state(m.disabled, resp.pressed);
+        pi.state = cydui_state_of(m.disabled, resp.pressed);
         pi.rect = r;
         pi.text = label;
         pi.text_len = n;
@@ -156,13 +155,13 @@ static bool control_with_label(cydui_ui *ui, const char *label, bool *value, int
     int w, h;
     bool checked;
 
-    if (!count_widget(ui)) {
+    if (!cydui_widget_begin(ui)) {
         return false;
     }
     label = label ? label : "";
     id = cydui_id_str(ui, label);
     cydui_id_claim(ui, id);
-    n = shown_len(label);
+    n = cydui_label_len(label);
     e = cydui_text_size(st->font, label, n, 0);
     w = control_w + (n ? LABEL_GAP + e.w : 0);
     h = control_h > e.h ? control_h : e.h;
@@ -185,13 +184,13 @@ static bool control_with_label(cydui_ui *ui, const char *label, bool *value, int
         cydui_paint_info pi;
         memset(&pi, 0, sizeof(pi));
         pi.kind = is_toggle ? CYDUI_WIDGET_TOGGLE : CYDUI_WIDGET_CHECKBOX;
-        pi.state = widget_state(m.disabled, resp.pressed);
+        pi.state = cydui_state_of(m.disabled, resp.pressed);
         pi.selected = checked;
         pi.rect = ctl;
         cydui_paint(ui, &pi);
     }
     if (n) {
-        cydui__draw_text_in(ui, r, r.x + control_w + LABEL_GAP, r.y + (r.h - e.h) / 2, label, n,
+        cydui_draw_text_in(ui, r, r.x + control_w + LABEL_GAP, r.y + (r.h - e.h) / 2, label, n,
                      m.disabled ? st->text_muted : st->text);
     }
     return resp.clicked;
@@ -226,13 +225,13 @@ bool cydui_slider(cydui_ui *ui, const char *label, int32_t *value, int32_t min, 
     bool usable = max > min, disabled, holding, changed = false;
     int32_t v;
 
-    if (!count_widget(ui)) {
+    if (!cydui_widget_begin(ui)) {
         return false;
     }
     label = label ? label : "";
     id = cydui_id_str(ui, label);
     cydui_id_claim(ui, id);
-    n = shown_len(label);
+    n = cydui_label_len(label);
     e = cydui_text_size(st->font, label, n, 0);
     label_w = n ? e.w + LABEL_GAP : 0;
     h = e.h > CYDUI_SLIDER_KNOB ? e.h : CYDUI_SLIDER_KNOB;
@@ -259,7 +258,7 @@ bool cydui_slider(cydui_ui *ui, const char *label, int32_t *value, int32_t min, 
     /* While the press is ours the knob follows the finger, also when it is outside the track. */
     holding = (ui->in.down && cydui_id_eq(ui->active, id)) || resp.released;
     if (holding && !disabled) {
-        int32_t nv = cydui_slider_value_at(track, ui->in.x, min, max);
+        int32_t nv = cydui_slider_value_at(track, resp.x, min, max);
         if (nv != v) {
             v = nv;
             changed = true;
@@ -271,14 +270,14 @@ bool cydui_slider(cydui_ui *ui, const char *label, int32_t *value, int32_t min, 
 
     memset(&pi, 0, sizeof(pi));
     pi.kind = CYDUI_WIDGET_SLIDER;
-    pi.state = widget_state(disabled, holding && !disabled);
+    pi.state = cydui_state_of(disabled, holding && !disabled);
     pi.rect = track;
     pi.value = v;
     pi.min = min;
     pi.max = max;
     cydui_paint(ui, &pi);
     if (n) {
-        cydui__draw_text_in(ui, r, r.x, r.y + (r.h - e.h) / 2, label, n,
+        cydui_draw_text_in(ui, r, r.x, r.y + (r.h - e.h) / 2, label, n,
                             disabled ? st->text_muted : st->text);
     }
     return changed;
@@ -290,13 +289,13 @@ void cydui_progress(cydui_ui *ui, int32_t value, int32_t max)
     cydui_paint_info pi;
     cydui_rect r;
 
-    if (!count_widget(ui)) {
+    if (!cydui_widget_begin(ui)) {
         return;
     }
     r = cydui_alloc(ui, &m, SLIDER_DEFAULT_W, PROGRESS_H);
     memset(&pi, 0, sizeof(pi));
     pi.kind = CYDUI_WIDGET_PROGRESS;
-    pi.state = widget_state(m.disabled, false);
+    pi.state = cydui_state_of(m.disabled, false);
     pi.rect = r;
     pi.value = value;
     pi.min = 0;
@@ -316,7 +315,7 @@ bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selecte
     int i, sel, chosen = -1, h, tab_w;
     bool changed = false;
 
-    if (!count_widget(ui)) {
+    if (!cydui_widget_begin(ui)) {
         return false;
     }
     count = count > CYDUI_MAX_TABS ? CYDUI_MAX_TABS : count;
@@ -338,7 +337,7 @@ bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selecte
         tab[i].y = bar.y;
         tab[i].w = (int16_t)(i == count - 1 ? bar.w - i * tab_w : tab_w);
         tab[i].h = bar.h;
-        len[i] = shown_len(label);
+        len[i] = cydui_label_len(label);
         ext[i] = cydui_text_size(st->font, label, len[i], 0);
         cydui_push_id_int(ui, i); /* equal labels are fine: every tab has its own id */
         id = cydui_id_str(ui, label);
@@ -360,7 +359,7 @@ bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selecte
         cydui_paint_info pi;
         memset(&pi, 0, sizeof(pi));
         pi.kind = CYDUI_WIDGET_TAB;
-        pi.state = widget_state(m.disabled, resp[i].pressed);
+        pi.state = cydui_state_of(m.disabled, resp[i].pressed);
         pi.selected = i == sel;
         pi.rect = tab[i];
         pi.text = labels[i] ? labels[i] : "";

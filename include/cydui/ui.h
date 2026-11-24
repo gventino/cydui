@@ -159,6 +159,8 @@ typedef struct {
     bool dragging;     /**< the pointer has travelled beyond the tap slop since the press */
     bool released;     /**< the press that this widget owned ended in this frame */
     int16_t dx, dy;    /**< pointer travel in this frame (with CYDUI_SENSE_DRAG, while held) */
+    int16_t x, y;      /**< where the pointer is, for the widget that owns the press (where it was let go,
+                            in the frame of the release); 0 for every other widget */
 } cydui_response;
 
 /** Pointer state and the events waiting for the next frame. Read it, do not write it. */
@@ -528,6 +530,40 @@ const cydui_wstyle *cydui_wstyle_of(const cydui_ui *ui, cydui_widget_kind kind, 
 
 /** Draws a widget with the painter of the theme in use (its own, or the default). */
 void cydui_paint(cydui_ui *ui, const cydui_paint_info *info);
+
+/* ---- writing a widget ---- */
+
+/*
+ * A widget of your own is a function that, in this order:
+ *
+ *   1. cydui_widget_begin(ui)          counts it against the per-frame limit; false: return at once
+ *   2. cydui_take_mods(ui)             picks up cydui_next_width/height/fill/stretch/disabled
+ *   3. cydui_id_str(ui, label) and cydui_id_claim(ui, id)     its identity (label[#...] as for the others)
+ *   4. cydui_label_len, cydui_text_size(font of cydui_theme_of(ui)->style, ...)    to measure itself
+ *   5. cydui_alloc(ui, &mods, w, h)    its place in the layout
+ *   6. cydui_interact(ui, id, rect, flags)     what the touch did (resp.x/y say where)
+ *   7. paints with cydui_draw_* on ui->ctx, cydui_draw_text_in, colors from cydui_theme_of(ui)->style
+ *      or cydui_wstyle_of(ui, kind, cydui_state_of(disabled, pressed), selected), or cydui_paint
+ *
+ * Anything it must remember between frames goes in cydui_state_get(ui, id, true). The widgets of the
+ * library are written this way. examples/theme-gallery/rating.c is a complete one.
+ */
+
+/**
+ * Counts a widget against the limit of CYDUI_MAX_WIDGETS per frame and checks the calling task.
+ * Returns false, with CYDUI_ERR_TOO_MANY_WIDGETS, when the limit is passed: the widget must then do
+ * nothing.
+ */
+bool cydui_widget_begin(cydui_ui *ui);
+
+/** How much of a label is shown: up to a "##", at most CYDUI_MAX_STR bytes. NULL is empty. */
+size_t cydui_label_len(const char *label);
+
+/** Draws `n` bytes of text with the font of the theme at (x, y), showing nothing outside `box`. */
+void cydui_draw_text_in(cydui_ui *ui, cydui_rect box, int x, int y, const char *s, size_t n, cydui_color color);
+
+/** The look to ask the theme for: DISABLED wins over PRESSED, otherwise PRESSED or NORMAL. */
+cydui_widget_state cydui_state_of(bool disabled, bool pressed);
 
 /* ---- interaction ---- */
 

@@ -67,6 +67,13 @@ target_link_libraries(cydui_themes PUBLIC cydui cydui_fonts)
 set_target_properties(cydui_themes PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(cydui_themes PRIVATE ${CYDUI_STRICT_FLAGS})
 
+# A star rating widget written with the public headers only (the example of how to write a widget).
+add_library(cydui_rating STATIC examples/theme-gallery/rating.c)
+target_include_directories(cydui_rating PUBLIC examples/theme-gallery)
+target_link_libraries(cydui_rating PUBLIC cydui)
+set_target_properties(cydui_rating PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+target_compile_options(cydui_rating PRIVATE ${CYDUI_STRICT_FLAGS})
+
 # SDL2 backend: window and mouse.
 if(CYDUI_BUILD_SDL)
     find_package(PkgConfig QUIET)
