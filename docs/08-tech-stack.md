@@ -37,10 +37,8 @@ Principle: **KISS** — few dependencies, everything replaceable, core with no e
 ## Python tools
 | Package | Use |
 |---------|-----|
-| `freetype-py` | Rasterize glyphs from the TTF |
-| `pillow` | Output debugging/PNG diff |
-| `numpy` (optional) | 4bpp packing |
-Installed in a local `venv` (`tools/.venv`), no global packages.
+| `freetype-py==2.5.1` (pinned in `tools/requirements.txt`; bundles FreeType 2.13.2) | Rasterize glyphs from the TTF |
+Installed in a local `venv` (`tools/.venv`, git-ignored), no global packages: `uv venv tools/.venv && uv pip install --python tools/.venv/bin/python -r tools/requirements.txt`. No Pillow or NumPy: PNG output is written by the in-tree `mem` backend and the font preview is ASCII art.
 
 ## Runtime dependencies (library)
 - **None** beyond minimal libc (`string.h`, `stdint.h`, `stddef.h`, `stdbool.h`; `math.h` avoided in the pixel path).
@@ -64,7 +62,7 @@ Installed in a local `venv` (`tools/.venv`), no global packages.
 1. `sudo usermod -aG uucp $USER` (and re-login).
 2. System packages: `sdl2`, `ninja`, `clang`, `git`, `python`, `cmake`, `ccache`, `dfu-util`/`libusb` (IDF dependencies).
 3. `uv python install 3.13`, then ESP-IDF v5.5.6 in `~/esp/esp-idf` + `./install.sh esp32` with that Python first on `PATH` (`tools/env.sh` does this at runtime).
-4. Python venv for `tools/`.
+4. Python venv for `tools/` (see above).
 
 ## Repo layout
 ```

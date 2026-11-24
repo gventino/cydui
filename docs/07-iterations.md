@@ -19,6 +19,11 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 - **Deliverables:** `tools/fontgen.py` (TTF→C 4bpp, subset); text rendering with measurement, alignment and optional wrapping; strict UTF-8 decoder; glyph fallback; UTF-8 fuzzing.
 - **Acceptance:** Latin text with accents rendered at sizes 12/16/24 in SDL; invalid UTF-8 vectors cause no OOB; text golden passes.
 - **Covers:** FR-10..13; CT-03, 04; R-07, R-13.
+- **Status: done.** Details in `docs/10-core-design.md`. Deviations from the plan above:
+  - the bundled fonts are named `cydui_sans_*`, not after Liberation Sans, because the OFL reserves that name for unmodified fonts; they stay under the OFL, separately from the MIT code;
+  - the Unicode filter is wider than CT-04 (adds C0/C1 controls, U+061C, U+200E/200F);
+  - FR-13 is partial: the mechanism works, no icon set is shipped;
+  - the fuzz harness needed seed inputs (`tests/fuzz_seeds/`) to find bugs injected in the text code.
 
 ## It3 — Immediate mode, layout, input, basic widgets
 - **Deliverables:** `begin_frame/end_frame`; IDs; state table; row/column/grid/spacer layout; tap/drag/long-press events; `label`, `button`, `checkbox`, `toggle`; `hello` example (≤ 25 lines).

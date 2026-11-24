@@ -20,7 +20,7 @@ Iteration = where the FR is delivered (see `07-iterations.md`).
 | FR-10 | 4bpp antialiased bitmap fonts generated from TTF by `tools/fontgen.py`, with a configurable glyph subset. | M | 2 |
 | FR-11 | UTF-8 text rendering with measurement (`cydui_text_size`) and optional word wrap. | M | 2 |
 | FR-12 | Invalid UTF-8 is rejected/replaced with U+FFFD with no out-of-bounds reads. | M | 2 |
-| FR-13 | Icon font support (same mechanism, glyphs in the PUA). | S | 2 |
+| FR-13 | Icon font support (same mechanism, glyphs in the PUA). *Partial:* the generator takes any TTF and code point range; no icon set is shipped yet. | S | 2/4 |
 
 ## Immediate mode and layout
 | ID | Requirement | Pri | It |

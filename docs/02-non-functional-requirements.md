@@ -21,7 +21,7 @@ All must be **measurable**; the "Verification" column says how.
 ## Portability and code quality
 | ID | Requirement | Verification |
 |----|-------------|--------------|
-| NFR-20 | Core in **C99**, with no dependency on ESP-IDF, SDL or libc beyond `string.h`, `stdint.h`, `stddef.h`, `stdbool.h`, `math.h` (optional). | CI builds the core with `-std=c99 -pedantic -Wall -Wextra -Werror` on gcc and clang. |
+| NFR-20 | Core in **C99**, with no dependency on ESP-IDF, SDL or libc beyond `string.h`, `stdint.h`, `stddef.h`, `stdbool.h`, `math.h` (optional). | The local checks build the core with `-std=c99 -pedantic -Wall -Wextra -Werror` on gcc and clang. |
 | NFR-21 | No mutable globals in the core (everything lives in `cydui_ctx`); allows multiple instances in tests. | Review + `nm` showing no core `.data/.bss` symbols. |
 | NFR-22 | No ASan/UBSan findings in the test suite and SDL backend fuzzing. | Local checks. |
 | NFR-23 | Core unit test coverage ≥ 80% of lines (gcov). | Local checks. |

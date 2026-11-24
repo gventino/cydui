@@ -28,6 +28,20 @@ Type: **P** preventive, **D** detective, **C** corrective/safe degradation. Owne
 | CT-21 | Screen: configurable backlight timeout and a "privacy mode" (hide content) in the app. | P | App | AB-14 | Functional. |
 | CT-22 | Destructive UI actions in the app require confirmation (popup) or long press. | P | App | AB-04 | App flow. |
 
+## 1b. Implementation status
+
+| Control | State | Where |
+|---------|-------|-------|
+| CT-01 | done for the command list, the text arena and bitmaps | `src/ctx.c`, `tests/test_ctx.c`, `tests/test_text.c` |
+| CT-02 | done for text (`CYDUI_MAX_STR`, cut on a character boundary, `CYDUI_ERR_TEXT_TRUNCATED`); layout depth and widgets per frame come with the widgets (It3) | `src/text.c` |
+| CT-03 | done | `src/utf8.c`, `tests/test_utf8.c`, `tests/fuzz_utf8.c` |
+| CT-04 | done, with a wider set than written (adds C0/C1 controls, U+061C, U+200E/200F); always on for controls, `CYDUI_FILTER_CONTROL` for the bidi marks | `src/text.c` |
+| CT-09 | done for fonts (`cydui_font_validate`, bounds-checked glyph access, unusable font rejected); themes come in It4 | `src/font.c` |
+| CT-10 | done | `src/ctx.c` |
+| CT-12 | done for commands, text and the UTF-8 decoder; events and `text_input` come with those features | `tests/fuzz_*.c` |
+| CT-05..08, 11, 13..15 | later iterations | |
+| CT-16..22 | owned by the app | |
+
 ## 2. Threat → control traceability
 | Abuse | Controls |
 |-------|----------|
@@ -62,7 +76,7 @@ Probability (P) and impact (I): 1–3. Score = P×I. Residual after controls.
 | R-04 | Noisy/imprecise resistive touch. | 3 | 2 | 6 | 5-point calibration, median, debounce, widgets with targets ≥ 32 px. | Low |
 | R-05 | Immediate-mode layout without retention becomes costly or unstable (auto size). | 2 | 2 | 4 | Single-pass layout + one-frame delay; limit auto-size to simple cases. | Low |
 | R-06 | Tearing/flicker from partial flush with DMA. | 2 | 2 | 4 | Double buffering, flush by whole strips; simple synchronization. | Low |
-| R-07 | Generated fonts weigh on flash (many sizes/glyphs). | 2 | 2 | 4 | Per-app subset, 4bpp, optional RLE; NFR-50 budget. | Low |
+| R-07 | Generated fonts weigh on flash (many sizes/glyphs). | 2 | 2 | 4 | Per-app subset, 4bpp, shared identical bitmaps; NFR-50 budget. **Measured:** the three bundled fonts (ASCII + Latin-1 + symbols) take 45.7 KB, the whole core 6.8 KB. | Low |
 | R-08 | Determinism gaps between SDL and ESP32 (floating point, operation order). | 2 | 2 | 4 | Integer/fixed-point raster; no `float` in the pixel path. | Low |
 | R-09 | ESP-IDF version drift breaking the backend. | 2 | 2 | 4 | Pin version in `08-tech-stack.md`; build check. | Low |
 

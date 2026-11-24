@@ -33,6 +33,37 @@ The core (`src/`, `include/`) is C99 and depends on nothing but `stdint.h`, `std
   - *Verified against geometry:* the tests sum the coverage of a rounded rect, a circle and a thick line and compare with the exact area (`w*h - (4-π)r²`, `πr²`, `L*t + πt²/4`) within ~0.3%, so the AA is correct and not only symmetric.
 - **Gradient.** Two colors, per-channel integer interpolation with truncation, exact at both ends; a one-pixel-long gradient is the first color.
 
+## Text and fonts (FR-10..13, CT-02, CT-03, CT-04, AB-16)
+
+**Font format** (`include/cydui/font.h`). A `cydui_font` is constant data: a glyph table sorted by code point, 4-bit coverage bitmaps (A4, high nibble first, rows padded to a byte) and the line metrics. Lookup is a binary search that falls back to the box glyph stored under U+FFFD. Advances are whole pixels and there is no kerning (a known limitation, see below).
+
+**Making fonts.** `tools/fontgen.py` renders a TTF with FreeType (`freetype-py==2.5.1`, which bundles FreeType 2.13.2, so output does not depend on the system library) into 8-bit coverage, quantizes it to 4 bits, always generates its own hollow box as the fallback glyph, shares storage between identical bitmaps, and writes `OUT.c`/`OUT.h` deterministically: `tools/gen_fonts.sh --check` regenerates into a temp dir and compares byte for byte. The bundled `cydui_sans_{12,16,24}` use ASCII, Latin-1 and a few symbols (`• … € ← ↑ → ↓`). `--preview TEXT` prints ASCII art of a string set in the generated font, for a quick look without a display.
+
+**Licensing.** The bundled fonts are renderings of Liberation Sans and stay under the SIL OFL 1.1 (`fonts/LICENSE-OFL.txt`), not the MIT license of the code. The OFL reserves the name "Liberation", so the generated fonts are called `cydui_sans_*`; each generated file carries the original copyright notice and the OFL notice.
+
+**UTF-8** (`include/cydui/utf8.h`). `cydui_utf8_decode` is strict: overlong forms, surrogates, values above U+10FFFF and bytes that never occur in UTF-8 are ill-formed, and each ill-formed sequence gives one U+FFFD for its "maximal subpart" (so `E2 82` followed by `g` is one replacement, `F0 80 80 80` is four). It always consumes at least one byte and never reads past `len`.
+
+**Drawing text.** `cydui_draw_text` copies the string into a per-frame text arena (`text_mem` in the config), so callers may pass temporary buffers, and records one `CYDUI_CMD_TEXT`. Without `text_mem`, or when it is full, the text is dropped and `CYDUI_ERR_NO_MEMORY` is raised (CT-01). The rasterizer lays the text out again for every strip and blits only what touches it, so the image does not depend on the strip height. `cydui_text_size` measures with the same layout code, so a box sized from it always fits what is drawn.
+
+**Layout.** One linear pass over the code points. Lines break at `\n`; at the last run of spaces when the text would pass the wrap width; and inside a word wider than the line. Every line consumes at least one byte, so the loop always ends even for a box narrower than one glyph. Leading spaces are kept (an indent); a run of spaces at a wrap point is dropped; trailing spaces do not count towards the width. A final newline does not add an empty line. `\r` is skipped and has no width.
+
+**Limits (CT-02).** At most `CYDUI_MAX_STR` (256) bytes of a string are used. The cut falls on a character boundary: a sequence the limit would split is dropped whole, and `CYDUI_ERR_TEXT_TRUNCATED` is raised (informative, the text is still drawn). For `CYDUI_NTS` strings the search for the NUL stops at the limit, so an unterminated buffer is never read beyond it.
+
+**Control and bidirectional characters (CT-04).** These draw the fallback box even when the font has a glyph for them: C0 and C1 controls (including tab and DEL), U+061C, U+200E/200F, U+202A..202E and U+2066..2069. The set is wider than the two ranges written in CT-04 (it adds the marks and the C0/C1 controls); the bidi part can be compiled out with `CYDUI_FILTER_CONTROL=0`. Boundaries are tested with real glyphs on both sides of every range.
+
+**Malformed fonts (AB-16, CT-09).** The glyph bitmap is read only through `cydui_font_glyph_data`, which checks `offset + size <= bitmap_len` without overflow; the fallback index is checked before use; a font without a usable fallback is rejected (`CYDUI_ERR_BAD_ARG`). `cydui_font_validate` does the full check (order, bounds, fallback, metrics) for startup and tests. Culling uses `CYDUI_TEXT_REACH`, the worst-case distance of a glyph's ink from its line box (`ascent + 383`, from the int8 bearings and 255-row bitmaps), so skipping a line or a command can never change the image whatever the font says. A fuzz-built font with a tall ascent over a short line exposed exactly this once.
+
+**Measured on the ESP32 (Xtensa, `-Os`, 32-bit pointers).**
+
+| Item | Size |
+|------|------|
+| Whole core (`arena ctx font raster text types utf8`) | 6.8 KB of code (budget NFR-50: 60 KB) |
+| `cydui_sans_12` / `_16` / `_24` | 9.3 / 13.1 / 23.4 KB (45.7 KB for the three; R-07) |
+| `cydui_cmd` | 36 bytes (a list of 64 commands: 2.3 KB) |
+| `cydui_ctx` / `cydui_font` / `cydui_glyph` | 52 / 20 / 16 bytes |
+
+The line rasterizer uses `int64_t`, which the 32-bit core emulates; it is still to be timed on the board (R-02, It5).
+
 ## Backends (FR-60, FR-61)
 ```c
 typedef struct {
@@ -53,14 +84,22 @@ typedef struct {
 |-------|----------------|
 | `test_arena`, `test_color`, `test_ctx` | arena limits, color math (all 65536 colors round-trip, blend endpoints), init validation, command overflow (CT-01), bitmap length (CT-10) |
 | `test_raster` | exact pixels, clipping, symmetry, AA area vs. geometry, strip-height independence |
-| `test_golden` | six scenes pinned by FNV-1a 64 hashes of the framebuffer (`tests/golden/*.hash`); the PNG of every run goes to `build/**/golden/` for looking at |
-| `fuzz_cmds` (clang) | random call sequences with extreme parameters under ASan/UBSan, asserting strip-height independence (CT-12) |
+| `test_golden` | nine scenes (six drawing, three text) pinned by FNV-1a 64 hashes of the framebuffer (`tests/golden/*.hash`); the PNG of every run goes to `build/**/golden/` for looking at |
+| `test_utf8` | 45 vectors, every scalar round-trips, every truncation, exhaustive 1-3 byte inputs on exact-size heap buffers |
+| `test_font`, `test_fonts_bundled` | lookup and fallback, validation of every kind of malformed font, bounds-checked glyph access; every bundled font validates and the Portuguese subset has ink |
+| `test_text` | layout by hand on a monospace font (wrap, long words, newlines, edge cases, termination over many inputs), the length limit and its character boundary, alignment, filter boundaries with real glyphs on both sides, the text arena, malformed fonts, ink far from the line box, strip-height independence |
+| `fuzz_cmds` (clang) | random call sequences with extreme parameters, text with arbitrary bytes and fonts built from the input, under ASan/UBSan, asserting strip-height independence (CT-12). Seed inputs in `tests/fuzz_seeds/` are run by `ctest`. |
+| `fuzz_utf8` (clang) | the decoder always progresses, stays inside the buffer, only returns scalar values, and re-encodes what it decoded |
 
 Updating a golden: run `CYDUI_UPDATE_GOLDEN=1 ./build/tests/test_golden`, **open the PNGs first**, then commit the changed `.hash` files together with the code change that caused them.
 
-Test-quality note: the unit tests were mutation-checked. Breaking the AA corner bias, the line distance rounding or the bitmap strip offset each makes a test fail. The first attempt at the corner bias survived (tests only checked symmetry), which is why the area tests exist. The fuzz harness was strengthened the same way after it failed to find an injected strip bug.
+Test-quality note: the unit tests and fuzzers were mutation-checked in both iterations, about 40 deliberate bugs in the rasterizer, the UTF-8 decoder, the font module and the text code, each of which must make a test or the fuzzer fail. Several first attempts survived and each hole was closed by a specific test:
+- It1: breaking the AA corner bias (the tests only checked symmetry, hence the area tests), and a fuzz harness that did not find an injected strip bug until its parameter generation was rewritten.
+- It2: a filter boundary one code point off (hence real glyphs on both sides of every range), a culling distance that was too small (hence fonts whose ink lands far from the line box, on screen), a string that was not copied (the overwriting buffer must differ visibly), a blank-glyph rule, and again a fuzz harness that found nothing until it got seed inputs and a mild mode for the generated fonts.
 
 ## Known limits and follow-ups
 - Line rasterization is per pixel over the clipped bounding box with `int64_t` math; fine on the PC, to be measured on the ESP32 in It5 (R-02). A per-row span restriction is the obvious optimization if needed.
 - Bitmap data for `RGB565` is read with `memcpy`, so unaligned data is fine; the A4 reader assumes the layout above.
-- No dirty regions yet (FR-05, It5), no text (It2), no widgets (It3).
+- Text: no kerning, whole-pixel advances, no real bidirectional text or shaping (the bidi marks are drawn as boxes, not applied), no ligatures, no ellipsis. The 12 px size is the most sensitive to the missing kerning.
+- FR-13 (icon fonts) is only partly done: `fontgen.py` takes any TTF and any code point range, so an icon font works the same way, but no icon set is shipped yet (It4).
+- No dirty regions yet (FR-05, It5), no widgets (It3).

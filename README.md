@@ -2,7 +2,7 @@
 
 Immediate-mode UI library in C for small embedded displays, targeting the ESP32 "Cheap Yellow Display" (ESP32-2432S028R: ILI9341 320x240 + XPT2046 touch). egui-style API, strip-based rendering (no full framebuffer), swappable themes from clean/modern to retro to cyberpunk.
 
-**Status:** iteration 1 done: drawing core (rect, rounded rect, line, bitmap, gradient with antialiasing), strip rasterizer, in-memory and SDL backends. No text or widgets yet. See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md).
+**Status:** iteration 2 done: drawing core (rect, rounded rect, line, bitmap, gradient with antialiasing), strip rasterizer, in-memory and SDL backends, UTF-8 text with bitmap fonts (measurement, wrapping, alignment). No widgets yet. See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md).
 
 ## Building and running (PC)
 
@@ -14,6 +14,7 @@ ctest --test-dir build                    # unit tests and golden images
 cmake -S . -B build/clang -G Ninja -DCMAKE_C_COMPILER=clang -DCYDUI_SANITIZE=ON
 cmake --build build/clang && ctest --test-dir build/clang
 ./build/examples/shapes/shapes            # demo scene in an SDL window (needs SDL2)
+./build/examples/text/text                # text demo: press or drag the mouse to reflow a paragraph
 ./build/examples/shapes/shapes --headless --hash --png shapes.png
 ```
 
