@@ -1,0 +1,5 @@
+add_executable(test_smoke test_smoke.c)
+target_link_libraries(test_smoke PRIVATE cydui)
+set_target_properties(test_smoke PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+target_compile_options(test_smoke PRIVATE -pedantic -Wall -Wextra -Werror)
+add_test(NAME smoke COMMAND test_smoke)
