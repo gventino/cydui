@@ -7,16 +7,20 @@ Immediate-mode UI library in C for small embedded displays, targeting the ESP32 
 ## Building and running (PC)
 
 ```sh
-./ci.sh                                   # gcc + clang with ASan/UBSan, goldens, fuzz, static checks (+ hw-probe build)
-
 cmake -S . -B build -G Ninja && cmake --build build
 ctest --test-dir build                    # unit tests and golden images
+
+# sanitizers (ASan/UBSan) and, with clang, a short fuzz run of the command parser
+cmake -S . -B build/clang -G Ninja -DCMAKE_C_COMPILER=clang -DCYDUI_SANITIZE=ON
+cmake --build build/clang && ctest --test-dir build/clang
 ./build/examples/shapes/shapes            # demo scene in an SDL window (needs SDL2)
 ./build/examples/shapes/shapes --headless --hash --png shapes.png
 ```
 
 Golden images: the hash of each scene is in `tests/golden/`, and every run writes the PNGs to `build/golden/`.
 After an intended rendering change, look at the PNGs and run `CYDUI_UPDATE_GOLDEN=1 ./build/tests/test_golden`.
+
+There is no hosted CI. Checks run on the developer machine (an untracked `ci.sh` script chains the builds above).
 
 ## ESP-IDF
 

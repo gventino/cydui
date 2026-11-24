@@ -3,7 +3,7 @@
 Rule: an iteration only closes when its **acceptance criteria** pass. Each iteration lists the FR/NFR/CT it covers. No time estimates; size is "one focused work session" and may be split.
 
 ## It0 — Setup and "hello" on the CYD
-- **Deliverables:** ESP-IDF installed and version pinned; `uucp` configured; `cydui` repo with CMake, `idf_component.yml`, `.gitignore`, `LICENSE` (MIT), README; local CI (`ci.sh` script: SDL build + tests); minimal firmware that fills the screen with colors and prints raw touch readings to the console.
+- **Deliverables:** ESP-IDF installed and version pinned; `uucp` configured; `cydui` repo with CMake, `idf_component.yml`, `.gitignore`, `LICENSE` (MIT), README; local checks (an untracked `ci.sh` helper: host builds + tests); minimal firmware that fills the screen with colors and prints raw touch readings to the console.
 - **Mandatory findings on the board:** real pins (SPI, backlight, touch), color inversion, RGB/BGR order, rotation, max stable SPI frequency.
 - **Acceptance:** `idf.py flash monitor` works without sudo; screen shows red/green/blue in the right order; log shows raw x/y on touch; results recorded in `docs/09-hardware-notes.md`.
 - **Status: done.** Findings in `docs/09-hardware-notes.md`. Deviation from the plan: the panel ID cannot be read back on this board, so the controller is selected by Kconfig instead of detected.
@@ -49,7 +49,7 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 
 ## It8 — Hardening and release 0.1
 - **Deliverables:** extended fuzzing (commands, events, text_input), STRIDE review against the implementation, API docs (comments + guide), finished examples, README with security limits, `CHANGELOG`, `v0.1.0` tag.
-- **Acceptance:** clean CI (sanitizers + short fuzz); `06` checklist with all "Lib"-owned CT-xx ✔; README describes residual risks R-20..22.
+- **Acceptance:** clean local checks (sanitizers + short fuzz); `06` checklist with all "Lib"-owned CT-xx ✔; README describes residual risks R-20..22.
 - **Covers:** NFR-22, 23, 42, 50; all library CTs.
 
 ## Post-0.1 (separate repo)

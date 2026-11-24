@@ -2,6 +2,8 @@
 
 Principle: **KISS** — few dependencies, everything replaceable, core with no external dependencies.
 
+> **No hosted CI.** There is no CI service or workflow in this repository. Where the docs say "CI" or "local checks", they mean the checks run on the developer machine: `ctest`, the sanitizer and fuzz builds described in the README, and an untracked `ci.sh` helper that chains them.
+
 ## Languages
 | Use | Language |
 |-----|----------|
@@ -24,7 +26,7 @@ Principle: **KISS** — few dependencies, everything replaceable, core with no e
 ## PC development
 | Item | Choice |
 |------|--------|
-| Compiler | gcc ≥ 13 and clang (CI runs both) |
+| Compiler | gcc ≥ 13 and clang (the local checks run both) |
 | Build | CMake ≥ 3.20 + Ninja |
 | Window/input | **SDL2** (`libsdl2-dev` / Arch package: `sdl2`) |
 | Sanitizers | ASan + UBSan |

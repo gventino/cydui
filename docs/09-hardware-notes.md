@@ -55,4 +55,4 @@ Because GPIO 2, 12 and 15 are strapping pins, CT-14 validates against the board 
 ## Process notes
 - Flashing works without root once the user is in the `uucp` group (`newgrp uucp` or a new login). Auto-reset via RTS worked, no need to hold BOOT.
 - The firmware that came on the board was overwritten during this iteration (it was not backed up).
-- `ci.sh` builds `hw-probe` too, so the Kconfig/sdkconfig defaults must always build from a clean checkout.
+- The local check script (untracked `ci.sh`) builds `hw-probe` too, so the Kconfig/sdkconfig defaults must always build from a clean checkout.

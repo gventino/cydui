@@ -16,7 +16,7 @@ Type: **P** preventive, **D** detective, **C** corrective/safe degradation. Owne
 | CT-09 | Validation at registration: themes/fonts with null required fields are rejected in `set_theme`/`init`. Optional paint functions fall back to defaults. | P | Lib | AB-16 | Unit. |
 | CT-10 | Bitmap: `w*h*bpp` checked against the provided `len` before rasterizing; multiplication overflow checked. | P | Lib | AB-17 | Unit + fuzz. |
 | CT-11 | Threading contract: the library API is **not thread-safe**; call it only from the UI task. The app passes data through a queue/copy. Debug assert if called from another task. | P | Lib | AB-15 | Doc + assert. |
-| CT-12 | SDL backend and tests built with `-fsanitize=address,undefined`; fuzzing (libFuzzer) of: UTF-8, command parser, event sequences, `text_input`. | D | Lib | all memory-related | CI. |
+| CT-12 | SDL backend and tests built with `-fsanitize=address,undefined`; fuzzing (libFuzzer) of: UTF-8, command parser, event sequences, `text_input`. | D | Lib | all memory-related | Local checks. |
 | CT-13 | ESP32 build with `-fstack-protector-strong`, `-Wformat-security`, `CONFIG_COMPILER_STACK_CHECK_MODE_STRONG`, heap poisoning in debug. | P/D | Lib/App | AB-01, 15 | Config in `sdkconfig.defaults`. |
 | CT-14 | ESP32 backend Kconfig validates pins at compile time: rejects flash pins (6–11) and input-only pins (34–39) used as outputs. Strapping pins (0, 2, 5, 12, 15) are accepted for the classic CYD board profile and produce a warning for any other profile, since the CYD wires its display to GPIO 2, 12 and 15. | P | Lib | AB-18 | `_Static_assert` in `hw-probe`; same check in the It5 backend. |
 | CT-15 | Task watchdog registered in the UI loop; frame time budget (aborts the UI pass if exceeded). | D/C | Lib | AB-07, 08 | Load test. |
@@ -64,7 +64,7 @@ Probability (P) and impact (I): 1–3. Score = P×I. Residual after controls.
 | R-06 | Tearing/flicker from partial flush with DMA. | 2 | 2 | 4 | Double buffering, flush by whole strips; simple synchronization. | Low |
 | R-07 | Generated fonts weigh on flash (many sizes/glyphs). | 2 | 2 | 4 | Per-app subset, 4bpp, optional RLE; NFR-50 budget. | Low |
 | R-08 | Determinism gaps between SDL and ESP32 (floating point, operation order). | 2 | 2 | 4 | Integer/fixed-point raster; no `float` in the pixel path. | Low |
-| R-09 | ESP-IDF version drift breaking the backend. | 2 | 2 | 4 | Pin version in `08-tech-stack.md`; build CI. | Low |
+| R-09 | ESP-IDF version drift breaking the backend. | 2 | 2 | 4 | Pin version in `08-tech-stack.md`; build check. | Low |
 
 ### Project risks
 | ID | Risk | P | I | Score | Response |

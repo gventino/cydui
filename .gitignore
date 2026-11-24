@@ -6,3 +6,6 @@ dependencies.lock
 tools/.venv/
 *.pyc
 __pycache__/
+
+# Local check script: runs on the developer machine only, there is no hosted CI.
+ci.sh

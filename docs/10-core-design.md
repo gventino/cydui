@@ -10,7 +10,7 @@ How the core of `cydui` works as of iteration 1. Requirements are in `01`/`02`; 
 The core (`src/`, `include/`) is C99 and depends on nothing but `stdint.h`, `stddef.h`, `stdbool.h` and `string.h`. Backends are separate libraries: `backends/mem` (framebuffer in RAM, hash, PNG), `backends/sdl` (window and mouse); `backends/esp32` arrives in It5.
 
 ## Memory (FR-01, NFR-11, NFR-12, CT-01)
-- The library never calls `malloc`; `ci.sh` checks that `libcydui.a` has no reference to it, and no writable global or static data (NFR-21).
+- The library never calls `malloc`; the local check script checks that `libcydui.a` has no reference to it, and no writable global or static data (NFR-21).
 - `cydui_init` receives two blocks from the caller: memory for the command list and memory for the render strip. The command list takes as many whole `cydui_cmd` as fit; the strip height is `strip_mem_size / (width * 2)`, capped at the screen height. Too little memory returns `CYDUI_ERR_NO_MEMORY` instead of failing later.
 - `cydui_arena` is the bump allocator used for that carving. It aligns the address (not the offset), rejects zero sizes and non-power-of-two alignments, and cannot wrap on huge sizes.
 - Overflow of the command list drops the command and sets `CYDUI_ERR_CMD_OVERFLOW`; the frame still renders. Commands that would draw nothing (empty, fully clipped, alpha 0) are dropped *before* the capacity check, so they cost nothing.
@@ -46,7 +46,7 @@ typedef struct {
 - `flush_strip` receives `area->w * area->h` pixels with stride `area->w`. Today it is always a full-width strip; the rectangle form is what lets the ESP32 backend send dirty regions in It5.
 - **Deviations from the requirements text:**
   - `frame_end` was added to FR-60: the SDL backend needs it to present the frame.
-  - FR-61's "headless mode with framebuffer hash" is the separate `mem` backend instead of a mode of the SDL backend. It has no dependencies, so every test and CI run uses it; the SDL backend is only the window.
+  - FR-61's "headless mode with framebuffer hash" is the separate `mem` backend instead of a mode of the SDL backend. It has no dependencies, so every test and local check run uses it; the SDL backend is only the window.
 
 ## Testing
 | Layer | What it checks |

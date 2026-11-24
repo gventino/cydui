@@ -23,21 +23,21 @@ All must be **measurable**; the "Verification" column says how.
 |----|-------------|--------------|
 | NFR-20 | Core in **C99**, with no dependency on ESP-IDF, SDL or libc beyond `string.h`, `stdint.h`, `stddef.h`, `stdbool.h`, `math.h` (optional). | CI builds the core with `-std=c99 -pedantic -Wall -Wextra -Werror` on gcc and clang. |
 | NFR-21 | No mutable globals in the core (everything lives in `cydui_ctx`); allows multiple instances in tests. | Review + `nm` showing no core `.data/.bss` symbols. |
-| NFR-22 | No ASan/UBSan findings in the test suite and SDL backend fuzzing. | CI. |
-| NFR-23 | Core unit test coverage ≥ 80% of lines (gcov). | CI. |
+| NFR-22 | No ASan/UBSan findings in the test suite and SDL backend fuzzing. | Local checks. |
+| NFR-23 | Core unit test coverage ≥ 80% of lines (gcov). | Local checks. |
 
 ## Determinism and testability
 | ID | Requirement | Verification |
 |----|-------------|--------------|
 | NFR-30 | Same events + same injected clock → bit-identical framebuffer across runs and between SDL and ESP32 (shared rasterizer). | Golden hashes. |
-| NFR-31 | Each theme has a golden-image test per widget and state. | CI. |
+| NFR-31 | Each theme has a golden-image test per widget and state. | Local checks. |
 
 ## Developer usability
 | ID | Requirement | Verification |
 |----|-------------|--------------|
 | NFR-40 | A "hello" app in ≤ 25 lines of C. | Example. |
 | NFR-41 | Edit→see cycle on PC < 5 s (incremental build + SDL window). | Timing. |
-| NFR-42 | Every public function documented (Doxygen-style comment), with an example for widgets. | CI check (script). |
+| NFR-42 | Every public function documented (Doxygen-style comment), with an example for widgets. | Local check (script). |
 | NFR-43 | Creating a new theme: copy a base theme and change the table; no core changes. | `retro` theme built this way. |
 
 ## Footprint
@@ -55,5 +55,5 @@ All must be **measurable**; the "Verification" column says how.
 | ID | Requirement | Verification |
 |----|-------------|--------------|
 | NFR-70 | Primary target: ESP32-2432S028R (ILI9341 + XPT2046). Variants (ST7789, color inversion, touch on a separate bus) via Kconfig. | Test on the user's board; other variants best-effort. |
-| NFR-71 | ESP-IDF **v5.5.x** (pinned to v5.5.6 in `08-tech-stack.md`). | CI/local build. |
+| NFR-71 | ESP-IDF **v5.5.x** (pinned to v5.5.6 in `08-tech-stack.md`). | Local build. |
 | NFR-72 | Permissive license (MIT) to ease distribution. | `LICENSE` file. |
