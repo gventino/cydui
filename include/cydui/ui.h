@@ -74,6 +74,13 @@ static inline bool cydui_id_eq(cydui_id a, cydui_id b)
 #define CYDUI_MAX_LAYOUT_DEPTH 8
 #endif
 
+/** Where a child (or the whole group of children) sits in the room its container has. */
+typedef enum {
+    CYDUI_PLACE_START, /**< top or left: the default */
+    CYDUI_PLACE_CENTER,
+    CYDUI_PLACE_END    /**< bottom or right */
+} cydui_place;
+
 typedef enum {
     CYDUI_LAYOUT_ROOT,
     CYDUI_LAYOUT_ROW,
@@ -113,6 +120,12 @@ typedef struct {
     int16_t view_y;        /**< scroll areas: top of the window (y0 moves with the content) */
     int16_t item_h;        /**< lists: height of one item */
     uint8_t scroll_flags;  /**< CYDUI_SCROLL_F_* */
+    uint8_t place_cross, place_main; /**< cydui_place of the children across and along the container */
+    uint8_t keep_ext;      /**< the parent places its children: remember how big this container is */
+    uint8_t card;          /**< opened by cydui_begin_card */
+    uint8_t known;         /**< its size from the previous frame was found in the state table */
+    int16_t prev_w, prev_h; /**< size of the children as measured in the previous frame */
+    uint32_t cmd_start;    /**< cards: where in the command list the card's children begin */
 } cydui_region;
 
 /* ---- input ---- */
@@ -276,6 +289,27 @@ void cydui_end_padding(cydui_ui *ui);
 
 /** Gap before each of the next children of the current container (the style's spacing by default). */
 void cydui_set_spacing(cydui_ui *ui, int px);
+
+/**
+ * How the children of the container that is open now are placed. Call these right after opening it:
+ * they apply to the children placed after the call.
+ *
+ * cross: each child is put at the start, the middle or the end of the container's extent across its
+ * main axis (a row's children vertically, a column's horizontally). The extent is the container's
+ * own size when it has one (cydui_next_width/height, stretch or fill) and otherwise the size of its
+ * tallest/widest child, so a label and a button in a row are centered on each other.
+ *
+ * main: the whole group of children is put at the start, middle or end of the container along its
+ * main axis. That needs room to spare, so the container must have a size (cydui_next_width,
+ * stretch, fill); a container that just wraps its children has none and nothing moves.
+ *
+ * The sizes come from the previous frame (the same one frame of delay as `fill`; cydui_ui_end asks
+ * for another frame while they settle), so in the first frame everything sits at the start. Grids
+ * ignore both. The default is CYDUI_PLACE_START. A container that places its children uses one
+ * entry of the state table, and so does every container directly inside it.
+ */
+void cydui_set_cross_align(cydui_ui *ui, cydui_place place);
+void cydui_set_main_align(cydui_ui *ui, cydui_place place);
 /** A gap of `px` along the container's main axis. */
 void cydui_spacer(cydui_ui *ui, int px);
 /** A gap that takes a share of the space left along the main axis. */
@@ -319,6 +353,15 @@ cydui_rect cydui_layout_avail(const cydui_ui *ui);
 #define CYDUI_COLUMN(ui) CYDUI_SCOPE_(cydui_begin_column(ui), cydui_end_column(ui))
 #define CYDUI_GRID(ui, cols) CYDUI_SCOPE_(cydui_begin_grid((ui), (cols)), cydui_end_grid(ui))
 #define CYDUI_PADDING(ui, px) CYDUI_SCOPE_(cydui_begin_padding((ui), (px)), cydui_end_padding(ui))
+
+/**
+ * A card: a column with the theme's padding on all sides and the theme's PANEL behind it, exactly
+ * as big as what is inside (or as the size given with cydui_next_width/height/stretch/fill), already
+ * in the first frame. The panel is painted when the card ends and moved behind its children.
+ */
+void cydui_begin_card(cydui_ui *ui);
+void cydui_end_card(cydui_ui *ui);
+#define CYDUI_CARD(ui) CYDUI_SCOPE_(cydui_begin_card(ui), cydui_end_card(ui))
 
 /* ---- scrolling ---- */
 

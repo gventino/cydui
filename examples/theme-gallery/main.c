@@ -98,6 +98,7 @@ static void ui_frame(cydui_ui *ui, app_t *app)
         }
     }
     CYDUI_ROW(ui) {
+        cydui_set_cross_align(ui, CYDUI_PLACE_CENTER); /* the counter sits in the middle of the buttons */
         if (cydui_button(ui, "Salvar")) {
             app->saves++;
         }

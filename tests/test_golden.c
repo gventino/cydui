@@ -440,6 +440,55 @@ static void scroll_scene(cydui_ui *ui, bool list, bool jump, int32_t y)
     cydui_ui_end(ui);
 }
 
+/* A card with a label centered next to a button and a group of buttons pushed to the right. */
+static void card_scene(cydui_ui *ui)
+{
+    static bool flags[2][2];
+    int side;
+
+    cydui_ui_begin(ui, 0);
+    cydui_draw_rect(&ui->ctx, (cydui_rect){0, 0, 160, 240}, th_light.style.bg, 255);
+    cydui_draw_rect(&ui->ctx, (cydui_rect){160, 0, 160, 240}, th_dark.style.bg, 255);
+    CYDUI_ROW(ui) {
+        for (side = 0; side < 2; side++) {
+            cydui_set_theme(ui, side ? &th_dark : &th_light);
+            cydui_push_id_int(ui, side);
+            cydui_next_width(ui, 144);
+            CYDUI_CARD(ui) {
+                cydui_label(ui, "Nova tarefa");
+                CYDUI_ROW(ui) {
+                    cydui_set_cross_align(ui, CYDUI_PLACE_CENTER);
+                    cydui_label(ui, "Prazo");
+                    cydui_button(ui, "Hoje");
+                }
+                cydui_checkbox(ui, "Lembrar", &flags[side][0]);
+                cydui_toggle(ui, "Repetir", &flags[side][1]);
+                cydui_next_stretch(ui);
+                CYDUI_ROW(ui) {
+                    cydui_set_main_align(ui, CYDUI_PLACE_END);
+                    cydui_button(ui, "Nao");
+                    cydui_button(ui, "Ok");
+                }
+            }
+            cydui_pop_id(ui);
+        }
+    }
+    cydui_ui_end(ui);
+}
+
+static void test_clean_card(void)
+{
+    int i;
+
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    cydui_theme_init_clean(&th_light);
+    cydui_theme_init_clean_dark(&th_dark);
+    for (i = 0; i < 4; i++) { /* the first frames let the alignment settle */
+        card_scene(&ui_rig.ui);
+    }
+    golden_check_mem("clean_card", &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
 static void scroll_golden(const char *name, bool list, int32_t y)
 {
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
@@ -572,6 +621,7 @@ int main(void)
     RUN_TEST(test_clean_tabs);
     RUN_TEST(test_clean_scroll);
     RUN_TEST(test_clean_list);
+    RUN_TEST(test_clean_card);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();
 }

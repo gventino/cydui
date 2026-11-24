@@ -118,6 +118,29 @@ int16_t cydui_strip_height(const cydui_ctx *ctx)
     return ctx->strip_h;
 }
 
+static void cmd_reverse(cydui_ctx *ctx, uint32_t from, uint32_t to)
+{
+    while (from + 1 < to) {
+        cydui_cmd tmp = ctx->cmds[from];
+        ctx->cmds[from] = ctx->cmds[to - 1];
+        ctx->cmds[to - 1] = tmp;
+        from++;
+        to--;
+    }
+}
+
+void cydui__cmd_move_tail(cydui_ctx *ctx, uint32_t start, uint32_t mid)
+{
+    uint32_t end = ctx->cmd_len;
+
+    if (start >= mid || mid >= end || end > ctx->cmd_cap) {
+        return; /* nothing before, or nothing after: already in order */
+    }
+    cmd_reverse(ctx, start, mid);
+    cmd_reverse(ctx, mid, end);
+    cmd_reverse(ctx, start, end);
+}
+
 void cydui_set_clip(cydui_ctx *ctx, cydui_rect r)
 {
     ctx->clip = cydui_rect_intersect(r, screen_rect(ctx));

@@ -473,6 +473,68 @@ static void test_a_long_pause_between_frames_counts_as_one_hundred_ms(void)
     TEST_ASSERT_EQUAL_INT32(60 * 256 + 27980, offset());
 }
 
+
+/* ---- scrolled content is the unscrolled content, moved ---- */
+
+static cydui_color snapshot[RIG_W * RIG_H];
+
+static void rich_frame(int32_t scroll_y, bool jump)
+{
+    static bool flags[4];
+    static int32_t sv = 40;
+
+    rig_advance(&rig, 16);
+    if (jump) {
+        cydui_scroll_to(&rig.ui, "s", scroll_y);
+    }
+    cydui_ui_begin(&rig.ui, 0);
+    CYDUI_SCROLL(&rig.ui, "s", 100) {
+        cydui_label(&rig.ui, "Titulo");
+        CYDUI_ROW(&rig.ui) {
+            cydui_button(&rig.ui, "Um");
+            cydui_button(&rig.ui, "Dois");
+        }
+        CYDUI_CARD(&rig.ui) {
+            cydui_label(&rig.ui, "Dentro do cartao");
+            cydui_checkbox(&rig.ui, "Marcar", &flags[0]);
+        }
+        cydui_toggle(&rig.ui, "Ligar", &flags[1]);
+        cydui_next_width(&rig.ui, 120);
+        cydui_slider(&rig.ui, "Vol", &sv, 0, 100);
+        cydui_progress(&rig.ui, 50, 100);
+        cydui_button(&rig.ui, "Fim");
+    }
+    cydui_ui_end(&rig.ui);
+}
+
+static void test_scrolled_content_is_the_unscrolled_content_moved_up(void)
+{
+    static const int offsets[] = {17, 60, 101};
+    size_t k;
+
+    for (k = 0; k < sizeof(offsets) / sizeof(offsets[0]); k++) {
+        int x, y, shift = offsets[k];
+
+        start();
+        rich_frame(0, false);
+        rich_frame(0, false);
+        rich_frame(0, false);
+        memcpy(snapshot, rig.fb, sizeof(snapshot));
+        rich_frame(shift, true);
+        rich_frame(shift, false);
+        TEST_ASSERT_EQUAL_INT32(shift * 256, offset());
+        for (y = 8; y < 8 + 100 - shift; y++) {
+            for (x = 8; x < 300; x++) { /* left of the scroll bar */
+                if (rig.fb[y * RIG_W + x] != snapshot[(y + shift) * RIG_W + x]) {
+                    char msg[80];
+                    snprintf(msg, sizeof(msg), "offset %d: pixel (%d,%d) differs", shift, x, y);
+                    TEST_FAIL_MESSAGE(msg);
+                }
+            }
+        }
+    }
+}
+
 /* ---- scroll_to ---- */
 
 static void test_scroll_to_jumps_and_clamps(void)
@@ -1027,6 +1089,7 @@ int main(void)
     RUN_TEST(test_without_a_clock_there_is_no_coasting);
     RUN_TEST(test_a_frozen_clock_neither_coasts_nor_hangs);
     RUN_TEST(test_a_long_pause_between_frames_counts_as_one_hundred_ms);
+    RUN_TEST(test_scrolled_content_is_the_unscrolled_content_moved_up);
     RUN_TEST(test_scroll_to_jumps_and_clamps);
     RUN_TEST(test_scroll_to_stops_a_coast);
     RUN_TEST(test_a_scroll_area_inside_another_is_a_plain_column);

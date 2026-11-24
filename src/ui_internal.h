@@ -25,6 +25,9 @@ bool cydui__open_region(cydui_ui *ui, cydui_layout_kind kind, int cols, int pad)
 bool cydui__open_region_at(cydui_ui *ui, cydui_layout_kind kind, cydui_rect rect);
 void cydui__end_kind(cydui_ui *ui, cydui_layout_kind kind);
 
+/** Moves the commands [mid, end) of the list in front of [start, mid), keeping the order within each. */
+void cydui__cmd_move_tail(cydui_ctx *ctx, uint32_t start, uint32_t mid);
+
 /** Draws the bar and releases the clip of the scroll area that is the innermost open container. */
 void cydui__scroll_finish(cydui_ui *ui);
 
