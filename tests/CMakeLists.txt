@@ -23,6 +23,8 @@ cydui_test(test_ctx)
 cydui_test(test_raster)
 cydui_test(test_utf8)
 cydui_test(test_font)
+cydui_test(test_fonts_bundled)
+target_link_libraries(test_fonts_bundled PRIVATE cydui_fonts)
 
 # Golden images: hashes live in tests/golden, PNGs for inspection go to <build>/golden.
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/golden)

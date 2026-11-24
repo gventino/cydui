@@ -51,6 +51,13 @@ target_link_libraries(cydui_mem PUBLIC cydui)
 set_target_properties(cydui_mem PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(cydui_mem PRIVATE ${CYDUI_STRICT_FLAGS})
 
+# Bundled bitmap fonts (SIL OFL, see fonts/LICENSE-OFL.txt). Optional and kept out of the core.
+add_library(cydui_fonts STATIC fonts/cydui_sans_12.c fonts/cydui_sans_16.c fonts/cydui_sans_24.c)
+target_include_directories(cydui_fonts PUBLIC fonts)
+target_link_libraries(cydui_fonts PUBLIC cydui)
+set_target_properties(cydui_fonts PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+target_compile_options(cydui_fonts PRIVATE ${CYDUI_STRICT_FLAGS})
+
 # SDL2 backend: window and mouse.
 if(CYDUI_BUILD_SDL)
     find_package(PkgConfig QUIET)
