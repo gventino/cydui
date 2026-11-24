@@ -64,6 +64,37 @@ The core (`src/`, `include/`) is C99 and depends on nothing but `stdint.h`, `std
 
 The line rasterizer uses `int64_t`, which the 32-bit core emulates; it is still to be timed on the board (R-02, It5).
 
+## Immediate-mode UI (FR-20..24, FR-30, FR-40, FR-41, CT-02, CT-05, CT-07, CT-11)
+
+`include/cydui/ui.h`, `src/{ui,layout,widgets}.c`. `cydui_ui` wraps the `cydui_ctx` (the rasterizer is untouched) and adds ids, a state table, input, layout and the widgets. The application calls the widgets again every frame:
+
+```c
+while (cydui_ui_begin(&ui, clear)) {      /* polls input, opens the frame; false once QUIT arrived */
+    if (cydui_button(&ui, "Add")) add();
+    cydui_ui_end(&ui);                     /* closes containers, renders; true = "draw another frame soon" */
+}
+```
+`CYDUI_STORAGE(name, w, h, strip_rows, cmds, text_bytes, state_entries)` declares all the memory as one static object and `CYDUI_CONFIG(name, backend, &style)` builds the config over it, so `examples/hello` is 22 lines (NFR-40, checked by a test). The library still never allocates.
+
+**Ids and state (CT-07).** An id is a 32-bit FNV-1a hash of the label mixed with the ids pushed by `cydui_push_id_*`, plus a 16-bit check computed by a different function (sdbm style), so two labels that collide in the hash stay apart in the state table. Both are pinned in the tests against values computed independently. `"Done##3"` shows "Done" and hashes the whole string, so a list needs no `push_id`. Containers do not scope ids: the same label twice in one frame collides wherever it is, and in debug builds (`CYDUI_DEBUG_IDS`) a per-frame set flags it with `CYDUI_ERR_ID_COLLISION`. The state table has a fixed size in caller memory and is searched linearly (a few dozen entries; hashing would only add code). Entries not looked up for `CYDUI_STATE_TTL` (120) frames are recycled by a sweep of at most 8 entries per frame; when the table is full the entry unused for longest is replaced, never the active widget's, and with no memory at all widgets simply have no state. Today only containers use it, to remember their `fill` numbers; scroll positions and animations will.
+
+**Input (FR-40, FR-41, CT-05, CT-06).** `cydui_ui_begin` polls the backend (at most 64 events) into a queue of 32. Consecutive MOVEs merge; when the queue is full the oldest MOVE is dropped first and then the oldest event, so the newest state always survives. At most 16 events are processed per frame, coordinates are clamped to the screen and unknown event types are ignored. The pointer state machine copes with disorder: a release without a press is ignored, a press while one is held cancels the old one, and at most one press edge and one release edge are taken per frame (a second press waits for the next frame).
+- *Tap:* press and release on the same widget, within the tap slop (a distance, 10 px by default: exactly 10 is a tap, 11 is not) and without turning into a long press. Travel that comes back to the start does not undo a drag.
+- *Long press:* the pointer held still for `long_press_ms` (500); it fires once, also when the release arrives in a frame that came late, and unsigned subtraction keeps it right across the 32-bit clock wrap. Without a clock (`now_ms == NULL`) it never fires.
+- *Owner of a press:* the first widget, in call order, whose rectangle cut by the clip contains the point where the press **started**; a press has one owner even when it ends in the same frame; a disabled widget does not capture it. `cydui_interact` returns `pressed`, `clicked`, `long_pressed`, `dragging`, `released` and the drag delta, and is public (it is the base of custom widgets) but still unstable.
+- `cydui_ui_end` returns true while a press is held (so a long press can fire in an app that redraws on demand), while events wait, and while the layout is still settling.
+
+**Layout (FR-23, FR-24, R-05).** A cursor model: a container places its children one after the other and a position is final the moment a widget is placed, so hit-testing happens in the same frame. The gap goes *before* each child, so `cydui_set_spacing` takes effect at once. Rows go left to right with their children's tops aligned, columns (and the screen, which has a margin of one spacing) top to bottom, grids fill rows of equal cells, padding insets its children. `cydui_next_width/height/fill/stretch/disabled` apply to the next widget or container only and are cleared at the start of every frame.
+- *Fill (the frame of delay):* `fill` children share the space left on the main axis. How many there are and how much the others take is only known at the end of the container, so each container keeps it in the state table (keyed by its position in its parent) and the next frame uses it. The first frame takes what is left; when the numbers change `cydui_ui_end` returns true, so the layout settles on the next frame even if the application only redraws on demand. The remainder of the division goes to the first sharers.
+- *Limits (CT-02):* 8 nested containers; a deeper one is ignored together with its end, an end without a begin or of the wrong kind is ignored, containers left open are closed at the end of the frame, each with `CYDUI_ERR_LAYOUT`. A `break` out of a `CYDUI_ROW(ui) { ... }` skips its end and is caught the same way. Grid columns are clamped to 1..64.
+- *Quirks, on purpose:* an empty container counts as a child of size zero and so adds one gap; a grid child keeps its own width unless it asks to `fill` its cell.
+
+**Widgets (FR-30).** `label`, `label_wrapped`, `button`, `checkbox`, `toggle`, `spacer`. Buttons, check boxes and switches are at least `style.min_target` (32 px) tall for resistive touch (R-04), a disabled widget is dimmed and neither reacts nor captures the press, text is clipped to its widget, and a widget returns true in the frame of the tap (a held control changes nothing, a release does, once). A frame accepts at most `CYDUI_MAX_WIDGETS` (512) widget calls; the rest do nothing and raise `CYDUI_ERR_TOO_MANY_WIDGETS` (AB-07). The style is a plain struct for now; all painting lives in the `paint_*` functions of `src/widgets.c` so that iteration 4 can put it behind the theme.
+
+**Threading (CT-11).** The API is not thread-safe. `cydui_ui_config.thread_id` (optional) names the creating task and debug builds flag a call from another one with `CYDUI_ERR_THREAD`. The ESP32 backend will supply `xTaskGetCurrentTaskHandle`.
+
+**Measured (Xtensa, `-Os`, release).** The whole library is 14.2 KB of code: `ui` 2.5 KB, `layout` 2.6 KB, `widgets` 2.1 KB on top of the 6.8 KB of the core. `cydui_ui` is 1004 bytes (of which the input state is 292, the layout stack 9 x 56) and a state entry 24 bytes; a UI with 64 commands, 20 strip rows, 512 bytes of text and 16 state entries needs about 14 KB of RAM, nearly all of it the strip. On a PC (`-O2`) a screen of 40 widgets that all fit (80 commands) costs 9.6 µs in the widget calls (0.24 µs per widget) and 300 µs to render. Neither number is for the board: the 3 ms budget of NFR-03 closes in iteration 5.
+
 ## Backends (FR-60, FR-61)
 ```c
 typedef struct {
@@ -90,11 +121,18 @@ typedef struct {
 | `test_text` | layout by hand on a monospace font (wrap, long words, newlines, edge cases, termination over many inputs), the length limit and its character boundary, alignment, filter boundaries with real glyphs on both sides, the text arena, malformed fonts, ink far from the line box, strip-height independence |
 | `fuzz_cmds` (clang) | random call sequences with extreme parameters, text with arbitrary bytes and fonts built from the input, under ASan/UBSan, asserting strip-height independence (CT-12). Seed inputs in `tests/fuzz_seeds/` are run by `ctest`. |
 | `fuzz_utf8` (clang) | the decoder always progresses, stays inside the buffer, only returns scalar values, and re-encodes what it decoded |
+| `test_ui_ids` | pinned ids and checks, `push_id` and `##`, collisions, the state table (recycling, eviction, the active widget, no memory), the thread check |
+| `test_ui_input` | taps, slop, long press and the clock wrap, wrong owners, out-of-order events, floods and overflowing bursts, clamping, clip |
+| `test_ui_layout` | hand-computed positions for rows, columns, grids and padding, modifiers, `fill` and its frame of delay, depth and balance |
+| `test_ui_widgets`, `test_hello` | behaviour by synthetic touch, looks (pressed, disabled, checked), labels at the length limit, the per-frame limit, lists, determinism; `hello` has at most 25 lines |
+| goldens `ui_*` | all widget states, the pressed button and the layout geometry, driven by synthetic touches |
+| `fuzz_ui` (clang) | random API calls (unbalanced containers, floods, any table size), structural invariants after each frame, an oracle on the active widget's state, and the same screen with two strip heights |
 
 Updating a golden: run `CYDUI_UPDATE_GOLDEN=1 ./build/tests/test_golden`, **open the PNGs first**, then commit the changed `.hash` files together with the code change that caused them.
 
-Test-quality note: the unit tests and fuzzers were mutation-checked in both iterations, about 40 deliberate bugs in the rasterizer, the UTF-8 decoder, the font module and the text code, each of which must make a test or the fuzzer fail. Several first attempts survived and each hole was closed by a specific test:
+Test-quality note: the unit tests and fuzzers were mutation-checked in all three iterations, about 40 deliberate bugs in the rasterizer, the UTF-8 decoder, the font module and the text code, each of which must make a test or the fuzzer fail. Several first attempts survived and each hole was closed by a specific test:
 - It1: breaking the AA corner bias (the tests only checked symmetry, hence the area tests), and a fuzz harness that did not find an injected strip bug until its parameter generation was rewritten.
+- It3 (about 130 mutations of the UI code): the id check hash was never tested for real, a one-byte-per-integer id passed because the values differed in the low byte, a release outside the widget but inside the slop was taken for a tap, a press was claimed by the pointer instead of where it started, queue overflow policies had no test, the width of a padded container was not measured, two sibling containers could share their `fill` state, and one real bug: `shown_len` read a byte past a label that fills `CYDUI_MAX_STR` exactly. The fuzzer needed the same lessons again (see its commit): separate memory objects for ASan, sizes from the input, a repeating vocabulary, an oracle for logic errors, seeds that reach the corners.
 - It2: a filter boundary one code point off (hence real glyphs on both sides of every range), a culling distance that was too small (hence fonts whose ink lands far from the line box, on screen), a string that was not copied (the overwriting buffer must differ visibly), a blank-glyph rule, and again a fuzz harness that found nothing until it got seed inputs and a mild mode for the generated fonts.
 
 ## Known limits and follow-ups
@@ -102,4 +140,5 @@ Test-quality note: the unit tests and fuzzers were mutation-checked in both iter
 - Bitmap data for `RGB565` is read with `memcpy`, so unaligned data is fine; the A4 reader assumes the layout above.
 - Text: no kerning, whole-pixel advances, no real bidirectional text or shaping (the bidi marks are drawn as boxes, not applied), no ligatures, no ellipsis. The 12 px size is the most sensitive to the missing kerning.
 - FR-13 (icon fonts) is only partly done: `fontgen.py` takes any TTF and any code point range, so an icon font works the same way, but no icon set is shipped yet (It4).
-- No dirty regions yet (FR-05, It5), no widgets (It3).
+- UI: children of a row are top-aligned (a label next to a 32 px button sits at the top, not centered), a whole group cannot yet be centered or right-aligned (only `fill` and `spacer_fill`), a container cannot draw a background sized to its content, and there is no hover, focus or keyboard navigation. The style is provisional until iteration 4.
+- No dirty regions yet (FR-05, It5), no scrolling (It4), no text input (It6), no animation (It7).

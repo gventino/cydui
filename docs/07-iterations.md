@@ -30,6 +30,14 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 - **Acceptance:** `widgets` example in SDL with mouse; headless test with synthetic events yields the expected hash; ID collision detected in debug; input queue survives flood.
 - **Covers:** FR-20..24, 30, 40, 41; NFR-40; CT-05, 07, 11; R-05, R-11.
 - **Milestone:** API ergonomics review with the user before moving on.
+- **Status: implemented; waiting for the API review** (see `docs/10-core-design.md`). Deviations and decisions:
+  - containers are `begin`/`end` pairs plus `CYDUI_ROW/COLUMN/GRID/PADDING` scope macros, and sizes are one-shot `cydui_next_*` modifiers (the two choices made with the user);
+  - the gap goes before each child, so `cydui_set_spacing` is immediate;
+  - FR-24 is implemented as last frame's `fill` numbers plus a request for another frame, no re-measuring pass;
+  - the state table is searched linearly instead of hashed (a few dozen entries);
+  - containers do not scope ids; lists use `##` or `push_id`;
+  - cross-axis alignment is top-left only, and groups cannot be centered yet (It4 with cards and themes);
+  - extra controls beyond the plan: CT-02 for layout depth, id depth and widgets per frame; the `CYDUI_STORAGE`/`CYDUI_CONFIG` macros that let `hello` fit in 22 lines.
 
 ## It4 — Themes v1 (clean) + composite widgets
 - **Deliverables:** theme struct, states, per-widget paint override, runtime `set_theme`; `clean` theme (shadows, antialiased corners); `slider`, `progress`, `tabs`, `scroll_area`, list with kinetic scrolling; custom widgets.

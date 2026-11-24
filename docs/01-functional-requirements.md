@@ -29,7 +29,7 @@ Iteration = where the FR is delivered (see `07-iterations.md`).
 | FR-21 | Widgets get a stable ID derived from a hash (label, or `cydui_push_id`). ID collisions are detected in debug builds. | M | 3 |
 | FR-22 | Persistent per-widget state (hover, active, scroll, animation value) lives in a fixed-size table indexed by ID; state of widgets not seen for N frames is recycled. | M | 3 |
 | FR-23 | Layouts: `row`, `column`, `grid`, `spacer`, `pad`, fixed size / fill / auto. | M | 3 |
-| FR-24 | **Single-pass** layout with "one-frame delay" support (egui-style) for auto sizes. | S | 3 |
+| FR-24 | **Single-pass** layout with "one-frame delay" support (egui-style) for auto sizes. *Done as:* positions are final when placed; the numbers `fill` needs come from the previous frame, and `cydui_ui_end` asks for another frame when they change. | S | 3 |
 | FR-25 | Scroll containers with clipping (`cydui_scroll_area`). | M | 4 |
 
 ## Widgets

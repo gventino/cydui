@@ -33,13 +33,17 @@ Type: **P** preventive, **D** detective, **C** corrective/safe degradation. Owne
 | Control | State | Where |
 |---------|-------|-------|
 | CT-01 | done for the command list, the text arena and bitmaps | `src/ctx.c`, `tests/test_ctx.c`, `tests/test_text.c` |
-| CT-02 | done for text (`CYDUI_MAX_STR`, cut on a character boundary, `CYDUI_ERR_TEXT_TRUNCATED`); layout depth and widgets per frame come with the widgets (It3) | `src/text.c` |
+| CT-02 | done: text (`CYDUI_MAX_STR`, cut on a character boundary), layout depth (8), id depth (8) and widgets per frame (512), each raising its flag and degrading safely | `src/text.c`, `src/layout.c`, `src/widgets.c` |
 | CT-03 | done | `src/utf8.c`, `tests/test_utf8.c`, `tests/fuzz_utf8.c` |
 | CT-04 | done, with a wider set than written (adds C0/C1 controls, U+061C, U+200E/200F); always on for controls, `CYDUI_FILTER_CONTROL` for the bidi marks | `src/text.c` |
+| CT-05 | done: queue of 32 events with MOVE merging and oldest-first dropping, 64 polled and 16 processed per frame; a flood and overflowing bursts leave the pointer state right | `src/ui.c`, `tests/test_ui_input.c`, `tests/fuzz_ui.c` |
+| CT-06 | coordinates are clamped to the screen (done); the calibration matrix checks come with the ESP32 backend (It5) | `src/ui.c` |
+| CT-07 | done: id with a separate 16-bit check, `##` suffixes and `push_id`, same-frame collision detection in debug builds, the active widget never evicted | `src/ui.c`, `tests/test_ui_ids.c` |
 | CT-09 | done for fonts (`cydui_font_validate`, bounds-checked glyph access, unusable font rejected); themes come in It4 | `src/font.c` |
 | CT-10 | done | `src/ctx.c` |
-| CT-12 | done for commands, text and the UTF-8 decoder; events and `text_input` come with those features | `tests/fuzz_*.c` |
-| CT-05..08, 11, 13..15 | later iterations | |
+| CT-11 | done: not thread-safe by contract, debug check through `thread_id` (the ESP32 backend supplies the task handle in It5) | `src/ui.c`, `tests/test_ui_ids.c` |
+| CT-12 | done for commands, text, the UTF-8 decoder and the whole UI layer (events included); `text_input` comes with it | `tests/fuzz_*.c` |
+| CT-08, 13..15 | later iterations | |
 | CT-16..22 | owned by the app | |
 
 ## 2. Threat → control traceability
@@ -74,7 +78,7 @@ Probability (P) and impact (I): 1–3. Score = P×I. Residual after controls.
 | R-02 | FPS < 30 in the cyberpunk theme with post-effects. | 3 | 2 | 6 | SPI at 40–80 MHz, dirty regions, cheap effects (LUT), per-strip budget, downgrade effects via Kconfig. | Medium |
 | R-03 | Panel/touch clones with a different native orientation, color inversion, RGB/BGR order, or touch noise. **Materialized in It0:** the panel is natively 320x240 (ILI9342C-like), the controller ID cannot be read, and the touch axes are swapped. | 3 | 2 | 6 | Kconfig for raw `MADCTL`, native orientation, inversion; touch axis swap and calibration in the backend; findings in `09-hardware-notes.md`; re-run `hw-probe` on any new board. | Medium |
 | R-04 | Noisy/imprecise resistive touch. | 3 | 2 | 6 | 5-point calibration, median, debounce, widgets with targets ≥ 32 px. | Low |
-| R-05 | Immediate-mode layout without retention becomes costly or unstable (auto size). | 2 | 2 | 4 | Single-pass layout + one-frame delay; limit auto-size to simple cases. | Low |
+| R-05 | Immediate-mode layout without retention becomes costly or unstable (auto size). | 2 | 2 | 4 | Single-pass layout + one-frame delay; limit auto-size to simple cases. **Done:** positions are final when placed, only `fill` uses last frame's numbers and asks for another frame; 40 widgets cost 9.6 µs on a PC. Real cost on the board comes in It5. | Low |
 | R-06 | Tearing/flicker from partial flush with DMA. | 2 | 2 | 4 | Double buffering, flush by whole strips; simple synchronization. | Low |
 | R-07 | Generated fonts weigh on flash (many sizes/glyphs). | 2 | 2 | 4 | Per-app subset, 4bpp, shared identical bitmaps; NFR-50 budget. **Measured:** the three bundled fonts (ASCII + Latin-1 + symbols) take 45.7 KB, the whole core 6.8 KB. | Low |
 | R-08 | Determinism gaps between SDL and ESP32 (floating point, operation order). | 2 | 2 | 4 | Integer/fixed-point raster; no `float` in the pixel path. | Low |
@@ -84,7 +88,7 @@ Probability (P) and impact (I): 1–3. Score = P×I. Residual after controls.
 | ID | Risk | P | I | Score | Response |
 |----|------|---|---|-------|----------|
 | R-10 | **Scope explosion** (themes, widgets, effects) before the core is done. | 3 | 3 | 9 | KISS; per-iteration acceptance criteria; extra themes only in It7; freeze core API in It4. |
-| R-11 | API too egui-like but unsuited to C (closures, builders). | 2 | 2 | 4 | Early `hello`/`widgets` prototype (It3), review ergonomics before expanding. |
+| R-11 | API too egui-like but unsuited to C (closures, builders). | 2 | 2 | 4 | Early `hello`/`widgets` prototype (It3), review ergonomics before expanding. **State:** prototype done (`hello` is 22 lines); the review with the user is the It3 milestone. |
 | R-12 | Single hardware unit (no variants) hides bugs. | 2 | 1 | 2 | Accept; keep the SDL backend as reference. |
 | R-13 | Fuzz/sanitizers consume time and become "later". | 2 | 2 | 4 | Fuzz UTF-8 and commands in It2/It3, not only It8. |
 
