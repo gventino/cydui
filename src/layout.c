@@ -410,7 +410,7 @@ void cydui_spacer_fill(cydui_ui *ui)
 void cydui__layout_begin_frame(cydui_ui *ui)
 {
     cydui_region *r = &ui->regions[0];
-    int margin = ui->style.spacing;
+    int margin = ui->theme->style.spacing;
     const cydui_backend *be = ui->ctx.backend;
     uint8_t tag = 0x52; /* 'R' */
 
@@ -423,7 +423,7 @@ void cydui__layout_begin_frame(cydui_ui *ui)
     r->y0 = r->cy = i16(margin);
     r->avail_w = i16(be->width - 2 * margin);
     r->avail_h = i16(be->height - 2 * margin);
-    r->spacing = ui->style.spacing;
+    r->spacing = ui->theme->style.spacing;
     r->cols = 1;
     {
         cydui_id seed;

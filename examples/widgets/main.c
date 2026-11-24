@@ -95,10 +95,10 @@ static void init_app(app_t *app)
     snprintf(app->status, sizeof(app->status), "pronto");
 }
 
-static int init_ui(cydui_ui *ui, cydui_style *style, const cydui_backend *be)
+static int init_ui(cydui_ui *ui, cydui_theme *theme, const cydui_backend *be)
 {
-    *style = cydui_style_default(&cydui_sans_12);
-    if (cydui_ui_init(ui, &CYDUI_CONFIG(storage, be, style))) {
+    cydui_theme_default(theme, &cydui_sans_12);
+    if (cydui_ui_init(ui, &CYDUI_CONFIG(storage, be, theme))) {
         fprintf(stderr, "cydui_ui_init failed\n");
         return -1;
     }
@@ -108,13 +108,13 @@ static int init_ui(cydui_ui *ui, cydui_style *style, const cydui_backend *be)
 static int run_headless(int px, int py, bool press, bool release, bool print_hash, const char *png)
 {
     cydui_mem mem;
-    cydui_style style;
+    cydui_theme theme;
     cydui_ui ui;
     app_t app;
     int frame;
 
     cydui_mem_init(&mem, framebuffer, W, H);
-    if (init_ui(&ui, &style, &mem.backend)) {
+    if (init_ui(&ui, &theme, &mem.backend)) {
         return 1;
     }
     init_app(&app);
@@ -125,7 +125,7 @@ static int run_headless(int px, int py, bool press, bool release, bool print_has
         if (press && release && frame == 4) {
             cydui_mem_push_event(&mem, CYDUI_EVENT_UP, (int16_t)px, (int16_t)py);
         }
-        cydui_ui_begin(&ui, style.bg);
+        cydui_ui_begin(&ui, theme.style.bg);
         ui_frame(&ui, &app);
         cydui_ui_end(&ui);
         mem.now += 16;
@@ -147,7 +147,7 @@ static int run_headless(int px, int py, bool press, bool release, bool print_has
 static int run_window(long max_frames)
 {
     cydui_sdl *sdl = cydui_sdl_create("cydui widgets", W, H, 2);
-    cydui_style style;
+    cydui_theme theme;
     cydui_ui ui;
     app_t app;
     long frames = 0;
@@ -156,12 +156,12 @@ static int run_window(long max_frames)
         fprintf(stderr, "could not open a window\n");
         return 1;
     }
-    if (init_ui(&ui, &style, cydui_sdl_backend(sdl))) {
+    if (init_ui(&ui, &theme, cydui_sdl_backend(sdl))) {
         cydui_sdl_destroy(sdl);
         return 1;
     }
     init_app(&app);
-    while (cydui_ui_begin(&ui, style.bg) && (max_frames < 0 || frames < max_frames)) {
+    while (cydui_ui_begin(&ui, theme.style.bg) && (max_frames < 0 || frames < max_frames)) {
         ui_frame(&ui, &app);
         cydui_ui_end(&ui);
         frames++;

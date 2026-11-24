@@ -10,7 +10,7 @@ uint32_t rig_init_with(uirig *r, size_t state_entries, uint16_t long_press_ms)
 
     memset(r, 0, sizeof(*r));
     cydui_mem_init(&r->mem, r->fb, RIG_W, RIG_H);
-    r->style = cydui_style_default(&cydui_sans_12);
+    cydui_theme_default(&r->theme, &cydui_sans_12);
 
     memset(&cfg, 0, sizeof(cfg));
     cfg.core.backend = &r->mem.backend;
@@ -24,7 +24,7 @@ uint32_t rig_init_with(uirig *r, size_t state_entries, uint16_t long_press_ms)
     cfg.state_mem_size = state_entries * sizeof(cydui_state);
     cfg.idset_mem = r->idset;
     cfg.idset_mem_size = sizeof(r->idset);
-    cfg.style = &r->style;
+    cfg.theme = &r->theme;
     cfg.long_press_ms = long_press_ms;
     return cydui_ui_init(&r->ui, &cfg);
 }

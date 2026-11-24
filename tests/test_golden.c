@@ -229,7 +229,7 @@ static void run_ui_widgets(uirig *r, bool press)
         if (press && frame == 2) {
             rig_down(r, 20, 24);
         }
-        cydui_ui_begin(&r->ui, r->style.bg);
+        cydui_ui_begin(&r->ui, r->theme.style.bg);
         CYDUI_ROW(&r->ui) {
             cydui_button(&r->ui, "Add");
             cydui_next_disabled(&r->ui);
@@ -289,7 +289,7 @@ static void test_ui_layouts(void)
 
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
     for (frame = 0; frame < 4; frame++) { /* the fill shares settle in the second frame */
-        cydui_ui_begin(&ui_rig.ui, ui_rig.style.bg);
+        cydui_ui_begin(&ui_rig.ui, ui_rig.theme.style.bg);
         CYDUI_ROW(&ui_rig.ui) { /* three boxes, then one pushed to the right edge */
             ui_box(&ui_rig.ui, 40, 24, 0);
             ui_box(&ui_rig.ui, 40, 24, 1);

@@ -14,6 +14,7 @@
  */
 
 #include "cydui/cydui.h"
+#include "cydui/theme.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -167,20 +168,6 @@ typedef struct {
     uint16_t used;
 } cydui_state;
 
-/* ---- style (provisional: iteration 4 turns this into themes) ---- */
-
-typedef struct {
-    cydui_color bg, panel, text, text_muted, accent, accent_text, border;
-    const cydui_font *font;
-    uint8_t radius;
-    uint8_t pad_x, pad_y;
-    uint8_t spacing;
-    uint8_t min_target; /**< smallest touch target in pixels (R-04) */
-} cydui_style;
-
-/** A dark style around `font`. */
-cydui_style cydui_style_default(const cydui_font *font);
-
 /* ---- setup ---- */
 
 typedef struct {
@@ -189,7 +176,7 @@ typedef struct {
     size_t state_mem_size;
     void *idset_mem;         /**< debug only: memory for collision detection (4 bytes per slot) */
     size_t idset_mem_size;
-    const cydui_style *style; /**< required: copied; its font must be usable */
+    const cydui_theme *theme; /**< required, and must outlive the UI; its font must be usable */
     int16_t tap_slop;        /**< pointer travel in pixels that still counts as a tap; 0 = 10 */
     uint16_t long_press_ms;  /**< hold time of a long press; 0 = 500 */
     uintptr_t (*thread_id)(void); /**< optional: identifies the calling task (CT-11) */
@@ -197,7 +184,7 @@ typedef struct {
 
 typedef struct cydui_ui {
     cydui_ctx ctx;
-    cydui_style style;
+    const cydui_theme *theme;
     cydui_state *state;
     uint32_t state_cap, sweep;
     uint32_t *idset;
@@ -356,7 +343,7 @@ bool cydui_toggle(cydui_ui *ui, const char *label, bool *value);
  *
  *     CYDUI_STORAGE(mem, 320, 240, 20, 64, 512, 16);
  *     ...
- *     cydui_ui_init(&ui, &CYDUI_CONFIG(mem, backend, &style));
+ *     cydui_ui_init(&ui, &CYDUI_CONFIG(mem, backend, &theme));
  */
 #define CYDUI_STORAGE(name, w, h, strip_rows, cmds, text_bytes, state_entries) \
     static struct {                                                            \
@@ -368,7 +355,7 @@ bool cydui_toggle(cydui_ui *ui, const char *label, bool *value);
     } name
 
 /** A cydui_ui_config over a CYDUI_STORAGE object. */
-#define CYDUI_CONFIG(storage, backend_ptr, style_ptr)                                           \
+#define CYDUI_CONFIG(storage, backend_ptr, theme_ptr)                                           \
     ((cydui_ui_config){.core = {.backend = (backend_ptr),                                       \
                                 .cmd_mem = (storage).cmd,                                       \
                                 .cmd_mem_size = sizeof((storage).cmd),                          \
@@ -380,7 +367,26 @@ bool cydui_toggle(cydui_ui *ui, const char *label, bool *value);
                        .state_mem_size = sizeof((storage).state),                               \
                        .idset_mem = (storage).ids,                                              \
                        .idset_mem_size = sizeof((storage).ids),                                 \
-                       .style = (style_ptr)})
+                       .theme = (theme_ptr)})
+
+/* ---- themes ---- */
+
+/**
+ * Switches the theme (FR-52). The theme must stay valid for as long as it is in use. An invalid one
+ * is refused with CYDUI_ERR_BAD_ARG and the current theme stays. Asks for another frame, because
+ * fonts and metrics may change the size of everything.
+ */
+uint32_t cydui_set_theme(cydui_ui *ui, const cydui_theme *t);
+
+/** The theme in use. */
+const cydui_theme *cydui_theme_of(const cydui_ui *ui);
+
+/** How a widget looks in a state, from the theme in use. Never NULL. */
+const cydui_wstyle *cydui_wstyle_of(const cydui_ui *ui, cydui_widget_kind kind, cydui_widget_state state,
+                                    bool selected);
+
+/** Draws a widget with the painter of the theme in use (its own, or the default). */
+void cydui_paint(cydui_ui *ui, const cydui_paint_info *info);
 
 /* ---- interaction ---- */
 

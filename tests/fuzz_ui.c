@@ -57,7 +57,7 @@ static int16_t small(reader *r, int range)
  */
 static cydui_mem g_mem;
 static cydui_ui g_ui;
-static cydui_style g_style;
+static cydui_theme g_theme;
 static cydui_color g_fb[W * H];
 static cydui_cmd g_cmds[96];
 static cydui_color g_strip[W * H];
@@ -113,7 +113,7 @@ static uint64_t run(const uint8_t *data, size_t size, int rows)
     memset(g_state, 0, sizeof(g_state));
     memset(g_idset, 0, sizeof(g_idset));
     cydui_mem_init(&g_mem, g_fb, W, H);
-    g_style = cydui_style_default(&cydui_sans_12);
+    cydui_theme_default(&g_theme, &cydui_sans_12);
 
     memset(&cfg, 0, sizeof(cfg));
     cfg.core.backend = &g_mem.backend;
@@ -129,7 +129,7 @@ static uint64_t run(const uint8_t *data, size_t size, int rows)
     cfg.state_mem_size = (size_t)(u8(&r) % 13u) * sizeof(cydui_state);
     cfg.idset_mem = g_idset;
     cfg.idset_mem_size = (size_t)(u8(&r) % 3u == 0 ? 0u : u8(&r) % 2u ? 16u : 64u) * sizeof(uint32_t);
-    cfg.style = &g_style;
+    cfg.theme = &g_theme;
     if (cydui_ui_init(&g_ui, &cfg) != 0) {
         abort();
     }

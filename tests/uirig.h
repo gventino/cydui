@@ -15,7 +15,7 @@
 typedef struct {
     cydui_mem mem;
     cydui_ui ui;
-    cydui_style style;
+    cydui_theme theme;
     cydui_color fb[RIG_W * RIG_H];
     cydui_cmd cmds[512];
     cydui_color strip[RIG_W * 8];

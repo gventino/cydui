@@ -34,14 +34,14 @@ static void test_init_validates_its_inputs(void)
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&rig));
     TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
 
-    rig.style.font = NULL; /* a style without a usable font is refused, not trusted */
+    rig.theme.style.font = NULL; /* a theme without a usable font is refused, not trusted */
     memset(&cfg, 0, sizeof(cfg));
     cfg.core.backend = &rig.mem.backend;
     cfg.core.cmd_mem = rig.cmds;
     cfg.core.cmd_mem_size = sizeof(rig.cmds);
     cfg.core.strip_mem = rig.strip;
     cfg.core.strip_mem_size = sizeof(rig.strip);
-    cfg.style = &rig.style;
+    cfg.theme = &rig.theme;
     TEST_ASSERT_EQUAL_UINT32(CYDUI_ERR_BAD_ARG, cydui_ui_init(&ui, &cfg));
 }
 
@@ -447,7 +447,7 @@ static void test_a_call_from_another_task_is_flagged(void)
     cfg.core.cmd_mem_size = sizeof(rig.cmds);
     cfg.core.strip_mem = rig.strip;
     cfg.core.strip_mem_size = sizeof(rig.strip);
-    cfg.style = &rig.style;
+    cfg.theme = &rig.theme;
     cfg.thread_id = current_thread;
     TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_init(&rig.ui, &cfg));
 

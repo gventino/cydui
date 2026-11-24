@@ -230,16 +230,16 @@ static void test_a_held_control_flips_only_when_released(void)
 static void test_the_toggle_knob_sits_at_the_end_that_matches_the_value(void)
 {
     bool v = false;
-    const cydui_color track_off = rig_init(&rig) ? 0 : rig.style.border;
+    const cydui_color track_off = rig_init(&rig) ? 0 : rig.theme.style.border;
 
     toggle_frame(&v); /* off */
-    TEST_ASSERT_EQUAL_HEX16(rig.style.accent_text, rig.fb[24 * RIG_W + 20]); /* knob on the left */
+    TEST_ASSERT_EQUAL_HEX16(rig.theme.style.accent_text, rig.fb[24 * RIG_W + 20]); /* knob on the left */
     TEST_ASSERT_EQUAL_HEX16(track_off, rig.fb[24 * RIG_W + 40]);             /* bare track on the right */
 
     v = true;
     toggle_frame(&v); /* on */
-    TEST_ASSERT_EQUAL_HEX16(rig.style.accent, rig.fb[24 * RIG_W + 20]);      /* bare track on the left */
-    TEST_ASSERT_EQUAL_HEX16(rig.style.accent_text, rig.fb[24 * RIG_W + 40]); /* knob on the right */
+    TEST_ASSERT_EQUAL_HEX16(rig.theme.style.accent, rig.fb[24 * RIG_W + 20]);      /* bare track on the left */
+    TEST_ASSERT_EQUAL_HEX16(rig.theme.style.accent_text, rig.fb[24 * RIG_W + 40]); /* knob on the right */
 }
 
 static void test_a_disabled_label_is_dimmer(void)
@@ -572,7 +572,7 @@ static void test_a_row_with_a_fill_spacer_pushes_a_button_to_the_right_edge(void
     }
     for (y = 8; y < 40; y++) { /* the button is the only thing drawn in the accent colour */
         for (x = 0; x < RIG_W; x++) {
-            if (rig.fb[y * RIG_W + x] == rig.style.accent && x > rightmost) {
+            if (rig.fb[y * RIG_W + x] == rig.theme.style.accent && x > rightmost) {
                 rightmost = x;
             }
         }

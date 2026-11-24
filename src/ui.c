@@ -49,27 +49,6 @@ static size_t label_len(const char *s)
     return n;
 }
 
-/* ---- style ---- */
-
-cydui_style cydui_style_default(const cydui_font *font)
-{
-    cydui_style s;
-    s.bg = CYDUI_RGB(16, 20, 32);
-    s.panel = CYDUI_RGB(38, 46, 70);
-    s.text = CYDUI_RGB(235, 238, 250);
-    s.text_muted = CYDUI_RGB(128, 136, 160);
-    s.accent = CYDUI_RGB(70, 120, 230);
-    s.accent_text = CYDUI_RGB(255, 255, 255);
-    s.border = CYDUI_RGB(92, 104, 150);
-    s.font = font;
-    s.radius = 6;
-    s.pad_x = 10;
-    s.pad_y = 6;
-    s.spacing = 8;
-    s.min_target = 32;
-    return s;
-}
-
 /* ---- setup ---- */
 
 static uint32_t floor_pow2(size_t n)
@@ -90,14 +69,14 @@ uint32_t cydui_ui_init(cydui_ui *ui, const cydui_ui_config *cfg)
     uint32_t err;
 
     memset(ui, 0, sizeof(*ui));
-    if (!cfg || !cfg->style || !cydui_font_fallback(cfg->style->font)) {
+    if (!cfg || cydui_theme_validate(cfg->theme) != CYDUI_THEME_OK) {
         return CYDUI_ERR_BAD_ARG;
     }
     err = cydui_init(&ui->ctx, &cfg->core);
     if (err) {
         return err;
     }
-    ui->style = *cfg->style;
+    ui->theme = cfg->theme;
 
     cydui_arena_init(&a, cfg->state_mem, cfg->state_mem_size);
     ui->state_cap = (uint32_t)(a.cap / sizeof(cydui_state));
