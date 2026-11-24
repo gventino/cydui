@@ -43,7 +43,7 @@ target_compile_definitions(golden PUBLIC GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}
 set_target_properties(golden PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(golden PRIVATE ${CYDUI_STRICT_FLAGS})
 cydui_test(test_golden)
-target_link_libraries(test_golden PRIVATE golden shapes_scene cydui_fonts)
+target_link_libraries(test_golden PRIVATE golden shapes_scene cydui_fonts cydui_themes)
 
 # Fuzzing (CT-12): the harness is also a short ctest run so that every build exercises it.
 if(CYDUI_BUILD_FUZZ)

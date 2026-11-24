@@ -136,6 +136,33 @@ const cydui_theme *cydui_theme_of(const cydui_ui *ui)
     return ui->theme;
 }
 
+/*
+ * A soft drop shadow from stacked translucent rounded rectangles, each a little larger than the one
+ * inside it and all lowered a little: where they overlap the shadow gets darker, so the edge fades.
+ * `strength` is how far it spreads, in pixels (at most 8).
+ */
+static void paint_shadow(cydui_ui *ui, cydui_rect r, int radius, int strength)
+{
+    int layers = strength > 8 ? 8 : strength, i;
+
+    for (i = layers; i >= 1; i--) {
+        cydui_rect q;
+        q.x = (int16_t)(r.x - i);
+        q.y = (int16_t)(r.y - i + (layers + 1) / 2);
+        q.w = (int16_t)(r.w + 2 * i);
+        q.h = (int16_t)(r.h + 2 * i);
+        cydui_draw_rrect(&ui->ctx, q, (uint8_t)(radius + i > 255 ? 255 : radius + i), 0, 8);
+    }
+}
+
+static void paint_panel(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_info *p)
+{
+    cydui_draw_rrect(&ui->ctx, p->rect, w->radius, w->fill, 255);
+    if (w->border_w) {
+        cydui_draw_rrect_outline(&ui->ctx, p->rect, w->radius, w->border_w, w->border, 255);
+    }
+}
+
 static void paint_button(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_info *p)
 {
     const cydui_rect r = p->rect;
@@ -188,6 +215,9 @@ void cydui_paint_default(cydui_ui *ui, const cydui_theme *theme, const cydui_pai
         return;
     }
     w = entry(theme, info->kind, info->state, info->selected);
+    if (w->shadow && info->rect.w > 0 && info->rect.h > 0) {
+        paint_shadow(ui, info->rect, w->radius, w->shadow);
+    }
     switch (info->kind) {
     case CYDUI_WIDGET_BUTTON:
         paint_button(ui, w, info);
@@ -197,6 +227,9 @@ void cydui_paint_default(cydui_ui *ui, const cydui_theme *theme, const cydui_pai
         break;
     case CYDUI_WIDGET_TOGGLE:
         paint_toggle(ui, w, info);
+        break;
+    case CYDUI_WIDGET_PANEL:
+        paint_panel(ui, w, info);
         break;
     default: /* the other widgets get their painting with the widgets */
         break;

@@ -60,6 +60,13 @@ target_link_libraries(cydui_fonts PUBLIC cydui)
 set_target_properties(cydui_fonts PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(cydui_fonts PRIVATE ${CYDUI_STRICT_FLAGS})
 
+# The shipped themes (they need the bundled fonts). Optional, like the fonts.
+add_library(cydui_themes STATIC themes/clean.c)
+target_include_directories(cydui_themes PUBLIC themes)
+target_link_libraries(cydui_themes PUBLIC cydui cydui_fonts)
+set_target_properties(cydui_themes PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+target_compile_options(cydui_themes PRIVATE ${CYDUI_STRICT_FLAGS})
+
 # SDL2 backend: window and mouse.
 if(CYDUI_BUILD_SDL)
     find_package(PkgConfig QUIET)
@@ -82,6 +89,7 @@ if(CYDUI_BUILD_EXAMPLES OR CYDUI_BUILD_TESTS)
     add_subdirectory(examples/shapes) # the golden test reuses its scene
     add_subdirectory(examples/text)
     add_subdirectory(examples/widgets)
+    add_subdirectory(examples/theme-gallery)
     if(TARGET cydui_sdl)
         add_subdirectory(examples/hello)
     endif()

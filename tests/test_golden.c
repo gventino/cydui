@@ -7,6 +7,7 @@
 #include "cydui_sans_16.h"
 #include "cydui_sans_24.h"
 #include "scene.h"
+#include "cydui_themes.h"
 #include "uirig.h"
 #include "unity.h"
 
@@ -271,6 +272,84 @@ static void test_ui_widgets_pressed(void)
     golden_check_mem("ui_widgets_pressed", &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
 }
 
+/*
+ * One widget kind in every state, in two themes side by side in the same frame: the light theme on
+ * the left half, then the theme is switched and the dark one fills the right half. (The control that
+ * is shown for a `selected` widget is the checked box, the switch that is on, the active tab.)
+ */
+static cydui_theme th_light, th_dark;
+
+static void matrix_text(cydui_ui *ui, const cydui_theme *t, int x, int y, const char *s, cydui_color c)
+{
+    cydui_draw_text(&ui->ctx, t->style.font, (int16_t)x, (int16_t)y, 0, CYDUI_ALIGN_LEFT, s, CYDUI_NTS, c, 255);
+}
+
+static void matrix_half(uirig *r, const cydui_theme *t, int x0, cydui_widget_kind kind)
+{
+    static const char *const state_names[3] = {"normal", "pressed", "disabled"};
+    static const cydui_widget_state states[3] = {CYDUI_STATE_NORMAL, CYDUI_STATE_PRESSED, CYDUI_STATE_DISABLED};
+    int i, sel;
+
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&r->ui, t)); /* the switch happens in the middle of the frame */
+    cydui_draw_rect(&r->ui.ctx, (cydui_rect){(int16_t)x0, 0, 160, 240}, t->style.bg, 255);
+    matrix_text(&r->ui, t, x0 + 8, 4, t->name, t->style.text);
+    for (i = 0; i < 3; i++) {
+        int y = 30 + i * 70;
+        if (kind == CYDUI_WIDGET_PANEL) { /* a card has no pressed or disabled look: normal, selected, with text */
+            static const char *const panel_names[3] = {"normal", "selected", "with content"};
+            cydui_paint_info pc;
+            matrix_text(&r->ui, t, x0 + 8, y, panel_names[i], t->style.text_muted);
+            memset(&pc, 0, sizeof(pc));
+            pc.kind = CYDUI_WIDGET_PANEL;
+            pc.state = CYDUI_STATE_NORMAL;
+            pc.selected = i == 1;
+            pc.rect = (cydui_rect){(int16_t)(x0 + 14), (int16_t)(y + 20), 132, 40};
+            cydui_paint(&r->ui, &pc);
+            if (i == 2) {
+                matrix_text(&r->ui, t, x0 + 26, y + 32, "Comprar leite", t->style.text);
+            }
+            continue;
+        }
+        matrix_text(&r->ui, t, x0 + 8, y, state_names[i], t->style.text_muted);
+        for (sel = 0; sel < 2; sel++) {
+            cydui_paint_info pi;
+            memset(&pi, 0, sizeof(pi));
+            pi.kind = kind;
+            pi.state = states[i];
+            pi.selected = sel != 0;
+            if (kind == CYDUI_WIDGET_BUTTON) {
+                if (sel) continue; /* a button has one look per state */
+                pi.rect = (cydui_rect){(int16_t)(x0 + 12), (int16_t)(y + 20), 136, 34};
+                pi.text = "Salvar";
+                pi.text_len = 6;
+                pi.text_extent = cydui_text_size(t->style.font, "Salvar", 6, 0);
+            } else if (kind == CYDUI_WIDGET_CHECKBOX) {
+                pi.rect = (cydui_rect){(int16_t)(x0 + 16 + sel * 60), (int16_t)(y + 26), 20, 20};
+            } else if (kind == CYDUI_WIDGET_TOGGLE) {
+                pi.rect = (cydui_rect){(int16_t)(x0 + 10 + sel * 70), (int16_t)(y + 24), 44, 24};
+            }
+            cydui_paint(&r->ui, &pi);
+        }
+    }
+}
+
+static void matrix_golden(const char *name, cydui_widget_kind kind)
+{
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    cydui_theme_init_clean(&th_light);
+    cydui_theme_init_clean_dark(&th_dark);
+    cydui_ui_begin(&ui_rig.ui, 0);
+    matrix_half(&ui_rig, &th_light, 0, kind);
+    matrix_half(&ui_rig, &th_dark, 160, kind);
+    cydui_ui_end(&ui_rig.ui);
+    golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+static void test_clean_button(void) { matrix_golden("clean_button", CYDUI_WIDGET_BUTTON); }
+static void test_clean_checkbox(void) { matrix_golden("clean_checkbox", CYDUI_WIDGET_CHECKBOX); }
+static void test_clean_toggle(void) { matrix_golden("clean_toggle", CYDUI_WIDGET_TOGGLE); }
+static void test_clean_panel(void) { matrix_golden("clean_panel", CYDUI_WIDGET_PANEL); }
+
 static void ui_box(cydui_ui *ui, int w, int h, int hue)
 {
     static const cydui_color c[] = {CYDUI_RGB(230, 90, 90), CYDUI_RGB(240, 180, 60), CYDUI_RGB(110, 210, 120),
@@ -378,6 +457,10 @@ int main(void)
     RUN_TEST(test_ui_widgets);
     RUN_TEST(test_ui_widgets_pressed);
     RUN_TEST(test_ui_layouts);
+    RUN_TEST(test_clean_button);
+    RUN_TEST(test_clean_checkbox);
+    RUN_TEST(test_clean_toggle);
+    RUN_TEST(test_clean_panel);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();
 }
