@@ -311,6 +311,39 @@ static void matrix_half(uirig *r, const cydui_theme *t, int x0, cydui_widget_kin
             continue;
         }
         matrix_text(&r->ui, t, x0 + 8, y, state_names[i], t->style.text_muted);
+        if (kind == CYDUI_WIDGET_SLIDER || kind == CYDUI_WIDGET_PROGRESS) { /* three values per state */
+            static const int32_t vals[3] = {0, 40, 100};
+            cydui_paint_info ps;
+            memset(&ps, 0, sizeof(ps));
+            ps.kind = kind;
+            ps.state = states[i];
+            ps.min = 0;
+            ps.max = 100;
+            ps.value = vals[i];
+            ps.rect = (cydui_rect){(int16_t)(x0 + 10), (int16_t)(y + 16), 140, kind == CYDUI_WIDGET_SLIDER ? 32 : 8};
+            if (kind == CYDUI_WIDGET_PROGRESS) {
+                ps.rect.y = (int16_t)(y + 28);
+            }
+            cydui_paint(&r->ui, &ps);
+            continue;
+        }
+        if (kind == CYDUI_WIDGET_TAB) { /* a bar of three: the active one differs per row */
+            static const char *const tl[3] = {"Hoje", "Mes", "Todas"};
+            int k;
+            for (k = 0; k < 3; k++) {
+                cydui_paint_info pt;
+                memset(&pt, 0, sizeof(pt));
+                pt.kind = kind;
+                pt.state = states[i];
+                pt.selected = k == i;
+                pt.rect = (cydui_rect){(int16_t)(x0 + 6 + k * 49), (int16_t)(y + 16), 49, 32};
+                pt.text = tl[k];
+                pt.text_len = strlen(tl[k]);
+                pt.text_extent = cydui_text_size(t->style.font, tl[k], pt.text_len, 0);
+                cydui_paint(&r->ui, &pt);
+            }
+            continue;
+        }
         for (sel = 0; sel < 2; sel++) {
             cydui_paint_info pi;
             memset(&pi, 0, sizeof(pi));
@@ -349,6 +382,9 @@ static void test_clean_button(void) { matrix_golden("clean_button", CYDUI_WIDGET
 static void test_clean_checkbox(void) { matrix_golden("clean_checkbox", CYDUI_WIDGET_CHECKBOX); }
 static void test_clean_toggle(void) { matrix_golden("clean_toggle", CYDUI_WIDGET_TOGGLE); }
 static void test_clean_panel(void) { matrix_golden("clean_panel", CYDUI_WIDGET_PANEL); }
+static void test_clean_slider(void) { matrix_golden("clean_slider", CYDUI_WIDGET_SLIDER); }
+static void test_clean_progress(void) { matrix_golden("clean_progress", CYDUI_WIDGET_PROGRESS); }
+static void test_clean_tabs(void) { matrix_golden("clean_tabs", CYDUI_WIDGET_TAB); }
 
 static void ui_box(cydui_ui *ui, int w, int h, int hue)
 {
@@ -461,6 +497,9 @@ int main(void)
     RUN_TEST(test_clean_checkbox);
     RUN_TEST(test_clean_toggle);
     RUN_TEST(test_clean_panel);
+    RUN_TEST(test_clean_slider);
+    RUN_TEST(test_clean_progress);
+    RUN_TEST(test_clean_tabs);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();
 }

@@ -127,7 +127,8 @@ typedef struct {
 enum {
     CYDUI_SENSE_CLICK = 1u << 0, /**< report taps */
     CYDUI_SENSE_DRAG = 1u << 1,  /**< report the pointer's travel while the widget is held */
-    CYDUI_DISABLED = 1u << 2     /**< does not react and does not capture the press */
+    CYDUI_DISABLED = 1u << 2,    /**< does not react and does not capture the press */
+    CYDUI_CAPTURE = 1u << 3      /**< keeps the press however far it travels: nothing may take it over */
 };
 
 /** What happened to one widget in this frame. */
@@ -192,6 +193,7 @@ typedef struct cydui_ui {
     cydui_id id_stack[CYDUI_MAX_ID_DEPTH];
     uint8_t id_depth;
     cydui_id active; /**< the widget that owns the current press, or all zero */
+    bool active_capture; /**< that widget asked to keep the press (CYDUI_CAPTURE) */
     cydui_input in;
     cydui_mods mods;
     cydui_region regions[CYDUI_MAX_LAYOUT_DEPTH + 1]; /**< [0] is the whole screen */
@@ -333,6 +335,32 @@ bool cydui_checkbox(cydui_ui *ui, const char *label, bool *value);
 
 /** A switch bound to *value. Returns true in the frame in which it was toggled. */
 bool cydui_toggle(cydui_ui *ui, const char *label, bool *value);
+
+/**
+ * A slider for an integer in [min, max]: a track with a knob, `label` (if it shows anything) to its
+ * left. A touch anywhere on the track sets the value and dragging follows the finger, even when it
+ * leaves the track. Returns true in a frame in which the user changed the value. A value outside the
+ * range is clamped quietly; with max <= min the slider is drawn disabled and does nothing. Its
+ * default width is 160 px (use cydui_next_width/stretch/fill). It keeps the press, so a scroll area
+ * does not take it away.
+ */
+bool cydui_slider(cydui_ui *ui, const char *label, int32_t *value, int32_t min, int32_t max);
+
+/** A progress bar, `value` out of `max` (both clamped: nothing below 0, nothing above `max`). */
+void cydui_progress(cydui_ui *ui, int32_t value, int32_t max);
+
+/** The most tabs a bar shows; `count` is clamped to this. */
+#ifndef CYDUI_MAX_TABS
+#define CYDUI_MAX_TABS 8
+#endif
+
+/**
+ * A bar of equal-width tabs. `labels` must hold at least min(count, CYDUI_MAX_TABS) entries; a NULL
+ * entry is an empty label. *selected is clamped into the range and changed by a tap; the call
+ * returns true in the frame in which another tab was chosen. The content below is the application's
+ * business: `if (selected == 0) { ... }`. The bar is as wide as the room it has by default.
+ */
+bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selected);
 
 /* ---- setting up with static memory ---- */
 

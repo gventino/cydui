@@ -78,6 +78,20 @@ typedef struct {
     cydui_rect aux;           /**< widget specific: the scroll bar's viewport */
 } cydui_paint_info;
 
+/** Sizes a slider is built from, so that the widget and every painter agree on where the knob is. */
+#define CYDUI_SLIDER_KNOB 20  /**< diameter of the knob */
+#define CYDUI_SLIDER_TRACK 6  /**< thickness of the track */
+
+/**
+ * The x of the center of the knob for `value` in a slider whose track area is `track`. The knob
+ * travels between half a knob in from each end; `value` is clamped to [min, max]. Integer only,
+ * safe for the whole int32 range.
+ */
+int cydui_slider_knob_x(cydui_rect track, int32_t value, int32_t min, int32_t max);
+
+/** The value for a pointer at `x`: the inverse of cydui_slider_knob_x, rounded, clamped. */
+int32_t cydui_slider_value_at(cydui_rect track, int x, int32_t min, int32_t max);
+
 typedef struct cydui_theme cydui_theme;
 
 /**

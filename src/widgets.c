@@ -206,3 +206,167 @@ bool cydui_toggle(cydui_ui *ui, const char *label, bool *value)
 {
     return control_with_label(ui, label, value, TOGGLE_W, TOGGLE_H, true);
 }
+
+/* ---- slider, progress, tabs ---- */
+
+#define SLIDER_DEFAULT_W 160
+#define PROGRESS_H 8
+
+bool cydui_slider(cydui_ui *ui, const char *label, int32_t *value, int32_t min, int32_t max)
+{
+    cydui_mods m = cydui_take_mods(ui);
+    const cydui_style *st = &ui->theme->style;
+    cydui_id id;
+    cydui_text_extent e;
+    cydui_response resp;
+    cydui_rect r, track, hit;
+    cydui_paint_info pi;
+    size_t n;
+    int h, label_w;
+    bool usable = max > min, disabled, holding, changed = false;
+    int32_t v;
+
+    if (!count_widget(ui)) {
+        return false;
+    }
+    label = label ? label : "";
+    id = cydui_id_str(ui, label);
+    cydui_id_claim(ui, id);
+    n = shown_len(label);
+    e = cydui_text_size(st->font, label, n, 0);
+    label_w = n ? e.w + LABEL_GAP : 0;
+    h = e.h > CYDUI_SLIDER_KNOB ? e.h : CYDUI_SLIDER_KNOB;
+    if (h < st->min_target) {
+        h = st->min_target;
+    }
+    r = cydui_alloc(ui, &m, label_w + SLIDER_DEFAULT_W, h);
+
+    disabled = m.disabled || !usable;
+    v = value ? *value : min;
+    if (usable) {
+        v = v < min ? min : (v > max ? max : v); /* a value out of range is clamped quietly */
+    }
+    track.x = (int16_t)(r.x + label_w);
+    track.y = r.y;
+    track.w = (int16_t)(r.w > label_w ? r.w - label_w : 0);
+    track.h = r.h;
+    hit = track; /* a little wider than the track, so that the end positions are easy to hit */
+    hit.x = (int16_t)(hit.x - 4);
+    hit.w = (int16_t)(hit.w + 8);
+
+    resp = cydui_interact(ui, id, hit, CYDUI_SENSE_CLICK | CYDUI_SENSE_DRAG | CYDUI_CAPTURE |
+                                           (disabled ? CYDUI_DISABLED : 0u));
+    /* While the press is ours the knob follows the finger, also when it is outside the track. */
+    holding = (ui->in.down && cydui_id_eq(ui->active, id)) || resp.released;
+    if (holding && !disabled) {
+        int32_t nv = cydui_slider_value_at(track, ui->in.x, min, max);
+        if (nv != v) {
+            v = nv;
+            changed = true;
+        }
+    }
+    if (value && usable) {
+        *value = v;
+    }
+
+    memset(&pi, 0, sizeof(pi));
+    pi.kind = CYDUI_WIDGET_SLIDER;
+    pi.state = widget_state(disabled, holding && !disabled);
+    pi.rect = track;
+    pi.value = v;
+    pi.min = min;
+    pi.max = max;
+    cydui_paint(ui, &pi);
+    if (n) {
+        cydui__draw_text_in(ui, r, r.x, r.y + (r.h - e.h) / 2, label, n,
+                            disabled ? st->text_muted : st->text);
+    }
+    return changed;
+}
+
+void cydui_progress(cydui_ui *ui, int32_t value, int32_t max)
+{
+    cydui_mods m = cydui_take_mods(ui);
+    cydui_paint_info pi;
+    cydui_rect r;
+
+    if (!count_widget(ui)) {
+        return;
+    }
+    r = cydui_alloc(ui, &m, SLIDER_DEFAULT_W, PROGRESS_H);
+    memset(&pi, 0, sizeof(pi));
+    pi.kind = CYDUI_WIDGET_PROGRESS;
+    pi.state = widget_state(m.disabled, false);
+    pi.rect = r;
+    pi.value = value;
+    pi.min = 0;
+    pi.max = max;
+    cydui_paint(ui, &pi);
+}
+
+bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selected)
+{
+    cydui_mods m = cydui_take_mods(ui);
+    const cydui_style *st = &ui->theme->style;
+    cydui_response resp[CYDUI_MAX_TABS];
+    cydui_rect tab[CYDUI_MAX_TABS];
+    size_t len[CYDUI_MAX_TABS];
+    cydui_text_extent ext[CYDUI_MAX_TABS];
+    cydui_rect bar;
+    int i, sel, chosen = -1, h, tab_w;
+    bool changed = false;
+
+    if (!count_widget(ui)) {
+        return false;
+    }
+    count = count > CYDUI_MAX_TABS ? CYDUI_MAX_TABS : count;
+    if (count <= 0 || !labels) {
+        return false;
+    }
+    sel = selected ? *selected : 0;
+    sel = sel < 0 ? 0 : (sel >= count ? count - 1 : sel);
+
+    h = st->min_target;
+    bar = cydui_alloc(ui, &m, cydui_layout_avail(ui).w, h);
+    tab_w = bar.w / count;
+
+    for (i = 0; i < count; i++) { /* first all the touches, so that the painting can show the new choice */
+        const char *label = labels[i] ? labels[i] : "";
+        cydui_id id;
+
+        tab[i].x = (int16_t)(bar.x + i * tab_w);
+        tab[i].y = bar.y;
+        tab[i].w = (int16_t)(i == count - 1 ? bar.w - i * tab_w : tab_w);
+        tab[i].h = bar.h;
+        len[i] = shown_len(label);
+        ext[i] = cydui_text_size(st->font, label, len[i], 0);
+        cydui_push_id_int(ui, i); /* equal labels are fine: every tab has its own id */
+        id = cydui_id_str(ui, label);
+        cydui_id_claim(ui, id);
+        resp[i] = cydui_interact(ui, id, tab[i], CYDUI_SENSE_CLICK | (m.disabled ? CYDUI_DISABLED : 0u));
+        cydui_pop_id(ui);
+        if (resp[i].clicked) {
+            chosen = i;
+        }
+    }
+    if (chosen >= 0 && chosen != sel) {
+        sel = chosen;
+        changed = true;
+    }
+    if (selected) {
+        *selected = sel;
+    }
+    for (i = 0; i < count; i++) {
+        cydui_paint_info pi;
+        memset(&pi, 0, sizeof(pi));
+        pi.kind = CYDUI_WIDGET_TAB;
+        pi.state = widget_state(m.disabled, resp[i].pressed);
+        pi.selected = i == sel;
+        pi.rect = tab[i];
+        pi.text = labels[i] ? labels[i] : "";
+        pi.text_len = len[i];
+        pi.text_extent = ext[i];
+        cydui_paint(ui, &pi);
+    }
+    return changed;
+}

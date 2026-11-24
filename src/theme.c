@@ -87,6 +87,31 @@ void cydui_theme_derive_table(cydui_theme *t)
     set(t, CYDUI_WIDGET_TOGGLE, 1, CYDUI_STATE_PRESSED, shade(s->accent, 90), s->border, s->accent_text, s->accent, 0, 255);
     set(t, CYDUI_WIDGET_TOGGLE, 1, CYDUI_STATE_DISABLED, dim(s, s->accent), s->border, dim(s, s->accent_text), s->accent, 0, 255);
 
+    /* sliders: a pill track, the part up to the knob in the accent, a ringed knob */
+    set(t, CYDUI_WIDGET_SLIDER, 0, CYDUI_STATE_NORMAL, s->border, s->accent, s->text, s->accent, 2, 255);
+    set(t, CYDUI_WIDGET_SLIDER, 0, CYDUI_STATE_PRESSED, s->border, shade(s->accent, 90), s->text, s->accent, 2, 255);
+    set(t, CYDUI_WIDGET_SLIDER, 0, CYDUI_STATE_DISABLED, dim(s, s->border), dim(s, s->accent), dim(s, s->text), dim(s, s->accent), 2, 255);
+
+    /* progress bars: a pill trough and a pill bar */
+    set(t, CYDUI_WIDGET_PROGRESS, 0, CYDUI_STATE_NORMAL, s->panel, s->border, s->text, s->accent, 0, 255);
+    set(t, CYDUI_WIDGET_PROGRESS, 0, CYDUI_STATE_DISABLED, s->panel, s->border, s->text_muted, dim(s, s->accent), 0, 255);
+
+    /* tabs: the active one is lifted onto a panel and underlined in the accent */
+    set(t, CYDUI_WIDGET_TAB, 0, CYDUI_STATE_NORMAL, s->bg, s->border, s->text_muted, s->accent, 0, s->radius);
+    set(t, CYDUI_WIDGET_TAB, 0, CYDUI_STATE_PRESSED, s->panel, s->border, s->text, s->accent, 0, s->radius);
+    set(t, CYDUI_WIDGET_TAB, 0, CYDUI_STATE_DISABLED, s->bg, s->border, dim(s, s->text_muted), s->accent, 0, s->radius);
+    set(t, CYDUI_WIDGET_TAB, 1, CYDUI_STATE_NORMAL, s->panel, s->border, s->accent, s->accent, 0, s->radius);
+    set(t, CYDUI_WIDGET_TAB, 1, CYDUI_STATE_PRESSED, shade(s->panel, 90), s->border, s->accent, s->accent, 0, s->radius);
+    set(t, CYDUI_WIDGET_TAB, 1, CYDUI_STATE_DISABLED, s->panel, s->border, dim(s, s->accent), dim(s, s->accent), 0, s->radius);
+
+    /* cards */
+    set(t, CYDUI_WIDGET_PANEL, 0, CYDUI_STATE_NORMAL, s->panel, s->border, s->text, s->accent, 1, 8);
+    set(t, CYDUI_WIDGET_PANEL, 1, CYDUI_STATE_NORMAL, s->panel, s->accent, s->text, s->accent, 1, 8);
+
+    /* scroll bars: a thumb only */
+    set(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_NORMAL, s->bg, s->border, s->text, s->border, 0, 255);
+    set(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_PRESSED, s->bg, s->border, s->text, s->text_muted, 0, 255);
+
     /* hover and focus look like normal until something produces them */
     for (k = 0; k < CYDUI_WIDGET_COUNT; k++) {
         for (sel = 0; sel < 2; sel++) {
@@ -116,6 +141,50 @@ cydui_theme_status cydui_theme_validate(const cydui_theme *t)
 }
 
 /* ---- painting ---- */
+
+/* ---- slider geometry ---- */
+
+static void knob_range(cydui_rect track, int *x0, int *x1)
+{
+    *x0 = track.x + CYDUI_SLIDER_KNOB / 2;
+    *x1 = track.x + track.w - CYDUI_SLIDER_KNOB / 2;
+    if (*x1 < *x0) {
+        *x1 = *x0;
+    }
+}
+
+int cydui_slider_knob_x(cydui_rect track, int32_t value, int32_t min, int32_t max)
+{
+    int x0, x1;
+    int64_t span;
+
+    knob_range(track, &x0, &x1);
+    if (max <= min) {
+        return x0;
+    }
+    if (value < min) value = min;
+    if (value > max) value = max;
+    span = (int64_t)max - (int64_t)min;
+    return x0 + (int)(((int64_t)value - (int64_t)min) * (int64_t)(x1 - x0) / span);
+}
+
+int32_t cydui_slider_value_at(cydui_rect track, int x, int32_t min, int32_t max)
+{
+    int x0, x1, run;
+    int64_t span, num, v;
+
+    knob_range(track, &x0, &x1);
+    if (max <= min || x1 <= x0) {
+        return min;
+    }
+    run = x1 - x0;
+    if (x < x0) x = x0;
+    if (x > x1) x = x1;
+    span = (int64_t)max - (int64_t)min;
+    num = (int64_t)(x - x0) * span;
+    v = (int64_t)min + (num * 2 + run) / ((int64_t)run * 2); /* rounded to the nearest */
+    return (int32_t)v; /* x is clamped, so v is within [min, max] */
+}
 
 static const cydui_wstyle *entry(const cydui_theme *t, cydui_widget_kind kind, cydui_widget_state st,
                                  bool selected)
@@ -160,6 +229,75 @@ static void paint_panel(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_i
     cydui_draw_rrect(&ui->ctx, p->rect, w->radius, w->fill, 255);
     if (w->border_w) {
         cydui_draw_rrect_outline(&ui->ctx, p->rect, w->radius, w->border_w, w->border, 255);
+    }
+}
+
+/* The slider: a pill track, the stretch up to the knob in the accent, a round knob with a ring. */
+static void paint_slider(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_info *p)
+{
+    const cydui_rect r = p->rect;
+    cydui_rect track, done, knob;
+    int cx = cydui_slider_knob_x(r, p->value, p->min, p->max);
+
+    track.x = r.x;
+    track.w = r.w;
+    track.h = CYDUI_SLIDER_TRACK;
+    track.y = (int16_t)(r.y + (r.h - CYDUI_SLIDER_TRACK) / 2);
+    cydui_draw_rrect(&ui->ctx, track, w->radius, w->fill, 255);
+
+    done = track;
+    done.w = (int16_t)(cx - track.x);
+    if (done.w > 0) {
+        cydui_draw_rrect(&ui->ctx, done, w->radius, w->accent, 255);
+    }
+    knob.w = knob.h = CYDUI_SLIDER_KNOB;
+    knob.x = (int16_t)(cx - CYDUI_SLIDER_KNOB / 2);
+    knob.y = (int16_t)(r.y + (r.h - CYDUI_SLIDER_KNOB) / 2);
+    if (w->shadow) {
+        paint_shadow(ui, knob, CYDUI_SLIDER_KNOB / 2, w->shadow);
+    }
+    cydui_draw_rrect(&ui->ctx, knob, CYDUI_SLIDER_KNOB / 2, w->text, 255);
+    if (w->border_w) {
+        cydui_draw_rrect_outline(&ui->ctx, knob, CYDUI_SLIDER_KNOB / 2, w->border_w, w->border, 255);
+    }
+}
+
+/* A progress bar: a trough and, from its left end, a bar as long as value / max of it. */
+static void paint_progress(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_info *p)
+{
+    const cydui_rect r = p->rect;
+    cydui_rect bar = r;
+    int64_t v = p->value, m = p->max;
+
+    cydui_draw_rrect(&ui->ctx, r, w->radius, w->fill, 255);
+    if (w->border_w) {
+        cydui_draw_rrect_outline(&ui->ctx, r, w->radius, w->border_w, w->border, 255);
+    }
+    if (m <= 0 || v <= 0 || r.w <= 0) {
+        return;
+    }
+    if (v > m) {
+        v = m;
+    }
+    bar.w = (int16_t)(v * (int64_t)r.w / m);
+    if (bar.w > 0) {
+        cydui_draw_rrect(&ui->ctx, bar, w->radius, w->accent, 255);
+    }
+}
+
+/* A tab: a rounded body, the label centered, and for the active one an accent underline. */
+static void paint_tab(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_info *p)
+{
+    const cydui_rect r = p->rect;
+    const cydui_text_extent e = p->text_extent;
+
+    cydui_draw_rrect(&ui->ctx, r, w->radius, w->fill, 255);
+    if (p->selected && r.w > 8 && r.h > 6) {
+        cydui_rect bar = {(int16_t)(r.x + 4), (int16_t)(r.y + r.h - 3), (int16_t)(r.w - 8), 3};
+        cydui_draw_rrect(&ui->ctx, bar, 1, w->accent, 255);
+    }
+    if (p->text && p->text_len) {
+        cydui__draw_text_in(ui, r, r.x + (r.w - e.w) / 2, r.y + (r.h - e.h) / 2, p->text, p->text_len, w->text);
     }
 }
 
@@ -227,6 +365,15 @@ void cydui_paint_default(cydui_ui *ui, const cydui_theme *theme, const cydui_pai
         break;
     case CYDUI_WIDGET_TOGGLE:
         paint_toggle(ui, w, info);
+        break;
+    case CYDUI_WIDGET_SLIDER:
+        paint_slider(ui, w, info);
+        break;
+    case CYDUI_WIDGET_PROGRESS:
+        paint_progress(ui, w, info);
+        break;
+    case CYDUI_WIDGET_TAB:
+        paint_tab(ui, w, info);
         break;
     case CYDUI_WIDGET_PANEL:
         paint_panel(ui, w, info);

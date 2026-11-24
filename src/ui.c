@@ -284,6 +284,7 @@ cydui_response cydui_interact(cydui_ui *ui, cydui_id id, cydui_rect r, unsigned 
     if (in->frame_down && !in->claimed && ui->active.h == 0 && ui->active.c == 0 &&
         hit(ui, r, in->press_x, in->press_y)) {
         ui->active = id;
+        ui->active_capture = (flags & CYDUI_CAPTURE) != 0;
         in->claimed = true; /* a press has one owner, even if it ends in this same frame */
     }
     if (!cydui_id_eq(ui->active, id)) {
