@@ -270,7 +270,7 @@ static void save_fill_state(cydui_ui *ui, const cydui_region *r)
 
 /* ---- containers ---- */
 
-static void open_region(cydui_ui *ui, cydui_layout_kind kind, int cols, int pad)
+bool cydui__open_region(cydui_ui *ui, cydui_layout_kind kind, int cols, int pad)
 {
     cydui_mods m = cydui_take_mods(ui);
     cydui_region *parent, *r;
@@ -280,7 +280,7 @@ static void open_region(cydui_ui *ui, cydui_layout_kind kind, int cols, int pad)
     if (ui->depth >= CYDUI_MAX_LAYOUT_DEPTH) {
         ui->ctx.errors |= CYDUI_ERR_LAYOUT;
         ui->skipped++;
-        return;
+        return false;
     }
     parent = top(ui);
     origin(parent, &ox, &oy);
@@ -329,6 +329,36 @@ static void open_region(cydui_ui *ui, cydui_layout_kind kind, int cols, int pad)
     }
     r->sid = container_id(parent);
     load_fill_state(ui, r);
+    return true;
+}
+
+/* A container that sits exactly where it is told and takes exactly the size it is told (list items). */
+bool cydui__open_region_at(cydui_ui *ui, cydui_layout_kind kind, cydui_rect rect)
+{
+    cydui_region *parent, *r;
+
+    cydui__check_thread(ui);
+    if (ui->depth >= CYDUI_MAX_LAYOUT_DEPTH) {
+        ui->ctx.errors |= CYDUI_ERR_LAYOUT;
+        ui->skipped++;
+        return false;
+    }
+    parent = top(ui);
+    ui->depth++;
+    r = top(ui);
+    memset(r, 0, sizeof(*r));
+    r->kind = (uint8_t)kind;
+    r->x0 = r->cx = rect.x;
+    r->y0 = r->cy = rect.y;
+    r->avail_w = rect.w;
+    r->avail_h = rect.h;
+    r->spacing = parent->spacing;
+    r->fix_w = rect.w;
+    r->fix_h = rect.h;
+    r->cols = 1;
+    r->sid = container_id(parent);
+    load_fill_state(ui, r);
+    return true;
 }
 
 static void close_region(cydui_ui *ui)
@@ -360,7 +390,7 @@ static void close_region(cydui_ui *ui)
     commit(parent, rect, &none);
 }
 
-static void end_kind(cydui_ui *ui, cydui_layout_kind kind)
+void cydui__end_kind(cydui_ui *ui, cydui_layout_kind kind)
 {
     cydui__check_thread(ui);
     if (ui->skipped > 0) { /* the matching begin was too deep and ignored */
@@ -374,14 +404,14 @@ static void end_kind(cydui_ui *ui, cydui_layout_kind kind)
     close_region(ui);
 }
 
-void cydui_begin_row(cydui_ui *ui) { open_region(ui, CYDUI_LAYOUT_ROW, 1, 0); }
-void cydui_end_row(cydui_ui *ui) { end_kind(ui, CYDUI_LAYOUT_ROW); }
-void cydui_begin_column(cydui_ui *ui) { open_region(ui, CYDUI_LAYOUT_COLUMN, 1, 0); }
-void cydui_end_column(cydui_ui *ui) { end_kind(ui, CYDUI_LAYOUT_COLUMN); }
-void cydui_begin_grid(cydui_ui *ui, int cols) { open_region(ui, CYDUI_LAYOUT_GRID, cols, 0); }
-void cydui_end_grid(cydui_ui *ui) { end_kind(ui, CYDUI_LAYOUT_GRID); }
-void cydui_begin_padding(cydui_ui *ui, int px) { open_region(ui, CYDUI_LAYOUT_PADDING, 1, px < 0 ? 0 : px); }
-void cydui_end_padding(cydui_ui *ui) { end_kind(ui, CYDUI_LAYOUT_PADDING); }
+void cydui_begin_row(cydui_ui *ui) { cydui__open_region(ui, CYDUI_LAYOUT_ROW, 1, 0); }
+void cydui_end_row(cydui_ui *ui) { cydui__end_kind(ui, CYDUI_LAYOUT_ROW); }
+void cydui_begin_column(cydui_ui *ui) { cydui__open_region(ui, CYDUI_LAYOUT_COLUMN, 1, 0); }
+void cydui_end_column(cydui_ui *ui) { cydui__end_kind(ui, CYDUI_LAYOUT_COLUMN); }
+void cydui_begin_grid(cydui_ui *ui, int cols) { cydui__open_region(ui, CYDUI_LAYOUT_GRID, cols, 0); }
+void cydui_end_grid(cydui_ui *ui) { cydui__end_kind(ui, CYDUI_LAYOUT_GRID); }
+void cydui_begin_padding(cydui_ui *ui, int px) { cydui__open_region(ui, CYDUI_LAYOUT_PADDING, 1, px < 0 ? 0 : px); }
+void cydui_end_padding(cydui_ui *ui) { cydui__end_kind(ui, CYDUI_LAYOUT_PADDING); }
 
 void cydui_set_spacing(cydui_ui *ui, int px)
 {
@@ -438,6 +468,7 @@ void cydui__layout_end_frame(cydui_ui *ui)
 {
     while (ui->depth > 0) { /* containers the application left open */
         ui->ctx.errors |= CYDUI_ERR_LAYOUT;
+        cydui__scroll_finish(ui);
         close_region(ui);
     }
     save_fill_state(ui, &ui->regions[0]);

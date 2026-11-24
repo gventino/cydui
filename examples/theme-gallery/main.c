@@ -2,7 +2,7 @@
  * theme-gallery: the widgets in every theme, with a switch at run time.
  *   theme-gallery                       window; the mouse is the touch screen
  *   theme-gallery --frames N            window, quits by itself after N frames
- *   theme-gallery --headless [--theme 0|1|2] [--press X,Y [--release]] [--hash] [--png FILE]
+ *   theme-gallery --headless [--theme 0|1|2] [--tab 0|1] [--press X,Y [--release]] [--hash] [--png FILE]
  *                                       renders into memory (themes: 0 default, 1 clean, 2 clean_dark)
  */
 
@@ -31,7 +31,9 @@ static const char *const theme_names[N_THEMES] = {"Padrao", "Claro", "Escuro"};
 
 typedef struct {
     int want_theme;
+    int tab;
     bool done[3], wifi, dark, notify;
+    bool task_done[200];
     int saves;
 } app_t;
 
@@ -43,13 +45,34 @@ static void build_themes(void)
     cydui_theme_init_clean_dark(&themes[2]);
 }
 
+static void task_list(cydui_ui *ui, app_t *app)
+{
+    int32_t first, last, i;
+
+    cydui_list_begin(ui, "tasks", 200, 36, 180, &first, &last);
+    for (i = first; i < last; i++) {
+        char label[32];
+        snprintf(label, sizeof(label), "Tarefa %d", (int)i + 1);
+        cydui_begin_list_item(ui, i);
+        cydui_checkbox(ui, label, &app->task_done[i]);
+        cydui_end_list_item(ui);
+    }
+    cydui_list_end(ui);
+}
+
 static void ui_frame(cydui_ui *ui, app_t *app)
 {
     static const char *const names[3] = {"Wi-Fi", "Modo escuro", "Bloqueado"};
+    static const char *const tabs[2] = {"Controles", "Lista"};
     char text[48];
     bool locked = true;
     int i;
 
+    cydui_tabs(ui, tabs, 2, &app->tab);
+    if (app->tab == 1) {
+        task_list(ui, app);
+        return;
+    }
     CYDUI_ROW(ui) {
         for (i = 0; i < N_THEMES; i++) {
             cydui_push_id_int(ui, i);
@@ -106,7 +129,7 @@ static void one_frame(cydui_ui *ui, app_t *app)
     }
 }
 
-static int run_headless(int theme, int px, int py, bool press, bool release, bool print_hash, const char *png)
+static int run_headless(int theme, int tab, int px, int py, bool press, bool release, bool print_hash, const char *png)
 {
     cydui_mem mem;
     cydui_ui ui;
@@ -119,6 +142,7 @@ static int run_headless(int theme, int px, int py, bool press, bool release, boo
     }
     memset(&app, 0, sizeof(app));
     app.want_theme = theme;
+    app.tab = tab;
     app.wifi = true;
     for (frame = 0; frame < 6; frame++) {
         if (press && frame == 3) {
@@ -184,7 +208,7 @@ int main(int argc, char **argv)
     bool headless = false, print_hash = false, press = false, release = false;
     const char *png = NULL;
     long frames = -1;
-    int theme = 1, px = 0, py = 0, i;
+    int theme = 1, tab = 0, px = 0, py = 0, i;
 
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--headless")) {
@@ -200,16 +224,18 @@ int main(int argc, char **argv)
         } else if (!strcmp(argv[i], "--theme") && i + 1 < argc) {
             theme = atoi(argv[++i]);
             theme = theme < 0 ? 0 : (theme >= N_THEMES ? N_THEMES - 1 : theme);
+        } else if (!strcmp(argv[i], "--tab") && i + 1 < argc) {
+            tab = atoi(argv[++i]) ? 1 : 0;
         } else if (!strcmp(argv[i], "--press") && i + 1 < argc) {
             press = sscanf(argv[++i], "%d,%d", &px, &py) == 2;
         } else {
-            fprintf(stderr, "usage: %s [--headless [--theme N] [--press X,Y [--release]] [--hash] [--png FILE]] "
+            fprintf(stderr, "usage: %s [--headless [--theme N] [--tab N] [--press X,Y [--release]] [--hash] [--png FILE]] "
                             "[--frames N]\n", argv[0]);
             return 2;
         }
     }
     if (headless) {
-        return run_headless(theme, px, py, press, release, print_hash, png);
+        return run_headless(theme, tab, px, py, press, release, print_hash, png);
     }
 #ifdef CYDUI_HAVE_SDL
     return run_window(frames);

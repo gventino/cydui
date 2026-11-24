@@ -7,6 +7,8 @@
 #include "cydui_sans_16.h"
 #include "cydui_sans_24.h"
 #include "scene.h"
+#include <stdio.h>
+
 #include "cydui_themes.h"
 #include "uirig.h"
 #include "unity.h"
@@ -386,6 +388,74 @@ static void test_clean_slider(void) { matrix_golden("clean_slider", CYDUI_WIDGET
 static void test_clean_progress(void) { matrix_golden("clean_progress", CYDUI_WIDGET_PROGRESS); }
 static void test_clean_tabs(void) { matrix_golden("clean_tabs", CYDUI_WIDGET_TAB); }
 
+/*
+ * A scroll area (or a virtual list) in the light theme on the left and in the dark one on the right,
+ * scrolled by a fixed amount: the first frames measure, then scroll_to, then the frame that is checked.
+ */
+static void scroll_scene(cydui_ui *ui, bool list, bool jump, int32_t y)
+{
+    static bool flags[2][4];
+    static int32_t slider_v[2] = {30, 70};
+    int side, i;
+
+    cydui_ui_begin(ui, 0);
+    cydui_draw_rect(&ui->ctx, (cydui_rect){0, 0, 160, 240}, th_light.style.bg, 255);
+    cydui_draw_rect(&ui->ctx, (cydui_rect){160, 0, 160, 240}, th_dark.style.bg, 255);
+    CYDUI_ROW(ui) {
+        for (side = 0; side < 2; side++) {
+            cydui_set_theme(ui, side ? &th_dark : &th_light);
+            cydui_push_id_int(ui, side);
+            if (jump) {
+                cydui_scroll_to(ui, "area", y);
+            }
+            cydui_next_width(ui, 144);
+            if (list) {
+                int32_t first, last;
+                cydui_list_begin(ui, "area", 40, 34, 200, &first, &last);
+                for (i = first; i < last; i++) {
+                    char label[24];
+                    snprintf(label, sizeof(label), "Tarefa %d", (int)i + 1);
+                    cydui_begin_list_item(ui, i);
+                    flags[side][i % 4] = (i % 3) == 0;
+                    cydui_checkbox(ui, label, &flags[side][i % 4]);
+                    cydui_end_list_item(ui);
+                }
+                cydui_list_end(ui);
+            } else {
+                CYDUI_SCROLL(ui, "area", 200) {
+                    cydui_label(ui, "Ajustes");
+                    cydui_button(ui, "Salvar");
+                    cydui_checkbox(ui, "Wi-Fi", &flags[side][0]);
+                    cydui_toggle(ui, "Avisos", &flags[side][1]);
+                    cydui_next_width(ui, 120);
+                    cydui_slider(ui, "Vol", &slider_v[side], 0, 100);
+                    cydui_progress(ui, 60, 100);
+                    cydui_button(ui, "Remover");
+                    cydui_label(ui, "fim");
+                }
+            }
+            cydui_pop_id(ui);
+        }
+    }
+    cydui_ui_end(ui);
+}
+
+static void scroll_golden(const char *name, bool list, int32_t y)
+{
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    cydui_theme_init_clean(&th_light);
+    cydui_theme_init_clean_dark(&th_dark);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, &th_light));
+    scroll_scene(&ui_rig.ui, list, false, 0);
+    scroll_scene(&ui_rig.ui, list, false, 0);
+    scroll_scene(&ui_rig.ui, list, true, y);
+    scroll_scene(&ui_rig.ui, list, false, 0);
+    golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+static void test_clean_scroll(void) { scroll_golden("clean_scroll", false, 52); }
+static void test_clean_list(void) { scroll_golden("clean_list", true, 80); }
+
 static void ui_box(cydui_ui *ui, int w, int h, int hue)
 {
     static const cydui_color c[] = {CYDUI_RGB(230, 90, 90), CYDUI_RGB(240, 180, 60), CYDUI_RGB(110, 210, 120),
@@ -500,6 +570,8 @@ int main(void)
     RUN_TEST(test_clean_slider);
     RUN_TEST(test_clean_progress);
     RUN_TEST(test_clean_tabs);
+    RUN_TEST(test_clean_scroll);
+    RUN_TEST(test_clean_list);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();
 }

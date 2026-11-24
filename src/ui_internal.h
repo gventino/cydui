@@ -19,4 +19,13 @@ void cydui__draw_text_in(cydui_ui *ui, cydui_rect box, int x, int y, const char 
 void cydui__layout_begin_frame(cydui_ui *ui);
 void cydui__layout_end_frame(cydui_ui *ui);
 
+/** Containers, for the scroll areas: open one (false if too deep, the end is then skipped), open one
+ * at a given place with a given size, end one of `kind`. */
+bool cydui__open_region(cydui_ui *ui, cydui_layout_kind kind, int cols, int pad);
+bool cydui__open_region_at(cydui_ui *ui, cydui_layout_kind kind, cydui_rect rect);
+void cydui__end_kind(cydui_ui *ui, cydui_layout_kind kind);
+
+/** Draws the bar and releases the clip of the scroll area that is the innermost open container. */
+void cydui__scroll_finish(cydui_ui *ui);
+
 #endif /* CYDUI_UI_INTERNAL_H */

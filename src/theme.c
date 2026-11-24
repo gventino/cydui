@@ -301,6 +301,27 @@ static void paint_tab(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_inf
     }
 }
 
+/* A scroll bar: only the thumb, as tall as the window is to the content (never under 16 px). */
+static void paint_scrollbar(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_info *p)
+{
+    const cydui_rect r = p->rect;
+    int64_t span = p->max > 0 ? p->max : 0, pos = p->value < 0 ? 0 : p->value;
+    int64_t total = span + p->aux.h, room;
+    cydui_rect thumb = r;
+
+    if (r.w <= 0 || r.h <= 0 || span == 0 || total <= 0) {
+        return;
+    }
+    pos = pos > span ? span : pos;
+    thumb.h = (int16_t)((int64_t)r.h * p->aux.h / total);
+    if (thumb.h < 16) {
+        thumb.h = r.h < 16 ? r.h : 16;
+    }
+    room = r.h - thumb.h;
+    thumb.y = (int16_t)(r.y + room * pos / span);
+    cydui_draw_rrect(&ui->ctx, thumb, w->radius, w->accent, 255);
+}
+
 static void paint_button(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_info *p)
 {
     const cydui_rect r = p->rect;
@@ -377,6 +398,9 @@ void cydui_paint_default(cydui_ui *ui, const cydui_theme *theme, const cydui_pai
         break;
     case CYDUI_WIDGET_PANEL:
         paint_panel(ui, w, info);
+        break;
+    case CYDUI_WIDGET_SCROLLBAR:
+        paint_scrollbar(ui, w, info);
         break;
     default: /* the other widgets get their painting with the widgets */
         break;

@@ -79,7 +79,8 @@ typedef enum {
     CYDUI_LAYOUT_ROW,
     CYDUI_LAYOUT_COLUMN,
     CYDUI_LAYOUT_GRID,
-    CYDUI_LAYOUT_PADDING
+    CYDUI_LAYOUT_PADDING,
+    CYDUI_LAYOUT_SCROLL /**< a scroll area or a virtual list (see cydui_scroll_begin) */
 } cydui_layout_kind;
 
 /** Size modifiers for the next widget or container only (set with the cydui_next_* functions). */
@@ -106,6 +107,12 @@ typedef struct {
     uint16_t fills_prev, fills_now, fill_idx; /**< `fill` children: last frame, this frame, handed out so far */
     int16_t fixed_prev, fixed_now; /**< main-axis space taken by the others (and the gaps), same two frames */
     cydui_id sid;          /**< key of the container's entry in the state table */
+    cydui_id wid;          /**< scroll areas: the id of the area itself (its state holds the offset) */
+    int32_t off_px;        /**< scroll areas: how far the content is scrolled, in pixels */
+    int32_t content;       /**< lists: the exact height of the whole content */
+    int16_t view_y;        /**< scroll areas: top of the window (y0 moves with the content) */
+    int16_t item_h;        /**< lists: height of one item */
+    uint8_t scroll_flags;  /**< CYDUI_SCROLL_F_* */
 } cydui_region;
 
 /* ---- input ---- */
@@ -161,11 +168,11 @@ typedef struct {
 
 /* ---- per-widget state ---- */
 
-/** One entry of the state table. `a` and `b` are free for the owner of the id. */
+/** One entry of the state table. `a` to `d` are free for the owner of the id. */
 typedef struct {
     cydui_id id;
     uint32_t last_frame; /**< frame in which the entry was last looked up */
-    int32_t a, b;
+    int32_t a, b, c, d;
     uint16_t used;
 } cydui_state;
 
@@ -312,6 +319,69 @@ cydui_rect cydui_layout_avail(const cydui_ui *ui);
 #define CYDUI_COLUMN(ui) CYDUI_SCOPE_(cydui_begin_column(ui), cydui_end_column(ui))
 #define CYDUI_GRID(ui, cols) CYDUI_SCOPE_(cydui_begin_grid((ui), (cols)), cydui_end_grid(ui))
 #define CYDUI_PADDING(ui, px) CYDUI_SCOPE_(cydui_begin_padding((ui), (px)), cydui_end_padding(ui))
+
+/* ---- scrolling ---- */
+
+/** A flick below this speed (px/s) does not coast. */
+#ifndef CYDUI_SCROLL_FLING_MIN
+#define CYDUI_SCROLL_FLING_MIN 50
+#endif
+/** A coasting scroll stops when it slows below this (px/s). */
+#ifndef CYDUI_SCROLL_MIN_V
+#define CYDUI_SCROLL_MIN_V 10
+#endif
+/** Time constant of the friction (ms): the speed falls to about a third in this time. */
+#ifndef CYDUI_SCROLL_FRICTION_MS
+#define CYDUI_SCROLL_FRICTION_MS 325
+#endif
+/** The fastest a flick can start (px/s). */
+#ifndef CYDUI_SCROLL_MAX_V
+#define CYDUI_SCROLL_MAX_V 6000
+#endif
+/** A list scrolls over at most this many pixels, whatever count * item_h says. */
+#define CYDUI_LIST_MAX_PX (1 << 22)
+
+enum { CYDUI_SCROLL_F_LIST = 1u << 0, CYDUI_SCROLL_F_INERT = 1u << 1 };
+
+/**
+ * A window `view_h` pixels tall (and as wide as the room it has; see cydui_next_width) onto content
+ * that is taller. Dragging inside it scrolls, and lets go into a coast that slows down by itself.
+ * A button the finger lands on still clicks when the finger does not travel; once it does, the area
+ * takes the touch over and the button does not click. A widget that keeps the press (a slider) is
+ * not taken over. `id` must differ from the other ids at this point of the id stack. The height of
+ * the content is the one of the previous frame (the same one frame of delay as `fill`). A scroll
+ * area inside another one is not supported: it is a plain column of that height, and CYDUI_ERR_BAD_ARG
+ * is raised. A bar shows on the right while the content is taller than the window. Whenever
+ * something is still coasting cydui_ui_end returns true.
+ */
+void cydui_scroll_begin(cydui_ui *ui, const char *id, int16_t view_h);
+void cydui_scroll_end(cydui_ui *ui);
+#define CYDUI_SCROLL(ui, id, view_h) CYDUI_SCOPE_(cydui_scroll_begin((ui), (id), (view_h)), cydui_scroll_end(ui))
+
+/** Jumps the area `id` (as spelled at this point of the id stack) to `y` pixels from the top, no coasting. */
+void cydui_scroll_to(cydui_ui *ui, const char *id, int32_t y);
+
+/**
+ * A scroll area for a long list of equal items. The application only builds the ones in [*first, *last)
+ * (both set by the call and within [0, count]), so a thousand items cost the same as ten:
+ *
+ *     int32_t first, last;
+ *     cydui_list_begin(ui, "tasks", n, 36, 150, &first, &last);
+ *     for (int32_t i = first; i < last; i++) {
+ *         cydui_begin_list_item(ui, i);   // a 36 px row; ids inside are mixed with i
+ *         cydui_checkbox(ui, tasks[i].title, &tasks[i].done);
+ *         cydui_end_list_item(ui);
+ *     }
+ *     cydui_list_end(ui);
+ *
+ * The content is exactly count * item_h tall, at most CYDUI_LIST_MAX_PX; an item_h of 0 or less or a
+ * count of 0 or less is an empty list.
+ */
+void cydui_list_begin(cydui_ui *ui, const char *id, int32_t count, int16_t item_h, int16_t view_h,
+                      int32_t *first, int32_t *last);
+void cydui_begin_list_item(cydui_ui *ui, int32_t index);
+void cydui_end_list_item(cydui_ui *ui);
+void cydui_list_end(cydui_ui *ui);
 
 /* ---- widgets ---- */
 
