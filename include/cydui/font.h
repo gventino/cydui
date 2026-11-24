@@ -56,6 +56,9 @@ cydui_font_status cydui_font_validate(const cydui_font *f);
  */
 const cydui_glyph *cydui_font_lookup(const cydui_font *f, uint32_t cp);
 
+/** The fallback glyph (the box), or NULL if the font is unusable (NULL, empty, bad index). */
+const cydui_glyph *cydui_font_fallback(const cydui_font *f);
+
 /** Bytes of bitmap data a glyph needs: ((w + 1) / 2) * h. */
 size_t cydui_glyph_bytes(const cydui_glyph *g);
 

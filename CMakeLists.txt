@@ -4,7 +4,7 @@
 #   * ESP-IDF component: picked up automatically via EXTRA_COMPONENT_DIRS / managed components.
 #   * Plain CMake (PC): builds the core library, the backends, the examples and the tests.
 
-set(CYDUI_CORE_SRCS src/arena.c src/ctx.c src/font.c src/raster.c src/types.c src/utf8.c src/version.c)
+set(CYDUI_CORE_SRCS src/arena.c src/ctx.c src/font.c src/raster.c src/text.c src/types.c src/utf8.c src/version.c)
 
 if(ESP_PLATFORM)
     idf_component_register(

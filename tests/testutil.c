@@ -9,6 +9,7 @@ uint32_t tu_errors;
 
 static cydui_cmd cmd_mem[1024];
 static cydui_color strip_mem[TU_W * TU_H];
+static char text_mem[4096];
 
 uint64_t tu_render(tu_scene scene, int strip_rows, cydui_color clear)
 {
@@ -26,6 +27,8 @@ uint64_t tu_render(tu_scene scene, int strip_rows, cydui_color clear)
     cfg.cmd_mem_size = sizeof(cmd_mem);
     cfg.strip_mem = strip_mem;
     cfg.strip_mem_size = (size_t)strip_rows * TU_W * sizeof(cydui_color);
+    cfg.text_mem = text_mem;
+    cfg.text_mem_size = sizeof(text_mem);
     err = cydui_init(&ctx, &cfg);
     if (err) {
         fprintf(stderr, "tu_render: cydui_init failed (0x%x)\n", (unsigned)err);

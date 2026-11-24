@@ -1,6 +1,7 @@
 #ifndef CYDUI_CMD_H
 #define CYDUI_CMD_H
 
+#include "cydui/font.h"
 #include "cydui/types.h"
 
 #ifdef __cplusplus
@@ -12,7 +13,8 @@ typedef enum {
     CYDUI_CMD_RRECT,
     CYDUI_CMD_LINE,
     CYDUI_CMD_BITMAP,
-    CYDUI_CMD_GRADIENT
+    CYDUI_CMD_GRADIENT,
+    CYDUI_CMD_TEXT
 } cydui_cmd_type;
 
 typedef enum {
@@ -52,6 +54,14 @@ typedef struct {
             cydui_color c0, c1;
             uint8_t vertical; /**< 1: c0 at top to c1 at bottom; 0: left to right */
         } gradient;
+        struct {
+            const cydui_font *font;
+            const char *str;   /**< a copy owned by the frame's text arena */
+            uint16_t len;      /**< bytes, at most CYDUI_MAX_STR */
+            int16_t wrap;      /**< wrap width in pixels, 0 = no wrapping */
+            cydui_color color;
+            uint8_t align;     /**< cydui_align */
+        } text;
     } u;
 } cydui_cmd;
 

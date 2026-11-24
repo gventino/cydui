@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "cydui/cydui.h"
 
 static cydui_rect screen_rect(const cydui_ctx *ctx)
@@ -18,6 +20,7 @@ uint32_t cydui_init(cydui_ctx *ctx, const cydui_config *cfg)
     ctx->cmd_cap = ctx->cmd_len = 0;
     ctx->strip_h = 0;
     ctx->errors = 0;
+    cydui_arena_init(&ctx->text_arena, NULL, 0);
 
     if (!cfg || !cfg->backend || !cfg->backend->flush_strip || cfg->backend->width <= 0 ||
         cfg->backend->height <= 0) {
@@ -56,6 +59,7 @@ uint32_t cydui_init(cydui_ctx *ctx, const cydui_config *cfg)
         ctx->cmd_cap = (uint32_t)n;
     }
 
+    cydui_arena_init(&ctx->text_arena, cfg->text_mem, cfg->text_mem_size);
     ctx->backend = cfg->backend;
     ctx->strip_h = (int16_t)rows;
     ctx->clip = screen_rect(ctx);
@@ -66,6 +70,7 @@ uint32_t cydui_init(cydui_ctx *ctx, const cydui_config *cfg)
 void cydui_begin_frame(cydui_ctx *ctx, cydui_color clear)
 {
     ctx->cmd_len = 0;
+    cydui_arena_reset(&ctx->text_arena);
     ctx->clip = screen_rect(ctx);
     ctx->clear = clear;
 }
@@ -127,11 +132,16 @@ void cydui_reset_clip(cydui_ctx *ctx)
  * Reserves the next command slot. Returns NULL (without consuming capacity) if the visible part
  * of `geometry` is empty, or NULL with CYDUI_ERR_CMD_OVERFLOW if the list is full.
  */
-static cydui_cmd *push(cydui_ctx *ctx, cydui_cmd_type type, cydui_rect geometry, uint8_t alpha)
+static cydui_cmd *push_reaching(cydui_ctx *ctx, cydui_cmd_type type, cydui_rect geometry,
+                                int reach, uint8_t alpha)
 {
     cydui_cmd *c;
+    int32_t gx0 = (int32_t)geometry.x - reach, gx1 = (int32_t)geometry.x + geometry.w + reach;
+    int32_t gy0 = (int32_t)geometry.y - reach, gy1 = (int32_t)geometry.y + geometry.h + reach;
 
-    if (alpha == 0 || cydui_rect_empty(cydui_rect_intersect(geometry, ctx->clip))) {
+    /* `reach` widens the geometry for commands whose pixels may lie outside it (text). */
+    if (alpha == 0 || geometry.w <= 0 || geometry.h <= 0 || gx0 >= ctx->clip.x + ctx->clip.w ||
+        gx1 <= ctx->clip.x || gy0 >= ctx->clip.y + ctx->clip.h || gy1 <= ctx->clip.y) {
         return NULL;
     }
     if (ctx->cmd_len >= ctx->cmd_cap) {
@@ -144,6 +154,11 @@ static cydui_cmd *push(cydui_ctx *ctx, cydui_cmd_type type, cydui_rect geometry,
     c->rect = geometry;
     c->clip = ctx->clip;
     return c;
+}
+
+static cydui_cmd *push(cydui_ctx *ctx, cydui_cmd_type type, cydui_rect geometry, uint8_t alpha)
+{
+    return push_reaching(ctx, type, geometry, 0, alpha);
 }
 
 void cydui_draw_rect(cydui_ctx *ctx, cydui_rect r, cydui_color color, uint8_t alpha)
@@ -260,4 +275,57 @@ void cydui_draw_gradient(cydui_ctx *ctx, cydui_rect r, cydui_color c0, cydui_col
         c->u.gradient.c1 = c1;
         c->u.gradient.vertical = vertical ? 1u : 0u;
     }
+}
+
+void cydui_draw_text(cydui_ctx *ctx, const cydui_font *font, int16_t x, int16_t y, int16_t wrap_w,
+                     cydui_align align, const char *s, size_t len, cydui_color color,
+                     uint8_t alpha)
+{
+    bool truncated;
+    size_t n;
+    cydui_text_extent e;
+    cydui_rect box;
+    cydui_cmd *c;
+    char *copy;
+
+    if (alpha == 0) {
+        return;
+    }
+    if (!cydui_font_fallback(font)) {
+        ctx->errors |= CYDUI_ERR_BAD_ARG; /* no font, or one that cannot be used */
+        return;
+    }
+    n = cydui_text_clip_len(s, len, &truncated);
+    if (truncated) {
+        ctx->errors |= CYDUI_ERR_TEXT_TRUNCATED;
+    }
+    if (n == 0) {
+        return;
+    }
+    e = cydui_text_size(font, s, n, wrap_w);
+    if (e.lines == 0) {
+        return;
+    }
+    box.x = x;
+    box.y = y;
+    box.w = wrap_w > 0 ? wrap_w : e.w;
+    box.h = e.h;
+
+    c = push_reaching(ctx, CYDUI_CMD_TEXT, box, CYDUI_TEXT_REACH(font), alpha);
+    if (!c) {
+        return;
+    }
+    copy = (char *)cydui_arena_alloc(&ctx->text_arena, n, 1);
+    if (!copy) { /* no room for the string: take the command back */
+        ctx->cmd_len--;
+        ctx->errors |= CYDUI_ERR_NO_MEMORY;
+        return;
+    }
+    memcpy(copy, s, n);
+    c->u.text.font = font;
+    c->u.text.str = copy;
+    c->u.text.len = (uint16_t)n;
+    c->u.text.wrap = wrap_w > 0 ? wrap_w : 0;
+    c->u.text.color = color;
+    c->u.text.align = (uint8_t)align;
 }

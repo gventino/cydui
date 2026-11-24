@@ -4,6 +4,8 @@
 #include "cydui/arena.h"
 #include "cydui/backend.h"
 #include "cydui/cmd.h"
+#include "cydui/font.h"
+#include "cydui/text.h"
 #include "cydui/types.h"
 
 #ifdef __cplusplus
@@ -20,6 +22,8 @@ typedef struct {
     size_t cmd_mem_size;
     void *strip_mem;    /**< memory for the render strip, at least width * 2 bytes (>= 1 row) */
     size_t strip_mem_size;
+    void *text_mem;     /**< optional: copies of this frame's strings; without it text is dropped */
+    size_t text_mem_size;
 } cydui_config;
 
 /** Library state. Fields are private; use the functions below. */
@@ -29,6 +33,7 @@ typedef struct {
     uint32_t cmd_cap, cmd_len;
     cydui_color *strip;
     int16_t strip_h;
+    cydui_arena text_arena;
     cydui_rect clip;
     cydui_color clear;
     uint32_t errors;
@@ -80,6 +85,18 @@ void cydui_draw_line(cydui_ctx *ctx, int16_t x0, int16_t y0, int16_t x1, int16_t
  */
 void cydui_draw_bitmap(cydui_ctx *ctx, cydui_rect r, const void *data, size_t len,
                        cydui_bitmap_format fmt, cydui_color tint, uint8_t alpha);
+
+/**
+ * Draws UTF-8 text with its top-left at (x, y). `len` is the byte length or CYDUI_NTS for a
+ * NUL-terminated string; at most CYDUI_MAX_STR bytes are used (CYDUI_ERR_TEXT_TRUNCATED otherwise).
+ * The string is copied, so `s` may be a temporary buffer. With wrap_w > 0 the text wraps inside a
+ * box of that width and `align` positions each line in it; with wrap_w <= 0 there is no wrapping
+ * and `align` only matters between lines of text containing '\n'. Text needs `text_mem` in the
+ * config: without it, or when it is full, the text is dropped with CYDUI_ERR_NO_MEMORY.
+ */
+void cydui_draw_text(cydui_ctx *ctx, const cydui_font *font, int16_t x, int16_t y, int16_t wrap_w,
+                     cydui_align align, const char *s, size_t len, cydui_color color,
+                     uint8_t alpha);
 
 /** Two-color linear gradient; vertical: c0 at the top, c1 at the bottom, else left to right. */
 void cydui_draw_gradient(cydui_ctx *ctx, cydui_rect r, cydui_color c0, cydui_color c1,

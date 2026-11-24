@@ -43,6 +43,14 @@ cydui_font_status cydui_font_validate(const cydui_font *f)
     return CYDUI_FONT_OK;
 }
 
+const cydui_glyph *cydui_font_fallback(const cydui_font *f)
+{
+    if (!f || !f->glyphs || f->fallback >= f->glyph_count) {
+        return NULL;
+    }
+    return &f->glyphs[f->fallback];
+}
+
 const cydui_glyph *cydui_font_lookup(const cydui_font *f, uint32_t cp)
 {
     uint32_t lo = 0, hi;

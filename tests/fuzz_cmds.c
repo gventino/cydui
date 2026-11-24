@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "cydui/cydui.h"
 #include "cydui_mem.h"
@@ -79,6 +80,7 @@ static uint64_t render(const uint8_t *data, size_t size, int rows)
     r.p = data;
     r.n = size;
     cydui_mem_init(&mem, fb, W, H);
+    memset(&cfg, 0, sizeof(cfg));
     cfg.backend = &mem.backend;
     cfg.cmd_mem = cmd_mem;
     cfg.cmd_mem_size = sizeof(cmd_mem);

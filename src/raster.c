@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "cydui/cmd.h"
+#include "cydui/text.h"
 
 typedef struct {
     cydui_color *buf;
@@ -131,7 +132,37 @@ static void draw_gradient(const cydui_cmd *c, const strip_t *s)
     }
 }
 
-/* ---- bitmap ---- */
+/* ---- bitmap and glyph blitting ---- */
+
+/* Draws a w x h A4 coverage mask with its top-left at (dx, dy), within `clip` and the strip. */
+static void blit_a4(const strip_t *s, int dx, int dy, int w, int h, const uint8_t *data,
+                    cydui_color tint, unsigned alpha, const cydui_rect *clip)
+{
+    int x0 = dx, x1 = dx + w, y0 = dy, y1 = dy + h, x, y;
+    size_t row_bytes = ((size_t)w + 1u) / 2u;
+
+    if (x0 < clip->x) x0 = clip->x;
+    if (x1 > clip->x + clip->w) x1 = clip->x + clip->w;
+    if (y0 < clip->y) y0 = clip->y;
+    if (y1 > clip->y + clip->h) y1 = clip->y + clip->h;
+    if (x0 < 0) x0 = 0;
+    if (x1 > s->width) x1 = s->width;
+    if (y0 < s->y0) y0 = s->y0;
+    if (y1 > s->y0 + s->h) y1 = s->y0 + s->h;
+
+    for (y = y0; y < y1; y++) {
+        cydui_color *p = pixel_at(s, 0, y);
+        const uint8_t *row = data + (size_t)(y - dy) * row_bytes;
+        for (x = x0; x < x1; x++) {
+            int sx = x - dx;
+            unsigned byte = row[sx / 2];
+            unsigned nib = (sx & 1) ? (byte & 0xFu) : (byte >> 4);
+            if (nib) {
+                put(&p[x], tint, div255(nib * 17u * alpha));
+            }
+        }
+    }
+}
 
 static void draw_bitmap(const cydui_cmd *c, const strip_t *s)
 {
@@ -142,21 +173,74 @@ static void draw_bitmap(const cydui_cmd *c, const strip_t *s)
     if (!visible(c, s, &v) || !data) {
         return;
     }
+    if (c->u.bitmap.format == CYDUI_BITMAP_A4) {
+        blit_a4(s, c->rect.x, c->rect.y, c->rect.w, c->rect.h, data, c->u.bitmap.tint, c->alpha,
+                &c->clip);
+        return;
+    }
     for (y = v.y; y < v.y + v.h; y++) {
         cydui_color *p = pixel_at(s, v.x, y);
         int sy = y - c->rect.y;
         for (x = 0; x < v.w; x++) {
             int sx = v.x + x - c->rect.x;
-            if (c->u.bitmap.format == CYDUI_BITMAP_RGB565) {
-                cydui_color px;
-                memcpy(&px, data + ((size_t)sy * (size_t)c->rect.w + (size_t)sx) * 2u, 2u);
-                put(&p[x], px, c->alpha);
-            } else {
-                size_t row_bytes = ((size_t)c->rect.w + 1u) / 2u;
-                unsigned byte = data[(size_t)sy * row_bytes + (size_t)(sx / 2)];
-                unsigned nib = (sx & 1) ? (byte & 0xFu) : (byte >> 4);
-                put(&p[x], c->u.bitmap.tint, div255(nib * 17u * c->alpha));
+            cydui_color px;
+            memcpy(&px, data + ((size_t)sy * (size_t)c->rect.w + (size_t)sx) * 2u, 2u);
+            put(&p[x], px, c->alpha);
+        }
+    }
+}
+
+/* ---- text ---- */
+
+static void draw_text(const cydui_cmd *c, const strip_t *s)
+{
+    const cydui_font *f = c->u.text.font;
+    int reach = f ? CYDUI_TEXT_REACH(f) : 0;
+    cydui_text_iter it;
+    cydui_text_line ln;
+    int line_no = 0;
+
+    if (!f || !c->u.text.str) {
+        return;
+    }
+    cydui_text_iter_init(&it, f, c->u.text.str, c->u.text.len, c->u.text.wrap);
+    while (cydui_text_next_line(&it, &ln)) {
+        int line_y = c->rect.y + line_no * f->line_height;
+        int pen, slack;
+        size_t pos;
+
+        line_no++;
+        /* Lines only go down: past the strip means done. Both tests use the font's real reach. */
+        if (line_y - reach >= s->y0 + s->h) {
+            break;
+        }
+        if (line_y + f->line_height + reach <= s->y0) {
+            continue;
+        }
+        slack = c->rect.w - ln.width;
+        pen = c->rect.x;
+        if (slack > 0 && c->u.text.align == CYDUI_ALIGN_CENTER) {
+            pen += slack / 2;
+        } else if (slack > 0 && c->u.text.align == CYDUI_ALIGN_RIGHT) {
+            pen += slack;
+        }
+        for (pos = ln.start; pos < ln.end;) {
+            uint32_t cp;
+            size_t used = cydui_utf8_decode(it.s + pos, ln.end - pos, &cp);
+            const cydui_glyph *g = cydui_text_resolve(f, cp);
+
+            pos += used;
+            if (!g) {
+                continue;
             }
+            {
+                const uint8_t *data = cydui_font_glyph_data(f, g);
+                if (data) {
+                    blit_a4(s, pen + g->left, line_y + f->ascent - g->top, g->w, g->h, data,
+                            c->u.text.color, c->alpha, &c->clip);
+                }
+            }
+            pen += g->advance;
         }
     }
 }
@@ -328,6 +412,9 @@ void cydui_raster_strip(const cydui_cmd *cmds, uint32_t n, cydui_color *buf, int
             break;
         case CYDUI_CMD_GRADIENT:
             draw_gradient(c, &s);
+            break;
+        case CYDUI_CMD_TEXT:
+            draw_text(c, &s);
             break;
         }
     }

@@ -27,7 +27,8 @@ enum {
     CYDUI_ERR_CMD_OVERFLOW = 1u << 0, /**< command list full, command dropped */
     CYDUI_ERR_BAD_ARG = 1u << 1,      /**< invalid argument, command dropped */
     CYDUI_ERR_NO_MEMORY = 1u << 2,    /**< caller-provided memory too small */
-    CYDUI_ERR_BAD_BITMAP = 1u << 3    /**< bitmap data shorter than its dimensions, dropped */
+    CYDUI_ERR_BAD_BITMAP = 1u << 3,   /**< bitmap data shorter than its dimensions, dropped */
+    CYDUI_ERR_TEXT_TRUNCATED = 1u << 4 /**< text longer than CYDUI_MAX_STR was cut; informative */
 };
 
 /** Intersection of two rectangles; an empty result has w == h == 0. */
