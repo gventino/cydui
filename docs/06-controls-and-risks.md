@@ -88,7 +88,7 @@ Probability (P) and impact (I): 1–3. Score = P×I. Residual after controls.
 | ID | Risk | P | I | Score | Response |
 |----|------|---|---|-------|----------|
 | R-10 | **Scope explosion** (themes, widgets, effects) before the core is done. | 3 | 3 | 9 | KISS; per-iteration acceptance criteria; extra themes only in It7; freeze core API in It4. |
-| R-11 | API too egui-like but unsuited to C (closures, builders). | 2 | 2 | 4 | Early `hello`/`widgets` prototype (It3), review ergonomics before expanding. **State:** prototype done (`hello` is 22 lines); the review with the user is the It3 milestone. |
+| R-11 | API too egui-like but unsuited to C (closures, builders). | 2 | 2 | 4 | Early `hello`/`widgets` prototype (It3), review ergonomics before expanding. **State:** prototype done (`hello` is 22 lines) and reviewed with the user in the It3 milestone: the API stays as it is. The API is frozen at the end of It4. |
 | R-12 | Single hardware unit (no variants) hides bugs. | 2 | 1 | 2 | Accept; keep the SDL backend as reference. |
 | R-13 | Fuzz/sanitizers consume time and become "later". | 2 | 2 | 4 | Fuzz UTF-8 and commands in It2/It3, not only It8. |
 

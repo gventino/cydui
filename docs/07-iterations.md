@@ -30,7 +30,7 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 - **Acceptance:** `widgets` example in SDL with mouse; headless test with synthetic events yields the expected hash; ID collision detected in debug; input queue survives flood.
 - **Covers:** FR-20..24, 30, 40, 41; NFR-40; CT-05, 07, 11; R-05, R-11.
 - **Milestone:** API ergonomics review with the user before moving on.
-- **Status: implemented; waiting for the API review** (see `docs/10-core-design.md`). Deviations and decisions:
+- **Status: done; API reviewed with the user.** The review kept the API as it is and settled two points: vertical centering in rows, group alignment and content-sized container backgrounds wait for It4 (they share one mechanism, knowing a container's final size before placing its children), and ids stay independent of the container hierarchy (lists use `##` or `push_id`). Details in `docs/10-core-design.md`. Deviations and decisions:
   - containers are `begin`/`end` pairs plus `CYDUI_ROW/COLUMN/GRID/PADDING` scope macros, and sizes are one-shot `cydui_next_*` modifiers (the two choices made with the user);
   - the gap goes before each child, so `cydui_set_spacing` is immediate;
   - FR-24 is implemented as last frame's `fill` numbers plus a request for another frame, no re-measuring pass;

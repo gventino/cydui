@@ -2,7 +2,7 @@
 
 Immediate-mode UI library in C for small embedded displays, targeting the ESP32 "Cheap Yellow Display" (ESP32-2432S028R: ILI9341 320x240 + XPT2046 touch). egui-style API, strip-based rendering (no full framebuffer), swappable themes from clean/modern to retro to cyberpunk.
 
-**Status:** iteration 3 implemented: drawing core, strip rasterizer, in-memory and SDL backends, UTF-8 text with bitmap fonts, and an immediate-mode UI (ids, state, touch input, layout, label/button/checkbox/toggle). The API is awaiting review and is not frozen. No themes, scrolling or text input yet. See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md).
+**Status:** iteration 3 done: drawing core, strip rasterizer, in-memory and SDL backends, UTF-8 text with bitmap fonts, and an immediate-mode UI (ids, state, touch input, layout, label/button/checkbox/toggle). The API has been reviewed but is not frozen until iteration 4. No themes, scrolling or text input yet. See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md).
 
 ## Building and running (PC)
 
