@@ -1,0 +1,10 @@
+CONFIG_IDF_TARGET="esp32"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_COMPILER_STACK_CHECK_MODE_STRONG=y
+
+# Verified on the author's ESP32-2432S028R (see docs/09-hardware-notes.md).
+# The panel is natively 320x240 (ILI9342C-like): MADCTL 0x00 = landscape, no
+# mirroring, RGB order, no inversion.
+CONFIG_PROBE_LCD_NATIVE_LANDSCAPE=y
+CONFIG_PROBE_LCD_MADCTL_RAW=0

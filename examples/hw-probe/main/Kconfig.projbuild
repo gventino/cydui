@@ -1,0 +1,78 @@
+menu "hw-probe"
+
+    config PROBE_BOARD_PROFILE_CYD
+        bool "Board profile: classic CYD (ESP32-2432S028R)"
+        default y
+        help
+            The classic CYD wires its display and touch to strapping pins
+            (GPIO 2, 12, 15). With this profile enabled, those pins do not
+            trigger a warning at boot.
+
+    config PROBE_HOLD_PATTERN
+        bool "Draw the test pattern and stop (no other stages)"
+        default n
+
+    menu "Display (ILI9341, SPI2/HSPI)"
+        config PROBE_LCD_MOSI
+            int "MOSI GPIO"
+            default 13
+        config PROBE_LCD_MISO
+            int "MISO GPIO"
+            default 12
+        config PROBE_LCD_SCLK
+            int "SCLK GPIO"
+            default 14
+        config PROBE_LCD_CS
+            int "CS GPIO"
+            default 15
+        config PROBE_LCD_DC
+            int "DC GPIO"
+            default 2
+        config PROBE_LCD_BL
+            int "Backlight GPIO (classic CYD: 21; some variants: 27)"
+            default 21
+        config PROBE_LCD_BL_ACTIVE_HIGH
+            bool "Backlight is active high"
+            default y
+        config PROBE_LCD_SPI_MHZ
+            int "SPI clock for the stages after the sweep (MHz)"
+            range 1 80
+            default 40
+        config PROBE_LCD_INVERT
+            bool "Send INVON (color inversion)"
+            default n
+        config PROBE_LCD_BGR
+            bool "MADCTL BGR bit"
+            default y
+        config PROBE_LCD_MADCTL_RAW
+            int "Raw MADCTL value (0-255), or -1 to derive it from rotation/BGR"
+            range -1 255
+            default -1
+        config PROBE_LCD_NATIVE_LANDSCAPE
+            bool "Panel is natively 320x240 (ILI9342C style): MV=0 means landscape"
+            default n
+        config PROBE_LCD_ROTATION
+            int "Rotation (0-3, Adafruit convention; 1 = landscape)"
+            range 0 3
+            default 1
+    endmenu
+
+    menu "Touch (XPT2046, SPI3/VSPI)"
+        config PROBE_TOUCH_CLK
+            int "CLK GPIO"
+            default 25
+        config PROBE_TOUCH_MOSI
+            int "MOSI GPIO"
+            default 32
+        config PROBE_TOUCH_MISO
+            int "MISO GPIO (input only is fine)"
+            default 39
+        config PROBE_TOUCH_CS
+            int "CS GPIO"
+            default 33
+        config PROBE_TOUCH_IRQ
+            int "IRQ GPIO (active low)"
+            default 36
+    endmenu
+
+endmenu
