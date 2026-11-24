@@ -2,8 +2,8 @@ add_library(unity STATIC ${CMAKE_SOURCE_DIR}/third_party/unity/unity.c)
 target_include_directories(unity PUBLIC ${CMAKE_SOURCE_DIR}/third_party/unity)
 
 # One executable per test file; each is registered with ctest under the same name.
-add_library(testutil STATIC testutil.c)
-target_link_libraries(testutil PUBLIC cydui cydui_mem)
+add_library(testutil STATIC testutil.c uirig.c)
+target_link_libraries(testutil PUBLIC cydui cydui_mem cydui_fonts)
 target_include_directories(testutil PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(testutil PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(testutil PRIVATE ${CYDUI_STRICT_FLAGS})
@@ -25,6 +25,7 @@ cydui_test(test_utf8)
 cydui_test(test_font)
 cydui_test(test_text)
 cydui_test(test_fonts_bundled)
+cydui_test(test_ui_ids)
 target_link_libraries(test_fonts_bundled PRIVATE cydui_fonts)
 
 # Golden images: hashes live in tests/golden, PNGs for inspection go to <build>/golden.

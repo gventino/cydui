@@ -12,14 +12,24 @@
 extern "C" {
 #endif
 
+#define CYDUI_MEM_EVENTS 256
+
 typedef struct {
     cydui_backend backend; /**< pass &mem.backend to cydui_init */
     cydui_color *fb;       /**< width * height pixels */
     uint32_t now;          /**< value returned by now_ms; tests advance it by hand */
     uint32_t flushes;      /**< number of strips received */
+    cydui_event events[CYDUI_MEM_EVENTS]; /**< synthetic input, delivered by poll_event */
+    uint16_t ev_head, ev_len;
 } cydui_mem;
 
 void cydui_mem_init(cydui_mem *m, cydui_color *fb, int16_t width, int16_t height);
+
+/**
+ * Queues a synthetic input event for the UI to poll. Returns false (and drops the new event) if
+ * CYDUI_MEM_EVENTS are already waiting.
+ */
+bool cydui_mem_push_event(cydui_mem *m, cydui_event_type type, int16_t x, int16_t y);
 
 /** FNV-1a 64-bit over the pixels as little-endian bytes (independent of host endianness). */
 uint64_t cydui_mem_hash(const cydui_mem *m);

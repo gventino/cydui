@@ -28,7 +28,11 @@ enum {
     CYDUI_ERR_BAD_ARG = 1u << 1,      /**< invalid argument, command dropped */
     CYDUI_ERR_NO_MEMORY = 1u << 2,    /**< caller-provided memory too small */
     CYDUI_ERR_BAD_BITMAP = 1u << 3,   /**< bitmap data shorter than its dimensions, dropped */
-    CYDUI_ERR_TEXT_TRUNCATED = 1u << 4 /**< text longer than CYDUI_MAX_STR was cut; informative */
+    CYDUI_ERR_TEXT_TRUNCATED = 1u << 4, /**< text longer than CYDUI_MAX_STR was cut; informative */
+    CYDUI_ERR_ID_COLLISION = 1u << 5,   /**< two widgets got the same id in one frame (debug builds) */
+    CYDUI_ERR_LAYOUT = 1u << 6,         /**< container/id nesting error: too deep, unbalanced, ... */
+    CYDUI_ERR_TOO_MANY_WIDGETS = 1u << 7, /**< more than CYDUI_MAX_WIDGETS in a frame; extras ignored */
+    CYDUI_ERR_THREAD = 1u << 8          /**< UI called from a task other than the one that created it */
 };
 
 /** Intersection of two rectangles; an empty result has w == h == 0. */

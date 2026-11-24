@@ -4,7 +4,7 @@
 #   * ESP-IDF component: picked up automatically via EXTRA_COMPONENT_DIRS / managed components.
 #   * Plain CMake (PC): builds the core library, the backends, the examples and the tests.
 
-set(CYDUI_CORE_SRCS src/arena.c src/ctx.c src/font.c src/raster.c src/text.c src/types.c src/utf8.c src/version.c)
+set(CYDUI_CORE_SRCS src/arena.c src/ctx.c src/font.c src/raster.c src/text.c src/types.c src/ui.c src/utf8.c src/version.c)
 
 if(ESP_PLATFORM)
     idf_component_register(
@@ -32,6 +32,8 @@ set(CYDUI_STRICT_FLAGS -pedantic -Wall -Wextra -Wshadow -Wcast-qual -Werror)
 
 add_library(cydui STATIC ${CYDUI_CORE_SRCS})
 target_include_directories(cydui PUBLIC include)
+# The PC builds always have the debug checks (id collisions, thread check), whatever the build type.
+target_compile_definitions(cydui PUBLIC CYDUI_DEBUG_IDS=1 CYDUI_DEBUG_THREAD=1)
 set_target_properties(cydui PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(cydui PRIVATE ${CYDUI_STRICT_FLAGS})
 

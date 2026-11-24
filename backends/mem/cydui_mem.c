@@ -14,6 +14,32 @@ static void mem_flush(void *user, const cydui_rect *area, const cydui_color *pix
     m->flushes++;
 }
 
+static bool mem_poll(void *user, cydui_event *ev)
+{
+    cydui_mem *m = (cydui_mem *)user;
+    if (m->ev_len == 0) {
+        return false;
+    }
+    *ev = m->events[m->ev_head];
+    m->ev_head = (uint16_t)((m->ev_head + 1u) % CYDUI_MEM_EVENTS);
+    m->ev_len--;
+    return true;
+}
+
+bool cydui_mem_push_event(cydui_mem *m, cydui_event_type type, int16_t x, int16_t y)
+{
+    cydui_event *slot;
+    if (m->ev_len >= CYDUI_MEM_EVENTS) {
+        return false;
+    }
+    slot = &m->events[(m->ev_head + m->ev_len) % CYDUI_MEM_EVENTS];
+    slot->type = type;
+    slot->x = x;
+    slot->y = y;
+    m->ev_len++;
+    return true;
+}
+
 static uint32_t mem_now(void *user)
 {
     return ((cydui_mem *)user)->now;
@@ -27,6 +53,7 @@ void cydui_mem_init(cydui_mem *m, cydui_color *fb, int16_t width, int16_t height
     m->backend.width = width;
     m->backend.height = height;
     m->backend.flush_strip = mem_flush;
+    m->backend.poll_event = mem_poll;
     m->backend.now_ms = mem_now;
 }
 
