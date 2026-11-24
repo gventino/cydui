@@ -1,6 +1,11 @@
 /* Golden images: each scene's framebuffer hash is pinned in tests/golden/<name>.hash. */
 
+#include <string.h>
+
 #include "golden.h"
+#include "cydui_sans_12.h"
+#include "cydui_sans_16.h"
+#include "cydui_sans_24.h"
 #include "scene.h"
 #include "unity.h"
 
@@ -120,18 +125,112 @@ static void scene_bitmap_mask(cydui_ctx *c)
     cydui_draw_bitmap(c, tu_rect(50, 110, 24, 24), mask, sizeof(mask), CYDUI_BITMAP_A4, WHITE, 255);
 }
 
+/* ---- text, set in the bundled fonts ---- */
+
+static const cydui_font *const sans[3] = {&cydui_sans_12, &cydui_sans_16, &cydui_sans_24};
+
+/* Draws `s` wrapped at 308 px and returns the y for the next block. */
+static int put_line(cydui_ctx *c, const cydui_font *f, int y, const char *s, cydui_color color)
+{
+    cydui_text_extent e = cydui_text_size(f, s, CYDUI_NTS, 308);
+    cydui_draw_text(c, f, 6, (int16_t)y, 308, CYDUI_ALIGN_LEFT, s, CYDUI_NTS, color, 255);
+    return y + e.h + 4;
+}
+
+static void scene_text_sizes(cydui_ctx *c)
+{
+    int i, y = 4;
+
+    cydui_draw_rect(c, tu_rect(0, 0, 320, 240), CYDUI_RGB(16, 20, 32), 255);
+    for (i = 0; i < 3; i++) {
+        y = put_line(c, sans[i], y, "Olá, mundo! Ação é ótima.", WHITE);
+    }
+    y = put_line(c, sans[0], y, "ÁÉÍÓÚ ÀÂÃÊÔÕ ÇÑ üÜ 0123456789 @#$%&*()[]{}<>", CYDUI_RGB(255, 210, 90));
+    y = put_line(c, sans[1], y, "ÁÉÍÓÚ ÀÂÃÊÔÕ ÇÑ üÜ 0123", CYDUI_RGB(255, 210, 90));
+    y = put_line(c, sans[2], y, "ÇÃO ÉÚ 0123", CYDUI_RGB(255, 210, 90));
+    /* symbols in the subset, and one that is not (the check mark): it shows the fallback box */
+    y = put_line(c, sans[1], y, "\xE2\x86\x90 \xE2\x86\x91 \xE2\x86\x92 \xE2\x86\x93  \xE2\x82\xAC  \xE2\x80\xA2  "
+                              "\xE2\x80\xA6  \xE2\x9C\x93", CYDUI_RGB(120, 220, 160));
+    (void)y;
+}
+
+static void scene_text_wrap(cydui_ctx *c)
+{
+    static const char para[] = "Manter o foco em uma lista curta de tarefas ajuda a terminar o dia "
+                               "com a sensação de dever cumprido.";
+    static const cydui_align al[3] = {CYDUI_ALIGN_LEFT, CYDUI_ALIGN_CENTER, CYDUI_ALIGN_RIGHT};
+    int i;
+
+    cydui_draw_rect(c, tu_rect(0, 0, 320, 240), CYDUI_RGB(16, 20, 32), 255);
+    for (i = 0; i < 3; i++) { /* three boxes, one per alignment, with the box drawn around the text */
+        cydui_rect box = tu_rect(8 + i * 104, 8, 96, 124);
+        cydui_draw_rrect_outline(c, box, 4, 1, CYDUI_RGB(70, 90, 140), 255);
+        cydui_draw_text(c, &cydui_sans_12, (int16_t)(box.x + 2), (int16_t)(box.y + 4), 92, al[i], para,
+                        sizeof(para) - 1, WHITE, 255);
+    }
+    cydui_draw_text(c, &cydui_sans_12, 10, 136, 300, CYDUI_ALIGN_CENTER,
+                    "Primeira linha\nSegunda linha, bem mais longa que a primeira\n\nQuarta, depois de um vazio",
+                    CYDUI_NTS, CYDUI_RGB(255, 210, 90), 255);
+    /* a clip rectangle cuts the text; the faint copy shows what is hidden */
+    cydui_draw_text(c, &cydui_sans_16, 192, 206, 0, CYDUI_ALIGN_LEFT, "Texto cortado por clip", CYDUI_NTS,
+                    CYDUI_RGB(70, 70, 80), 255);
+    cydui_set_clip(c, tu_rect(200, 204, 100, 24));
+    cydui_draw_text(c, &cydui_sans_16, 192, 206, 0, CYDUI_ALIGN_LEFT, "Texto cortado por clip", CYDUI_NTS,
+                    WHITE, 255);
+    cydui_reset_clip(c);
+    cydui_draw_text(c, &cydui_sans_12, 6, 220, 180, CYDUI_ALIGN_LEFT, "translucido", CYDUI_NTS, WHITE, 110);
+}
+
+static void scene_text_hostile(cydui_ctx *c)
+{
+    static char long_text[300];
+    static const char *const lines[] = {
+        ("invalid: ab\xFF" "cd\xC3(" "ef\xE2\x82" "gh"),
+        ("bidi: ab\xE2\x80\xAE" "cd\xE2\x81\xA6" "ef\xE2\x80\x8F" "gh"),
+        ("ctrl: a\x01\x02\t\x7F\xC2\x85" "z"),
+        "overlong: \xC0\x80 \xE0\x80\x80 \xF0\x80\x80\x80",
+        "surrogate: \xED\xA0\x80 \xED\xBF\xBF end",
+        "range: \xF4\x90\x80\x80 \xF5 end",
+        "emoji, CJK: \xF0\x9F\x98\x80 \xE4\xB8\xAD\xE6\x96\x87 .",
+        "cut off: x\xE2\x82",
+        "fine again: Olá, ação!",
+    };
+    size_t i;
+    int y = 4;
+
+    cydui_draw_rect(c, tu_rect(0, 0, 320, 240), CYDUI_RGB(16, 20, 32), 255);
+    for (i = 0; i < sizeof(lines) / sizeof(lines[0]); i++) {
+        y = put_line(c, &cydui_sans_12, y, lines[i], i + 1 == sizeof(lines) / sizeof(lines[0]) ? WHITE
+                                                          : CYDUI_RGB(255, 170, 120));
+    }
+    memset(long_text, 'x', sizeof(long_text) - 1); /* 299 characters: cut to CYDUI_MAX_STR */
+    long_text[299] = '\0';
+    long_text[20] = ' ';
+    long_text[60] = ' ';
+    (void)put_line(c, &cydui_sans_12, y + 2, long_text, CYDUI_RGB(120, 220, 160));
+}
+
 static void test_shapes(void) { golden_check("shapes", scene_shapes); }
 static void test_rounded_cards(void) { golden_check("rounded_cards", scene_rounded_cards); }
 static void test_lines_fan(void) { golden_check("lines_fan", scene_lines_fan); }
 static void test_gradient_bg(void) { golden_check("gradient_bg", scene_gradient_bg); }
 static void test_alpha_overlap(void) { golden_check("alpha_overlap", scene_alpha_overlap); }
 static void test_bitmap_mask(void) { golden_check("bitmap_mask", scene_bitmap_mask); }
+static void test_text_sizes(void) { golden_check("text_sizes", scene_text_sizes); }
+static void test_text_wrap(void) { golden_check("text_wrap", scene_text_wrap); }
+static void test_text_hostile(void)
+{
+    golden_check("text_hostile", scene_text_hostile);
+    /* the 299 character line must have been cut, and that must have been reported */
+    TEST_ASSERT_EQUAL_UINT32(CYDUI_ERR_TEXT_TRUNCATED, tu_errors);
+}
 
 /* Every golden scene must also be independent of the strip height. */
 static void test_goldens_do_not_depend_on_strip_height(void)
 {
     static const tu_scene scenes[] = {scene_shapes,        scene_rounded_cards, scene_lines_fan,
-                                      scene_gradient_bg,   scene_alpha_overlap, scene_bitmap_mask};
+                                      scene_gradient_bg,   scene_alpha_overlap, scene_bitmap_mask,
+                                      scene_text_sizes,    scene_text_wrap,     scene_text_hostile};
     static const int heights[] = {1, 5, 24, 40, 97};
     size_t i, k;
 
@@ -153,6 +252,9 @@ int main(void)
     RUN_TEST(test_gradient_bg);
     RUN_TEST(test_alpha_overlap);
     RUN_TEST(test_bitmap_mask);
+    RUN_TEST(test_text_sizes);
+    RUN_TEST(test_text_wrap);
+    RUN_TEST(test_text_hostile);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();
 }

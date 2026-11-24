@@ -36,7 +36,7 @@ target_compile_definitions(golden PUBLIC GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}
 set_target_properties(golden PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(golden PRIVATE ${CYDUI_STRICT_FLAGS})
 cydui_test(test_golden)
-target_link_libraries(test_golden PRIVATE golden shapes_scene)
+target_link_libraries(test_golden PRIVATE golden shapes_scene cydui_fonts)
 
 # Fuzzing (CT-12): the harness is also a short ctest run so that every build exercises it.
 if(CYDUI_BUILD_FUZZ)
@@ -46,6 +46,10 @@ if(CYDUI_BUILD_FUZZ)
     target_link_options(fuzz_cmds PRIVATE -fsanitize=fuzzer)
     set_target_properties(fuzz_cmds PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
     add_test(NAME fuzz_cmds_smoke COMMAND fuzz_cmds -runs=3000 -max_len=1200)
+    # Seed inputs for text and fonts built from the input. Passed as files, each is run once and
+    # nothing is written back into the source tree.
+    file(GLOB CYDUI_FUZZ_SEEDS ${CMAKE_CURRENT_SOURCE_DIR}/fuzz_seeds/*.bin)
+    add_test(NAME fuzz_cmds_seeds COMMAND fuzz_cmds ${CYDUI_FUZZ_SEEDS})
 
     add_executable(fuzz_utf8 fuzz_utf8.c)
     target_link_libraries(fuzz_utf8 PRIVATE cydui)

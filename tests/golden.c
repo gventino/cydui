@@ -26,7 +26,9 @@ void golden_check(const char *name, tu_scene scene)
     snprintf(path, sizeof(path), "%s/%s.png", GOLDEN_OUT_DIR, name);
     TEST_ASSERT_EQUAL_INT_MESSAGE(0, cydui_mem_write_png(&mem, path), "could not write the PNG");
 
-    TEST_ASSERT_EQUAL_UINT32_MESSAGE(0, tu_errors, "the scene raised library errors");
+    /* "text was cut" is informative; any other flag means the scene did something wrong. */
+    TEST_ASSERT_EQUAL_UINT32_MESSAGE(0, tu_errors & ~(uint32_t)CYDUI_ERR_TEXT_TRUNCATED,
+                                     "the scene raised library errors");
 
     snprintf(path, sizeof(path), "%s/%s.hash", GOLDEN_DIR, name);
     if (getenv("CYDUI_UPDATE_GOLDEN")) {

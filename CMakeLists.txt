@@ -78,6 +78,7 @@ endif()
 
 if(CYDUI_BUILD_EXAMPLES OR CYDUI_BUILD_TESTS)
     add_subdirectory(examples/shapes) # the golden test reuses its scene
+    add_subdirectory(examples/text)
 endif()
 
 if(CYDUI_BUILD_TESTS)

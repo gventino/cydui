@@ -1,0 +1,8 @@
+add_executable(text main.c)
+target_link_libraries(text PRIVATE cydui_mem cydui_fonts)
+set_target_properties(text PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+target_compile_options(text PRIVATE ${CYDUI_STRICT_FLAGS})
+if(TARGET cydui_sdl)
+    target_link_libraries(text PRIVATE cydui_sdl)
+    target_compile_definitions(text PRIVATE CYDUI_HAVE_SDL)
+endif()
