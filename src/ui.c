@@ -143,18 +143,207 @@ static void check_thread(cydui_ui *ui)
 #endif
 }
 
+/* ---- input ---- */
+
+static int16_t clamp16(int v, int lo, int hi)
+{
+    return (int16_t)(v < lo ? lo : (v > hi ? hi : v));
+}
+
+static bool known_event(cydui_event_type t)
+{
+    return t == CYDUI_EVENT_DOWN || t == CYDUI_EVENT_MOVE || t == CYDUI_EVENT_UP;
+}
+
+/* Adds an event to the queue. MOVEs merge; when full, the oldest MOVE goes first, then the oldest event. */
+static void q_push(cydui_ui *ui, cydui_event ev)
+{
+    cydui_input *in = &ui->in;
+    const cydui_backend *be = ui->ctx.backend;
+
+    ev.x = clamp16(ev.x, 0, be->width - 1);
+    ev.y = clamp16(ev.y, 0, be->height - 1);
+    if (in->q_len > 0 && ev.type == CYDUI_EVENT_MOVE &&
+        in->queue[in->q_len - 1].type == CYDUI_EVENT_MOVE) {
+        in->queue[in->q_len - 1] = ev;
+        return;
+    }
+    if (in->q_len >= CYDUI_EVENT_QUEUE) {
+        uint8_t i, drop = 0;
+        for (i = 0; i < in->q_len; i++) {
+            if (in->queue[i].type == CYDUI_EVENT_MOVE) {
+                drop = i;
+                break;
+            }
+        }
+        memmove(&in->queue[drop], &in->queue[drop + 1], (size_t)(in->q_len - drop - 1u) * sizeof(in->queue[0]));
+        in->q_len--;
+    }
+    in->queue[in->q_len++] = ev;
+}
+
+static void q_pop(cydui_input *in)
+{
+    memmove(&in->queue[0], &in->queue[1], (size_t)(in->q_len - 1u) * sizeof(in->queue[0]));
+    in->q_len--;
+}
+
+static void poll_backend(cydui_ui *ui)
+{
+    const cydui_backend *be = ui->ctx.backend;
+    int i;
+
+    if (!be->poll_event) {
+        return;
+    }
+    for (i = 0; i < CYDUI_POLL_PER_FRAME; i++) {
+        cydui_event ev;
+        if (!be->poll_event(be->user, &ev)) {
+            break;
+        }
+        if (ev.type == CYDUI_EVENT_QUIT) {
+            ui->in.quit = true;
+        } else if (known_event(ev.type)) {
+            q_push(ui, ev);
+        }
+    }
+}
+
+/* True if (x, y) is farther from where the press started than the tap slop. */
+static bool beyond_slop(const cydui_ui *ui, int x, int y)
+{
+    long dx = (long)x - ui->in.press_x, dy = (long)y - ui->in.press_y;
+    return dx * dx + dy * dy > (long)ui->tap_slop * ui->tap_slop;
+}
+
+/* A press held still for long enough becomes a long press, once. Unsigned subtraction survives the clock wrapping. */
+static void check_long(cydui_ui *ui)
+{
+    cydui_input *in = &ui->in;
+    if (in->down && in->has_clock && !in->long_fired && !in->moved_far &&
+        (uint32_t)(in->now - in->press_ms) >= ui->long_press_ms) {
+        in->long_fired = true;
+        in->frame_long = true;
+    }
+}
+
+/* Takes events off the queue and updates the pointer. At most one press edge and one release edge per frame. */
+static void process_events(cydui_ui *ui)
+{
+    cydui_input *in = &ui->in;
+    unsigned n = 0;
+
+    in->frame_down = in->frame_up = in->frame_long = in->claimed = false;
+    in->frame_x = in->x;
+    in->frame_y = in->y;
+
+    while (in->q_len > 0 && n < CYDUI_EVENTS_PER_FRAME) {
+        cydui_event ev = in->queue[0];
+
+        if (ev.type == CYDUI_EVENT_DOWN) {
+            if (in->frame_down || in->frame_up) {
+                break; /* a second press edge waits for the next frame */
+            }
+            if (in->down) { /* a press that never ended: cancel it, and start the new one next frame */
+                in->moved_far = true;
+                in->frame_up = true;
+                in->up_x = in->x;
+                in->up_y = in->y;
+                in->down = false;
+                break;
+            }
+            q_pop(in);
+            in->down = true;
+            in->x = in->press_x = in->frame_x = ev.x; /* the travel of this frame counts from the press */
+            in->y = in->press_y = in->frame_y = ev.y;
+            in->press_ms = in->now;
+            in->long_fired = false;
+            in->moved_far = false;
+            in->frame_down = true;
+        } else if (ev.type == CYDUI_EVENT_MOVE) {
+            q_pop(in);
+            if (in->down) {
+                in->x = ev.x;
+                in->y = ev.y;
+                in->moved_far = in->moved_far || beyond_slop(ui, ev.x, ev.y);
+            }
+        } else { /* UP */
+            q_pop(in);
+            if (in->down) {
+                in->x = ev.x;
+                in->y = ev.y;
+                in->moved_far = in->moved_far || beyond_slop(ui, ev.x, ev.y);
+                check_long(ui);
+                in->frame_up = true;
+                in->up_x = ev.x;
+                in->up_y = ev.y;
+                in->down = false;
+            } /* an UP without a press is ignored */
+        }
+        n++;
+    }
+    in->last_processed = (uint8_t)n;
+    check_long(ui);
+}
+
+static bool hit(const cydui_ui *ui, cydui_rect r, int x, int y)
+{
+    cydui_rect c = cydui_rect_intersect(r, ui->ctx.clip);
+    return x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h;
+}
+
+cydui_response cydui_interact(cydui_ui *ui, cydui_id id, cydui_rect r, unsigned flags)
+{
+    cydui_response resp;
+    cydui_input *in = &ui->in;
+
+    memset(&resp, 0, sizeof(resp));
+    check_thread(ui);
+    if (flags & CYDUI_DISABLED) {
+        return resp;
+    }
+    if (in->frame_down && !in->claimed && ui->active.h == 0 && ui->active.c == 0 &&
+        hit(ui, r, in->press_x, in->press_y)) {
+        ui->active = id;
+        in->claimed = true; /* a press has one owner, even if it ends in this same frame */
+    }
+    if (!cydui_id_eq(ui->active, id)) {
+        return resp;
+    }
+    resp.pressed = (in->down || in->frame_up) && hit(ui, r, in->x, in->y);
+    resp.dragging = in->moved_far;
+    resp.long_pressed = in->frame_long;
+    if (flags & CYDUI_SENSE_DRAG) {
+        resp.dx = (int16_t)(in->x - in->frame_x);
+        resp.dy = (int16_t)(in->y - in->frame_y);
+    }
+    if (in->frame_up) {
+        resp.released = true;
+        resp.clicked = (flags & CYDUI_SENSE_CLICK) && hit(ui, r, in->up_x, in->up_y) &&
+                       !in->moved_far && !in->long_fired;
+        memset(&ui->active, 0, sizeof(ui->active));
+    }
+    return resp;
+}
+
 /* ---- frame ---- */
 
 bool cydui_ui_begin(cydui_ui *ui, cydui_color clear)
 {
+    const cydui_backend *be = ui->ctx.backend;
+
     check_thread(ui);
+    ui->in.has_clock = be->now_ms != NULL;
+    ui->in.now = ui->in.has_clock ? be->now_ms(be->user) : 0;
+    poll_backend(ui);
+    process_events(ui);
     cydui_begin_frame(&ui->ctx, clear);
     ui->widgets = 0;
     ui->id_depth = 0;
     if (ui->idset_cap) {
         memset(ui->idset, 0, (size_t)ui->idset_cap * sizeof(uint32_t));
     }
-    return true;
+    return !ui->in.quit;
 }
 
 /* Frees up to a few expired entries per frame, so the work stays bounded however big the table is. */
@@ -178,9 +367,12 @@ bool cydui_ui_end(cydui_ui *ui)
     if (ui->state_cap) {
         sweep_state(ui);
     }
+    if (!ui->in.down) { /* nobody can still own a press that is over */
+        memset(&ui->active, 0, sizeof(ui->active));
+    }
     cydui_end_frame(&ui->ctx);
     ui->frame++;
-    return false;
+    return ui->in.down || ui->in.q_len > 0;
 }
 
 uint32_t cydui_ui_errors(const cydui_ui *ui)

@@ -405,13 +405,14 @@ static void test_full_table_replaces_the_oldest_and_not_the_active_one(void)
     TEST_ASSERT_NOT_NULL(cydui_state_get(&rig.ui, id_of("e2"), false));
     TEST_ASSERT_NOT_NULL(cydui_state_get(&rig.ui, id_of("e3"), false));
 
-    /* the active widget is protected even when it is the oldest */
-    rig.ui.active = id_of("e2");
+    /* the active widget is protected even when it is the oldest (set in the same frame: the end of
+     * a frame releases a press that is over) */
     cydui_ui_end(&rig.ui);
     begin();
     cydui_state_get(&rig.ui, id_of("e0"), false);
     cydui_state_get(&rig.ui, id_of("e3"), false);
     cydui_state_get(&rig.ui, id_of("new"), false);
+    rig.ui.active = id_of("e2"); /* e2 has not been looked up for the longest time */
     extra = cydui_state_get(&rig.ui, id_of("another"), true);
     TEST_ASSERT_NOT_NULL(extra);
     TEST_ASSERT_NOT_NULL_MESSAGE(cydui_state_get(&rig.ui, id_of("e2"), false), "evicted the active widget");
