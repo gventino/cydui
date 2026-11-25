@@ -1,0 +1,107 @@
+# 11 — The Public API (frozen at 0.4.0)
+
+This is the contract of `include/cydui/*.h`. It is enforced by `tests/test_api_surface.c`: every function below is bound there to a pointer of its exact type, every enumerator and constant has its value, and every field of the stable structs has its type. A change to that file is an API change, and the rules of the last section apply.
+
+The comments in the headers are the reference for each function (arguments, limits, what happens with a bad argument). This page says what is stable and where to look.
+
+![The theme gallery in the light theme](img/gallery-clean.png) ![and in the dark one](img/gallery-clean-dark.png)
+
+## Stability
+
+| Tier | What | Promise |
+|---|---|---|
+| **Stable** | Every function, macro, type, enumerator and flag listed below. The value of every enumerator and flag bit. The fields and types of the structs that the application fills or reads. The behavior written in the header comments. | Changes only by the rules at the end. |
+| **Stable, low level** | `cydui_alloc`, `cydui_interact`, `cydui_state_get`, `cydui_take_mods`, `cydui_widget_begin`, `cydui_label_len`, `cydui_draw_text_in`, `cydui_state_of`, the `cydui_id_*` functions, `cydui_paint`, `cydui_wstyle_of`. What you use to write a widget of your own ("writing a widget" in `ui.h`). | Same promise; the semantics are subtler, so read the comments. |
+| **Tunable** | Macros guarded by `#ifndef` (`CYDUI_SCROLL_*`, `CYDUI_MAX_*`, `CYDUI_EVENT_*`, `CYDUI_POLL_PER_FRAME`, `CYDUI_STATE_TTL`, `CYDUI_FILTER_CONTROL`). | The **name** is stable. The **default value** may change in any version (it is noted in the CHANGELOG): the feel of the scrolling is tuned on the board in It5. |
+| **Private** | See "What is not API". | May change without notice. |
+
+## What is not API
+
+- Every name with the prefix `cydui__` and `src/ui_internal.h`.
+- `struct cydui_ui`, `cydui_region` and `cydui_input`, and every field of them. They are declared in `ui.h` only because the application provides the memory (`CYDUI_STORAGE`); the only thing that is promised about them is that `sizeof(cydui_ui)` is what the application's storage must hold. Read what the touch did from `cydui_response`, not from `ui->in`.
+- `cydui_ctx` and `cydui_arena` internals (use the functions).
+- Anything in `src/`, `backends/`, `themes/`, `examples/` and `tests/`. The shipped themes (`cydui_theme_init_clean`, `cydui_theme_init_clean_dark`) and the example widget (`rating`) are examples built on this API, with their own, looser, promise: their look may change.
+- The numbers `sizeof(cydui_cmd)`, `sizeof(cydui_ui)` and the like: they depend on the target (the PC and the ESP32 differ).
+
+## Functions
+
+### Setup and version
+| | |
+|---|---|
+| `cydui_init`, `cydui_ui_init` | Build the drawing context / the whole UI from caller-provided memory. Return 0 or a `CYDUI_ERR_*` flag. No allocation, ever. |
+| `cydui_version` | `"0.4.0"`, also `CYDUI_VERSION_MAJOR/MINOR/PATCH/STRING`. |
+| `CYDUI_STORAGE`, `CYDUI_CONFIG` | Declare the memory of a UI and the config that points at it. |
+
+### Frame
+| | |
+|---|---|
+| `cydui_ui_begin`, `cydui_ui_end` | Start and end a frame. `end` renders it in strips and returns true when another frame is wanted soon (a layout still settling, a press, something coasting). |
+| `cydui_ui_errors`, `cydui_ui_clear_errors`, `cydui_ui_frame` | The `CYDUI_ERR_*` flags raised so far; the frame counter. |
+| `cydui_begin_frame`, `cydui_end_frame`, `cydui_errors`, `cydui_clear_errors`, `cydui_cmd_count`, `cydui_strip_height` | The same at the level of the drawing context, for an application without the UI layer. |
+
+### Drawing primitives (all clipped, all integer)
+`cydui_draw_rect`, `cydui_draw_rrect`, `cydui_draw_rrect_outline`, `cydui_draw_line`, `cydui_draw_bitmap` (RGB565 or 4-bit mask), `cydui_draw_gradient`, `cydui_draw_text`, `cydui_set_clip`, `cydui_reset_clip`, and `cydui_raster_strip` (what a backend calls). Colors: `cydui_blend`, `cydui_color_unpack`, `CYDUI_RGB`. Geometry: `cydui_rect_intersect`, `cydui_rect_empty`.
+
+### Text and fonts
+`cydui_text_size`, `cydui_text_iter_init`, `cydui_text_next_line`, `cydui_text_resolve`, `cydui_text_clip_len`, `cydui_utf8_decode`, `cydui_font_validate`, `cydui_font_lookup`, `cydui_font_fallback`, `cydui_font_glyph_data`, `cydui_glyph_bytes`, `cydui_bitmap_size`, `cydui_arena_init`, `cydui_arena_alloc`, `cydui_arena_reset`. Text is UTF-8, at most `CYDUI_MAX_STR` bytes are used; invalid bytes become the fallback glyph.
+
+### Ids and state
+| | |
+|---|---|
+| `cydui_id_str`, `cydui_id_eq`, `cydui_id_claim` | The id of a label (text up to `##` is shown, all of it is hashed); compare; mark it used in this frame (collision detection in debug builds). |
+| `cydui_push_id_str`, `cydui_push_id_int`, `cydui_push_id_ptr`, `cydui_pop_id` | Mix a value into the ids until the matching pop (lists). Ids do **not** depend on the container hierarchy. |
+| `cydui_state_get` | The 32-byte entry (`a`..`d` are yours) that lives while the id keeps being used (`CYDUI_STATE_TTL` frames). |
+
+### Layout
+| | |
+|---|---|
+| `cydui_begin_row/column/grid/padding/card`, `cydui_end_*`, `CYDUI_ROW/COLUMN/GRID/PADDING/CARD` | Containers, nested up to `CYDUI_MAX_LAYOUT_DEPTH`; deeper ones are ignored (with `CYDUI_ERR_LAYOUT`). A card is a padded column with the theme's panel exactly as big as its content, already in the first frame. |
+| `cydui_set_spacing`, `cydui_set_cross_align`, `cydui_set_main_align` | How the children of the open container are placed (`CYDUI_PLACE_START/CENTER/END`). Alignment takes its sizes from the previous frame; `cydui_ui_end` asks for another frame while they settle. |
+| `cydui_spacer`, `cydui_spacer_fill` | Empty space. |
+| `cydui_next_width/height/fill/stretch/disabled` | One-shot modifiers for the next widget or container. |
+| `cydui_take_mods`, `cydui_alloc`, `cydui_alloc_rect`, `cydui_layout_avail` | The place of a widget; what a widget of your own calls. |
+
+### Widgets
+`cydui_label`, `cydui_label_wrapped`, `cydui_button`, `cydui_checkbox`, `cydui_toggle`, `cydui_slider` (int32 range, keeps the press), `cydui_progress`, `cydui_tabs` (up to `CYDUI_MAX_TABS`). Each returns true in the frame the user changed something. At most `CYDUI_MAX_WIDGETS` per frame are processed. `cydui_slider_knob_x` and `cydui_slider_value_at` give the knob geometry to painters.
+
+### Scroll areas and lists
+`cydui_scroll_begin`, `cydui_scroll_end`, `CYDUI_SCROLL`, `cydui_scroll_to`, `cydui_list_begin`, `cydui_begin_list_item`, `cydui_end_list_item`, `cydui_list_end`. Dragging scrolls and lets go into a coast (integer friction, driven by the backend clock; no overscroll); a drag that began on a button takes the touch from it; a widget with `CYDUI_CAPTURE` (the slider) is not taken over. A list builds only the rows in `[first, last)`; its content is at most `CYDUI_LIST_MAX_PX`. Scroll areas do not nest.
+
+### Themes
+| | |
+|---|---|
+| `cydui_theme_default`, `cydui_style_default`, `cydui_theme_derive_table` | A dark theme around a font; a starting point for a palette-only theme. |
+| `cydui_theme_validate`, `cydui_set_theme`, `cydui_theme_of` | A bad theme is refused and the current one stays; switching asks for another frame and touches no state. |
+| `cydui_wstyle_of`, `cydui_paint`, `cydui_paint_default` | The look of a widget kind in a state; paint through the theme; what an override painter calls to add to the default. |
+
+### Writing a widget
+`cydui_widget_begin`, `cydui_take_mods`, `cydui_id_str` + `cydui_id_claim`, `cydui_label_len`, `cydui_text_size`, `cydui_alloc`, `cydui_interact` (with `CYDUI_SENSE_CLICK`, `CYDUI_SENSE_DRAG`, `CYDUI_CAPTURE`, `CYDUI_DISABLED`; the response says where the pointer is), `cydui_draw_text_in`, `cydui_state_of`, `cydui_state_get`. `examples/theme-gallery/rating.c` is a complete one, built from the public headers alone.
+
+## Types and flags
+Structs the application fills or reads: `cydui_config`, `cydui_ui_config`, `cydui_backend`, `cydui_event`, `cydui_font`, `cydui_glyph`, `cydui_style`, `cydui_wstyle`, `cydui_paint_info`, `cydui_theme`, `cydui_response`, `cydui_mods`, `cydui_state`, `cydui_id`, `cydui_rect`, `cydui_cmd`, `cydui_text_extent`, `cydui_text_iter`, `cydui_text_line`.
+
+| Error flag | Bit | Meaning |
+|---|---|---|
+| `CYDUI_ERR_CMD_OVERFLOW` | 1 | command list full, command dropped |
+| `CYDUI_ERR_BAD_ARG` | 2 | invalid argument, ignored |
+| `CYDUI_ERR_NO_MEMORY` | 4 | caller-provided memory too small |
+| `CYDUI_ERR_BAD_BITMAP` | 8 | bitmap data shorter than its size |
+| `CYDUI_ERR_TEXT_TRUNCATED` | 16 | text cut at `CYDUI_MAX_STR` (informative) |
+| `CYDUI_ERR_ID_COLLISION` | 32 | two widgets, one id in a frame (debug builds) |
+| `CYDUI_ERR_LAYOUT` | 64 | nesting error: too deep, unbalanced, misplaced |
+| `CYDUI_ERR_TOO_MANY_WIDGETS` | 128 | more than `CYDUI_MAX_WIDGETS` in a frame |
+| `CYDUI_ERR_THREAD` | 256 | called from another task than the one that created the UI |
+
+Interaction flags: `CYDUI_SENSE_CLICK` 1, `CYDUI_SENSE_DRAG` 2, `CYDUI_DISABLED` 4, `CYDUI_CAPTURE` 8. Widget kinds and states (`cydui_widget_kind`, `cydui_widget_state`) have the order in `theme.h`; new kinds are only added at the end.
+
+## Changing the API
+
+Until 1.0 a new **minor** version may change the API. A change is only made when all of this is in the same commit:
+
+1. an entry in `CHANGELOG.md` under "API changes", saying what changed and how to adapt;
+2. `tests/test_api_surface.c` and this page updated (adding API means adding lines; changing or removing a line is the break);
+3. the minor version incremented in `include/cydui/cydui.h`.
+
+A **patch** version never changes a signature, an enumerator value, a flag bit or a documented behavior. Adding API (a function, a macro, an enumerator at the end, a new error bit) does not break anything and only needs the lines in the test.
+
+The tag is per iteration (`v0.4.0`, `v0.5.0`, ...). `v1.0.0` is for after `cyd-todo`, the application that stresses the API, has been written on it.

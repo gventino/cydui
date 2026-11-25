@@ -30,7 +30,7 @@ All must be **measurable**; the "Verification" column says how.
 | ID | Requirement | Verification |
 |----|-------------|--------------|
 | NFR-30 | Same events + same injected clock → bit-identical framebuffer across runs and between SDL and ESP32 (shared rasterizer). | Golden hashes. |
-| NFR-31 | Each theme has a golden-image test per widget and state. | Local checks. |
+| NFR-31 | Each theme has a golden-image test per widget and state. | Local checks. Met for `clean` and `clean_dark` in It4 (one golden per kind, light and dark in the same frame). |
 
 ## Developer usability
 | ID | Requirement | Verification |
@@ -38,12 +38,12 @@ All must be **measurable**; the "Verification" column says how.
 | NFR-40 | A "hello" app in ≤ 25 lines of C. | Example. |
 | NFR-41 | Edit→see cycle on PC < 5 s (incremental build + SDL window). | Timing. |
 | NFR-42 | Every public function documented (Doxygen-style comment), with an example for widgets. | Local check (script). |
-| NFR-43 | Creating a new theme: copy a base theme and change the table; no core changes. | `retro` theme built this way. |
+| NFR-43 | Creating a new theme: copy a base theme and change the table; no core changes. | `retro` theme built this way. `clean` and `clean_dark` are one function over a palette (a variant costs a few colors); `retro` in It7. |
 
 ## Footprint
 | ID | Requirement | Verification |
 |----|-------------|--------------|
-| NFR-50 | Flash for core + widgets ≤ 60 KB; each theme ≤ 10 KB excluding fonts; fonts sized by subset. | `idf.py size-components`. |
+| NFR-50 | Flash for core + widgets ≤ 60 KB; each theme ≤ 10 KB excluding fonts; fonts sized by subset. | `idf.py size-components`. Measured on Xtensa `-Os` at the end of It4: the library is 23.6 KB, both `clean` themes 1.3 KB (a table of 1 KB is built in RAM per theme). |
 
 ## Operational robustness
 | ID | Requirement | Verification |

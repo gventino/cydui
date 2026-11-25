@@ -22,6 +22,7 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 INC = os.path.join(ROOT, "include")
 HEADERS = ["types", "arena", "cmd", "font", "utf8", "text", "backend", "cydui", "theme", "ui"]
 PRIVATE_STRUCTS = {"cydui_ui", "cydui_region", "cydui_input", "cydui_ctx", "cydui_arena"}
+PRIVATE_NAMES = re.compile(r"(_$|^CYDUI_SCROLL_F_)")  # macro helpers and the flags of cydui_region
 GUARD = re.compile(r"^CYDUI_\w+_H$")
 
 
@@ -164,9 +165,10 @@ def main():
             if m and "=" not in tail:
                 ret = " ".join(m.group("ret").replace("extern", "").replace("static", "").replace("inline", "").split())
                 funcs.append((ret, m.group("name"), m.group("params").strip()))
-    enums = sorted(set(e for e in enums if not e.endswith("_COUNT") or True))
-    consts = sorted(set(consts))
-    tunables = sorted(set(tunables))
+    enums = sorted(set(e for e in enums if not PRIVATE_NAMES.search(e)))
+    consts = sorted(set(c for c in consts if not PRIVATE_NAMES.search(c)))
+    tunables = sorted(set(t for t in tunables if not PRIVATE_NAMES.search(t)))
+    fmacros = [m for m in fmacros if not PRIVATE_NAMES.search(m)]
     stable = {k: v for k, v in structs.items() if k not in PRIVATE_STRUCTS}
 
     simple = re.compile(r"^(u?int(8|16|32)_t|bool|cydui_color)$")

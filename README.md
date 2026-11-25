@@ -2,7 +2,27 @@
 
 Immediate-mode UI library in C for small embedded displays, targeting the ESP32 "Cheap Yellow Display" (ESP32-2432S028R: ILI9341 320x240 + XPT2046 touch). egui-style API, strip-based rendering (no full framebuffer), swappable themes from clean/modern to retro to cyberpunk.
 
-**Status:** iteration 3 done: drawing core, strip rasterizer, in-memory and SDL backends, UTF-8 text with bitmap fonts, and an immediate-mode UI (ids, state, touch input, layout, label/button/checkbox/toggle). The API has been reviewed but is not frozen until iteration 4. No themes, scrolling or text input yet. See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md).
+**Status:** version **0.4.0**, iteration 4: drawing core, strip rasterizer, in-memory and SDL backends, UTF-8 text with bitmap fonts, and an immediate-mode UI with ids, state, touch input, layout (alignment, cards), label/button/checkbox/toggle/slider/progress/tabs, scroll areas with inertia, virtual lists, themes switchable at run time (`clean` in a light and a dark variant) and an API for widgets of your own. **The public API is frozen** by a test: see [`docs/11-api.md`](docs/11-api.md). Not yet: the ESP32 backend (next), text input, popups, animation, the `retro` and `cyberpunk` themes. See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md); the [changelog](CHANGELOG.md) lists what changed.
+
+![The theme gallery](docs/img/gallery-clean.png) ![in the dark theme](docs/img/gallery-clean-dark.png) ![a list of 200 tasks](docs/img/gallery-list.png) ![a custom widget](docs/img/gallery-stars.png)
+
+```c
+CYDUI_STORAGE(storage, 320, 240, 20, 192, 1024, 32);   /* all the memory, as one static object */
+
+cydui_ui ui;
+cydui_ui_init(&ui, &CYDUI_CONFIG(storage, &backend, &theme));
+while (cydui_ui_begin(&ui, theme.style.bg)) {
+    CYDUI_CARD(&ui) {
+        cydui_label(&ui, "New task");
+        CYDUI_ROW(&ui) {
+            cydui_set_main_align(&ui, CYDUI_PLACE_END);
+            if (cydui_button(&ui, "Cancel")) cancel();
+            if (cydui_button(&ui, "Add")) add();
+        }
+    }
+    cydui_ui_end(&ui);
+}
+```
 
 ## Building and running (PC)
 
@@ -17,13 +37,16 @@ cmake --build build/clang && ctest --test-dir build/clang
 ./build/examples/text/text                # text demo: press or drag the mouse to reflow a paragraph
 ./build/examples/hello/hello              # a button and a counter: 22 lines of C
 ./build/examples/widgets/widgets          # every widget and layout; the mouse is the touch screen
+./build/examples/theme-gallery/theme-gallery   # the widgets in each theme, a list of 200 tasks, a custom widget; the buttons switch theme
 ./build/examples/shapes/shapes --headless --hash --png shapes.png
 ```
 
 Golden images: the hash of each scene is in `tests/golden/`, and every run writes the PNGs to `build/golden/`.
 After an intended rendering change, look at the PNGs and run `CYDUI_UPDATE_GOLDEN=1 ./build/tests/test_golden`.
 
-There is no hosted CI. Checks run on the developer machine (an untracked `ci.sh` script chains the builds above).
+There is no hosted CI. Checks run on the developer machine (an untracked `ci.sh` script chains the builds above, a short fuzz run, the static checks and the analyzers).
+
+The public API is the one in `docs/11-api.md`; `tests/test_api_surface.c` stops the build if a signature, an enumerator or a field changes. To add API, add lines to it (`tools/gen_api_surface.py` writes the entries); to change API, follow the rules at the end of `docs/11-api.md`.
 
 ## ESP-IDF
 

@@ -33,16 +33,16 @@ Type: **P** preventive, **D** detective, **C** corrective/safe degradation. Owne
 | Control | State | Where |
 |---------|-------|-------|
 | CT-01 | done for the command list, the text arena and bitmaps | `src/ctx.c`, `tests/test_ctx.c`, `tests/test_text.c` |
-| CT-02 | done: text (`CYDUI_MAX_STR`, cut on a character boundary), layout depth (8), id depth (8) and widgets per frame (512), each raising its flag and degrading safely | `src/text.c`, `src/layout.c`, `src/widgets.c` |
+| CT-02 | done: text (`CYDUI_MAX_STR`, cut on a character boundary), layout depth (8), id depth (8), widgets per frame (512, also for widgets of the application through `cydui_widget_begin`), list rows (`CYDUI_LIST_MAX_PX`), tabs (8), each raising its flag and degrading safely | `src/text.c`, `src/layout.c`, `src/widgets.c`, `src/scroll.c` |
 | CT-03 | done | `src/utf8.c`, `tests/test_utf8.c`, `tests/fuzz_utf8.c` |
 | CT-04 | done, with a wider set than written (adds C0/C1 controls, U+061C, U+200E/200F); always on for controls, `CYDUI_FILTER_CONTROL` for the bidi marks | `src/text.c` |
 | CT-05 | done: queue of 32 events with MOVE merging and oldest-first dropping, 64 polled and 16 processed per frame; a flood and overflowing bursts leave the pointer state right | `src/ui.c`, `tests/test_ui_input.c`, `tests/fuzz_ui.c` |
 | CT-06 | coordinates are clamped to the screen (done); the calibration matrix checks come with the ESP32 backend (It5) | `src/ui.c` |
 | CT-07 | done: id with a separate 16-bit check, `##` suffixes and `push_id`, same-frame collision detection in debug builds, the active widget never evicted | `src/ui.c`, `tests/test_ui_ids.c` |
-| CT-09 | done for fonts (`cydui_font_validate`, bounds-checked glyph access, unusable font rejected); themes come in It4 | `src/font.c` |
+| CT-09 | done: fonts (`cydui_font_validate`, bounds-checked glyph access, unusable font rejected) and themes (`cydui_theme_validate`; `cydui_set_theme` refuses an invalid one and keeps the current; a NULL painter means the default, kinds and states outside the table mean the plain one) | `src/font.c`, `src/theme.c`, `tests/test_theme.c` |
 | CT-10 | done | `src/ctx.c` |
 | CT-11 | done: not thread-safe by contract, debug check through `thread_id` (the ESP32 backend supplies the task handle in It5) | `src/ui.c`, `tests/test_ui_ids.c` |
-| CT-12 | done for commands, text, the UTF-8 decoder and the whole UI layer (events included); `text_input` comes with it | `tests/fuzz_*.c` |
+| CT-12 | done for commands, text, the UTF-8 decoder and the whole UI layer (events, themes built from the input, scroll areas and lists, alignment, cards, the custom widget); `text_input` comes with it. The undefined-behavior sanitizer is fatal (`-fno-sanitize-recover=undefined`). | `tests/fuzz_*.c` |
 | CT-08, 13..15 | later iterations | |
 | CT-16..22 | owned by the app | |
 
@@ -87,7 +87,7 @@ Probability (P) and impact (I): 1–3. Score = P×I. Residual after controls.
 ### Project risks
 | ID | Risk | P | I | Score | Response |
 |----|------|---|---|-------|----------|
-| R-10 | **Scope explosion** (themes, widgets, effects) before the core is done. | 3 | 3 | 9 | KISS; per-iteration acceptance criteria; extra themes only in It7; freeze core API in It4. |
+| R-10 | **Scope explosion** (themes, widgets, effects) before the core is done. | 3 | 3 | 9 | KISS; per-iteration acceptance criteria; extra themes only in It7; freeze core API in It4 (done: `docs/11-api.md`, `tests/test_api_surface.c`). |
 | R-11 | API too egui-like but unsuited to C (closures, builders). | 2 | 2 | 4 | Early `hello`/`widgets` prototype (It3), review ergonomics before expanding. **State:** prototype done (`hello` is 22 lines) and reviewed with the user in the It3 milestone: the API stays as it is. The API is frozen at the end of It4. |
 | R-12 | Single hardware unit (no variants) hides bugs. | 2 | 1 | 2 | Accept; keep the SDL backend as reference. |
 | R-13 | Fuzz/sanitizers consume time and become "later". | 2 | 2 | 4 | Fuzz UTF-8 and commands in It2/It3, not only It8. |

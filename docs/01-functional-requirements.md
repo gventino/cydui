@@ -30,7 +30,7 @@ Iteration = where the FR is delivered (see `07-iterations.md`).
 | FR-22 | Persistent per-widget state (hover, active, scroll, animation value) lives in a fixed-size table indexed by ID; state of widgets not seen for N frames is recycled. | M | 3 |
 | FR-23 | Layouts: `row`, `column`, `grid`, `spacer`, `pad`, fixed size / fill / auto. | M | 3 |
 | FR-24 | **Single-pass** layout with "one-frame delay" support (egui-style) for auto sizes. *Done as:* positions are final when placed; the numbers `fill` needs come from the previous frame, and `cydui_ui_end` asks for another frame when they change. | S | 3 |
-| FR-25 | Scroll containers with clipping (`cydui_scroll_area`). | M | 4 |
+| FR-25 | Scroll containers with clipping (`cydui_scroll_begin/end`), without overscroll. Done in It4. | M | 4 |
 
 ## Widgets
 | ID | Requirement | Pri | It |
@@ -41,7 +41,7 @@ Iteration = where the FR is delivered (see `07-iterations.md`).
 | FR-33 | List with drag scrolling and **kinetic** inertia. | M | 4 |
 | FR-34 | `text_input` with cursor and on-screen **virtual keyboard**. | M | 6 |
 | FR-35 | `popup`/modal with top layer and input capture. | S | 6 |
-| FR-36 | API for custom widgets (the app registers its own drawing on top of the primitives). | S | 4 |
+| FR-36 | API for custom widgets (the app registers its own drawing on top of the primitives). Done in It4: the library's widgets use the same public functions; `examples/theme-gallery/rating.c` is proof (`docs/11-api.md`). | S | 4 |
 
 ## Input
 | ID | Requirement | Pri | It |
@@ -59,7 +59,7 @@ Iteration = where the FR is delivered (see `07-iterations.md`).
 | FR-51 | A theme can **override the paint function** of each widget type (`paint_button`, `paint_checkbox`, ...). | M | 4 |
 | FR-52 | Runtime theme switching without reinitializing the context. | M | 4 |
 | FR-53 | Tweens with easing (linear, in/out quad/cubic, back, elastic) bound to widget state. | M | 7 |
-| FR-54 | Shipped themes: `clean`, `retro`, `cyberpunk`. | M | 4/7 |
+| FR-54 | Shipped themes: `clean`, `retro`, `cyberpunk`. **It4 delivers `clean` in a light and a dark variant (`clean`, `clean_dark`)**; `retro` and `cyberpunk` come with It7. | M | 4/7 |
 | FR-55 | Animation clock injected by the backend (`now_ms`), for deterministic tests. | M | 7 |
 
 ## Backends

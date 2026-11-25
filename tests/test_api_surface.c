@@ -187,8 +187,6 @@ CT_ASSERT(CYDUI_LAYOUT_SCROLL, (long long)(CYDUI_LAYOUT_SCROLL) == 5LL);
 CT_ASSERT(CYDUI_PLACE_CENTER, (long long)(CYDUI_PLACE_CENTER) == 1LL);
 CT_ASSERT(CYDUI_PLACE_END, (long long)(CYDUI_PLACE_END) == 2LL);
 CT_ASSERT(CYDUI_PLACE_START, (long long)(CYDUI_PLACE_START) == 0LL);
-CT_ASSERT(CYDUI_SCROLL_F_INERT, (long long)(CYDUI_SCROLL_F_INERT) == 2LL);
-CT_ASSERT(CYDUI_SCROLL_F_LIST, (long long)(CYDUI_SCROLL_F_LIST) == 1LL);
 CT_ASSERT(CYDUI_SENSE_CLICK, (long long)(CYDUI_SENSE_CLICK) == 1LL);
 CT_ASSERT(CYDUI_SENSE_DRAG, (long long)(CYDUI_SENSE_DRAG) == 2LL);
 CT_ASSERT(CYDUI_STATE_COUNT, (long long)(CYDUI_STATE_COUNT) == 5LL);
@@ -270,12 +268,6 @@ CT_ASSERT(CYDUI_VERSION_PATCH, (long long)(CYDUI_VERSION_PATCH) == 0LL);
 #ifndef CYDUI_CARD
 #error "CYDUI_CARD is part of the API"
 #endif
-#ifndef CYDUI_CAT2_
-#error "CYDUI_CAT2_ is part of the API"
-#endif
-#ifndef CYDUI_CAT_
-#error "CYDUI_CAT_ is part of the API"
-#endif
 #ifndef CYDUI_COLUMN
 #error "CYDUI_COLUMN is part of the API"
 #endif
@@ -293,9 +285,6 @@ CT_ASSERT(CYDUI_VERSION_PATCH, (long long)(CYDUI_VERSION_PATCH) == 0LL);
 #endif
 #ifndef CYDUI_ROW
 #error "CYDUI_ROW is part of the API"
-#endif
-#ifndef CYDUI_SCOPE_
-#error "CYDUI_SCOPE_ is part of the API"
 #endif
 #ifndef CYDUI_SCROLL
 #error "CYDUI_SCROLL is part of the API"

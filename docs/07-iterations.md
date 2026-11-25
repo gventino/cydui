@@ -44,6 +44,16 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 - **Acceptance:** `theme-gallery` shows all widgets/states in `clean`; per widget×state goldens; runtime theme switch without leaks.
 - **Covers:** FR-25, 31..33, 36, 50..52, 54 (partial); NFR-31, 43; CT-09.
 - **Milestone:** **freeze the core API** (stable v0.x) — R-10.
+- **Status: implemented; the tag `v0.4.0` waits for the API list to be confirmed.** The API is in `docs/11-api.md` and frozen by `tests/test_api_surface.c`; the design, the measurements and the lessons are in `docs/10-core-design.md`. Decisions and deviations from the plan above:
+  - one iteration, built in eight steps (themes without changing a pixel; `clean`/`clean_dark` and the gallery; slider, progress and tabs; scroll with inertia and lists; alignment and cards; the custom-widget API proved by a rating widget; extended fuzz; the freeze);
+  - `clean` has a light and a dark variant (`clean`, `clean_dark`), both one function over a palette; `retro` and `cyberpunk` remain for It7 (FR-54 is partial);
+  - the scroll container is `cydui_scroll_begin/end` plus a virtual list (`cydui_list_*`), not a `cydui_scroll_area`; the inertia feel is tuned on the board in It5 (the `CYDUI_SCROLL_*` defaults are not frozen);
+  - the three pending points of the It3 API review are done with one mechanism: vertical centering and group alignment (`cydui_set_cross_align/main_align`) and cards whose background is exactly the size of the content (`cydui_begin_card`);
+  - writing a widget of one's own needed five more public pieces (found by building `rating` with the public headers alone): `cydui_widget_begin`, `cydui_label_len`, `cydui_draw_text_in`, `cydui_state_of` and the pointer position in `cydui_response`;
+  - the 4-bit mask format (`CYDUI_BITMAP_A4`) is what the star uses, not an 8-bit one;
+  - defects found on the way and fixed: positions clamped to zero in the layout (visible only in scrolled areas), a wrong golden that I had accepted, and a sanitizer configuration that let undefined behavior pass (now fatal);
+  - a shadow is eight translucent rectangles and makes a card page 4 times as slow to render on the PC as a page of controls: to be judged on the board (R-02).
+  - **versions:** a tag per iteration from now on (`v0.4.0`, `v0.5.0`, ...). The `v0.1.0` of It8 becomes a release candidate and `v1.0.0` is for after `cyd-todo` has been written on this API.
 
 ## It5 — ESP32 backend (ILI9341 + XPT2046)
 - **Deliverables:** ESP32 backend with SPI+DMA double buffering, PWM backlight, filtered touch, NVS calibration, Kconfig, dirty regions; `theme-gallery` app on the board.
@@ -60,8 +70,8 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 - **Acceptance:** `theme-gallery` switches among 3 themes at runtime in SDL and on the board; ≥ 30 FPS on cyberpunk (or documented configurable degradation); no tween growth.
 - **Covers:** FR-07, 53, 54, 55; NFR-01; CT-08; R-02, R-08.
 
-## It8 — Hardening and release 0.1
-- **Deliverables:** extended fuzzing (commands, events, text_input), STRIDE review against the implementation, API docs (comments + guide), finished examples, README with security limits, `CHANGELOG`, `v0.1.0` tag.
+## It8 — Hardening and release candidate
+- **Deliverables:** extended fuzzing (commands, events, text_input), STRIDE review against the implementation, the remaining API guide, finished examples, README with security limits, `CHANGELOG`, the release-candidate tag (`v1.0.0` only after `cyd-todo`).
 - **Acceptance:** clean local checks (sanitizers + short fuzz); `06` checklist with all "Lib"-owned CT-xx ✔; README describes residual risks R-20..22.
 - **Covers:** NFR-22, 23, 42, 50; all library CTs.
 
