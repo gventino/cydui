@@ -20,6 +20,7 @@
 #include "cydui/cmd.h"
 #include "cydui/font.h"
 #include "cydui/utf8.h"
+#include "cydui/textedit.h"
 #include "cydui/text.h"
 #include "cydui/backend.h"
 #include "cydui/cydui.h"
@@ -139,6 +140,13 @@ SURFACE(bool, cydui_ui_end, (cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_errors, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_frame, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_init, (cydui_ui *ui, const cydui_ui_config *cfg))
+SURFACE(size_t, cydui_textedit_len, (const char *buf, size_t cap))
+SURFACE(size_t, cydui_textedit_chars, (const char *buf, size_t cap))
+SURFACE(void, cydui_textedit_normalize, (char *buf, size_t cap, size_t *cursor))
+SURFACE(unsigned, cydui_textedit_insert, (char *buf, size_t cap, size_t *cursor, uint32_t cp, unsigned flags, size_t max_chars))
+SURFACE(unsigned, cydui_textedit_backspace, (char *buf, size_t cap, size_t *cursor))
+SURFACE(unsigned, cydui_textedit_delete, (char *buf, size_t cap, size_t *cursor))
+SURFACE(unsigned, cydui_textedit_move, (char *buf, size_t cap, size_t *cursor, cydui_move how, unsigned flags))
 SURFACE(size_t, cydui_utf8_decode, (const char *s, size_t len, uint32_t *cp))
 SURFACE(const char *, cydui_version, (void))
 SURFACE(bool, cydui_widget_begin, (cydui_ui *ui))
@@ -173,6 +181,27 @@ CT_ASSERT(CYDUI_EVENT_DOWN, (long long)(CYDUI_EVENT_DOWN) == 0LL);
 CT_ASSERT(CYDUI_EVENT_MOVE, (long long)(CYDUI_EVENT_MOVE) == 1LL);
 CT_ASSERT(CYDUI_EVENT_QUIT, (long long)(CYDUI_EVENT_QUIT) == 3LL);
 CT_ASSERT(CYDUI_EVENT_UP, (long long)(CYDUI_EVENT_UP) == 2LL);
+CT_ASSERT(CYDUI_KEY_NONE, (long long)(CYDUI_KEY_NONE) == 0LL);
+CT_ASSERT(CYDUI_KEY_BACKSPACE, (long long)(CYDUI_KEY_BACKSPACE) == 1LL);
+CT_ASSERT(CYDUI_KEY_DELETE, (long long)(CYDUI_KEY_DELETE) == 2LL);
+CT_ASSERT(CYDUI_KEY_LEFT, (long long)(CYDUI_KEY_LEFT) == 3LL);
+CT_ASSERT(CYDUI_KEY_RIGHT, (long long)(CYDUI_KEY_RIGHT) == 4LL);
+CT_ASSERT(CYDUI_KEY_UP, (long long)(CYDUI_KEY_UP) == 5LL);
+CT_ASSERT(CYDUI_KEY_DOWN, (long long)(CYDUI_KEY_DOWN) == 6LL);
+CT_ASSERT(CYDUI_KEY_HOME, (long long)(CYDUI_KEY_HOME) == 7LL);
+CT_ASSERT(CYDUI_KEY_END, (long long)(CYDUI_KEY_END) == 8LL);
+CT_ASSERT(CYDUI_KEY_ENTER, (long long)(CYDUI_KEY_ENTER) == 9LL);
+CT_ASSERT(CYDUI_KEY_ESCAPE, (long long)(CYDUI_KEY_ESCAPE) == 10LL);
+CT_ASSERT(CYDUI_EVENT_CHAR, (long long)(CYDUI_EVENT_CHAR) == 4LL);
+CT_ASSERT(CYDUI_EVENT_KEY, (long long)(CYDUI_EVENT_KEY) == 5LL);
+CT_ASSERT(CYDUI_EDIT_MULTILINE, (long long)(CYDUI_EDIT_MULTILINE) == 1LL);
+CT_ASSERT(CYDUI_EDIT_TEXT, (long long)(CYDUI_EDIT_TEXT) == 1LL);
+CT_ASSERT(CYDUI_EDIT_CURSOR, (long long)(CYDUI_EDIT_CURSOR) == 2LL);
+CT_ASSERT(CYDUI_EDIT_FULL, (long long)(CYDUI_EDIT_FULL) == 4LL);
+CT_ASSERT(CYDUI_MOVE_LEFT, (long long)(CYDUI_MOVE_LEFT) == 0LL);
+CT_ASSERT(CYDUI_MOVE_RIGHT, (long long)(CYDUI_MOVE_RIGHT) == 1LL);
+CT_ASSERT(CYDUI_MOVE_HOME, (long long)(CYDUI_MOVE_HOME) == 2LL);
+CT_ASSERT(CYDUI_MOVE_END, (long long)(CYDUI_MOVE_END) == 3LL);
 CT_ASSERT(CYDUI_FONT_ERR_BITMAP, (long long)(CYDUI_FONT_ERR_BITMAP) == 4LL);
 CT_ASSERT(CYDUI_FONT_ERR_EMPTY, (long long)(CYDUI_FONT_ERR_EMPTY) == 2LL);
 CT_ASSERT(CYDUI_FONT_ERR_FALLBACK, (long long)(CYDUI_FONT_ERR_FALLBACK) == 5LL);
@@ -348,6 +377,7 @@ static void structs_have_their_fields(void)
         { cydui_event_type *p = &v.type; (void)p; }
         { int16_t *p = &v.x; (void)p; }
         { int16_t *p = &v.y; (void)p; }
+        { uint32_t *p = &v.key; (void)p; }
     }
     {
         cydui_font v;
@@ -508,7 +538,7 @@ static void structs_have_their_fields(void)
     }
 }
 
-CT_ASSERT(sizeof_cydui_event, sizeof(cydui_event) == 8);
+CT_ASSERT(sizeof_cydui_event, sizeof(cydui_event) == 12);
 CT_ASSERT(sizeof_cydui_glyph, sizeof(cydui_glyph) == 16);
 CT_ASSERT(sizeof_cydui_id, sizeof(cydui_id) == 8);
 CT_ASSERT(sizeof_cydui_mods, sizeof(cydui_mods) == 8);
@@ -625,6 +655,13 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_errors);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_frame);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_init);
+    TEST_ASSERT_NOT_NULL(surface_cydui_textedit_len);
+    TEST_ASSERT_NOT_NULL(surface_cydui_textedit_chars);
+    TEST_ASSERT_NOT_NULL(surface_cydui_textedit_normalize);
+    TEST_ASSERT_NOT_NULL(surface_cydui_textedit_insert);
+    TEST_ASSERT_NOT_NULL(surface_cydui_textedit_backspace);
+    TEST_ASSERT_NOT_NULL(surface_cydui_textedit_delete);
+    TEST_ASSERT_NOT_NULL(surface_cydui_textedit_move);
     TEST_ASSERT_NOT_NULL(surface_cydui_utf8_decode);
     TEST_ASSERT_NOT_NULL(surface_cydui_version);
     TEST_ASSERT_NOT_NULL(surface_cydui_widget_begin);

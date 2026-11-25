@@ -11,13 +11,35 @@ typedef enum {
     CYDUI_EVENT_DOWN,
     CYDUI_EVENT_MOVE,
     CYDUI_EVENT_UP,
-    CYDUI_EVENT_QUIT
+    CYDUI_EVENT_QUIT,
+    CYDUI_EVENT_CHAR, /**< a character was typed: `key` is its code point */
+    CYDUI_EVENT_KEY   /**< an editing key was pressed: `key` is a cydui_key */
 } cydui_event_type;
 
-/** Normalized input event; x/y are screen pixels. */
+/** The keys of CYDUI_EVENT_KEY. */
+typedef enum {
+    CYDUI_KEY_NONE,
+    CYDUI_KEY_BACKSPACE,
+    CYDUI_KEY_DELETE,
+    CYDUI_KEY_LEFT,
+    CYDUI_KEY_RIGHT,
+    CYDUI_KEY_UP,
+    CYDUI_KEY_DOWN,
+    CYDUI_KEY_HOME,
+    CYDUI_KEY_END,
+    CYDUI_KEY_ENTER,
+    CYDUI_KEY_ESCAPE
+} cydui_key;
+
+/**
+ * Normalized input event. DOWN, MOVE and UP carry a position in x/y (screen pixels); CHAR and KEY carry `key`
+ * (and ignore x/y). Any source may produce the keys: a keyboard on the screen, a physical keyboard, an
+ * application that receives text from somewhere else.
+ */
 typedef struct {
     cydui_event_type type;
     int16_t x, y;
+    uint32_t key;
 } cydui_event;
 
 /**
