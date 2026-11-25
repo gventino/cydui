@@ -49,6 +49,24 @@ typedef struct {
     size_t dirty_mem_size;
 } cydui_config;
 
+/**
+ * A post-effect (FR-07): changes every strip after it is rasterized and before it is sent, for what a
+ * command list cannot say (scanlines, a glitch, a tint). Both functions are called with the strip's rows
+ * in screen coordinates, so the effect must depend on `y0 + row` and not on the strip it is in (the result
+ * must not depend on how the screen is cut into strips, R-08), and be integer only.
+ *
+ *  - `key` says what the effect will do to the rows [y0, y0 + h): the same number means the same pixels.
+ *    It is part of what decides if a strip is sent again (dirty regions), so an effect that moves with
+ *    time or state returns a different number when it does, and one that does nothing to those rows (or
+ *    never changes) returns a constant. NULL: the effect is constant.
+ *  - `apply` changes the `h` rows of `width` pixels in `buf`.
+ */
+typedef struct {
+    uint32_t (*key)(void *user, int16_t y0, int16_t h);
+    void (*apply)(void *user, cydui_color *buf, int16_t width, int16_t y0, int16_t h);
+    void *user;
+} cydui_post_effect;
+
 /** Library state. Fields are private; use the functions below. */
 typedef struct {
     const cydui_backend *backend;
@@ -64,6 +82,7 @@ typedef struct {
     cydui_arena text_arena;
     cydui_rect clip;
     cydui_color clear;
+    cydui_post_effect post; /**< `apply` NULL: none */
     uint32_t errors;
 } cydui_ctx;
 
@@ -78,6 +97,12 @@ void cydui_begin_frame(cydui_ctx *ctx, cydui_color clear);
  * changed since the previous frame, when dirty regions are on).
  */
 void cydui_end_frame(cydui_ctx *ctx);
+
+/**
+ * Sets the post-effect (a copy is kept), or removes it with NULL or an effect without `apply`. The next
+ * frame sends every strip again.
+ */
+void cydui_set_post_effect(cydui_ctx *ctx, const cydui_post_effect *fx);
 
 /** Makes the next frame send every strip again (after the panel was reset, say). Harmless otherwise. */
 void cydui_invalidate(cydui_ctx *ctx);

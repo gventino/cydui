@@ -9,6 +9,7 @@
  */
 
 #include "cydui/anim.h"
+#include "cydui/cydui.h"
 #include "cydui/font.h"
 #include "cydui/text.h"
 #include "cydui/types.h"
@@ -119,6 +120,12 @@ struct cydui_theme {
     cydui_style style;
     cydui_wstyle table[CYDUI_WIDGET_COUNT][2][CYDUI_STATE_COUNT]; /**< [widget][selected][state] */
     cydui_paint_fn paint[CYDUI_WIDGET_COUNT];                     /**< NULL: the table driven painter */
+    /**
+     * Optional: a post-effect for the whole screen (FR-07), kept as the template of one: its `user` is
+     * ignored and, while the theme is in use, the effect receives the `cydui_ui` as `user`, so it can ask
+     * cydui_now() and cydui_effects_level().
+     */
+    const cydui_post_effect *post;
 };
 
 typedef enum {

@@ -25,6 +25,7 @@ uint32_t cydui_init(cydui_ctx *ctx, const cydui_config *cfg)
     ctx->dirty = NULL;
     ctx->dirty_cap = 0;
     ctx->dirty_primed = false;
+    memset(&ctx->post, 0, sizeof(ctx->post));
     ctx->errors = 0;
     cydui_arena_init(&ctx->text_arena, NULL, 0);
 
@@ -187,6 +188,16 @@ void cydui_invalidate(cydui_ctx *ctx)
     ctx->dirty_primed = false;
 }
 
+void cydui_set_post_effect(cydui_ctx *ctx, const cydui_post_effect *fx)
+{
+    if (fx && fx->apply) {
+        ctx->post = *fx;
+    } else {
+        memset(&ctx->post, 0, sizeof(ctx->post));
+    }
+    ctx->dirty_primed = false;
+}
+
 void cydui_end_frame(cydui_ctx *ctx)
 {
     const cydui_backend *be = ctx->backend;
@@ -202,6 +213,9 @@ void cydui_end_frame(cydui_ctx *ctx)
         }
         if (ctx->dirty) {
             uint64_t hash = strip_hash(ctx, y, h);
+            if (ctx->post.apply) { /* what the effect will do to these rows is part of what they show */
+                hash = fnv(hash, ctx->post.key ? ctx->post.key(ctx->post.user, y, h) : 0u);
+            }
             bool same = ctx->dirty_primed && ctx->dirty[idx] == hash;
             ctx->dirty[idx] = hash;
             if (same) {
@@ -211,6 +225,9 @@ void cydui_end_frame(cydui_ctx *ctx)
         buf = ctx->strip + (size_t)ctx->strip_next * ctx->strip_pixels;
         ctx->strip_next = (uint8_t)((ctx->strip_next + 1u) % ctx->strip_buffers);
         cydui_raster_strip(ctx->cmds, ctx->cmd_len, buf, be->width, y, h, ctx->clear);
+        if (ctx->post.apply) {
+            ctx->post.apply(ctx->post.user, buf, be->width, y, h);
+        }
         area.x = 0;
         area.y = y;
         area.w = be->width;

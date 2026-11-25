@@ -155,6 +155,16 @@ void cydui__animate_reset(cydui_ui *ui, cydui_id id)
     }
 }
 
+void cydui_set_effects_level(cydui_ui *ui, unsigned level)
+{
+    ui->fx_level = (uint8_t)(level > CYDUI_FX_FULL ? CYDUI_FX_FULL : level);
+}
+
+unsigned cydui_effects_level(const cydui_ui *ui)
+{
+    return ui->fx_level;
+}
+
 uint32_t cydui_now(const cydui_ui *ui)
 {
     return ui->in.now;

@@ -274,6 +274,7 @@ typedef struct cydui_ui {
     uint32_t frame;
     uint16_t widgets;
     uint8_t tweens_now; /**< tweens that are still moving in this frame */
+    uint8_t fx_level;   /**< cydui_set_effects_level */
     uint16_t tap_slop, long_press_ms, frame_budget_ms;
     uint32_t frame_start;
     uintptr_t (*thread_id)(void);
@@ -301,6 +302,21 @@ void cydui_ui_clear_errors(cydui_ui *ui);
 uint32_t cydui_ui_frame(const cydui_ui *ui);
 
 /* ---- time and animation ---- */
+
+/** Levels of the effects of a theme (R-02): what it may spend on looking good. */
+#define CYDUI_FX_NONE 0 /**< no post-effect and no extra painting */
+#define CYDUI_FX_LOW 1  /**< the cheap effects: static ones such as scanlines */
+#define CYDUI_FX_FULL 2 /**< everything: glow, glitch, entrance animations */
+#ifndef CYDUI_FX_DEFAULT
+#define CYDUI_FX_DEFAULT CYDUI_FX_FULL /**< the level a cydui_ui starts with */
+#endif
+
+/**
+ * How much a theme may spend on effects, CYDUI_FX_NONE .. CYDUI_FX_FULL (more is FULL). A theme without
+ * effects ignores it. Turn it down when the frame rate suffers; the next frame is drawn again in full.
+ */
+void cydui_set_effects_level(cydui_ui *ui, unsigned level);
+unsigned cydui_effects_level(const cydui_ui *ui);
 
 /** The clock of the frame, in ms: what the backend's now_ms gave in cydui_ui_begin (0 without a clock). */
 uint32_t cydui_now(const cydui_ui *ui);

@@ -481,6 +481,7 @@ uint32_t cydui_set_theme(cydui_ui *ui, const cydui_theme *t)
         return CYDUI_ERR_BAD_ARG; /* the theme in use stays */
     }
     ui->theme = t;
+    cydui__install_post_effect(ui);
     ui->relayout = true; /* fonts and metrics may have changed the size of everything */
     return 0;
 }

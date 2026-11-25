@@ -150,6 +150,39 @@ static uint32_t xorshift(uint32_t *s)
     return *s = x;
 }
 
+/* A post-effect that follows the clock and the level of the effects: it xors a few pixels chosen from the
+ * absolute row, so that the screen must not depend on the strips, with dirty regions or without them. */
+static uint32_t fx_key(void *user, int16_t y0, int16_t h)
+{
+    const cydui_ui *ui = (const cydui_ui *)user;
+    (void)y0;
+    (void)h;
+    return cydui_effects_level(ui) == 0 ? 0u : (uint32_t)(cydui_now(ui) >> 5) * 2654435761u + cydui_effects_level(ui);
+}
+
+static void fx_apply(void *user, cydui_color *buf, int16_t width, int16_t y0, int16_t h)
+{
+    const cydui_ui *ui = (const cydui_ui *)user;
+    uint32_t t = cydui_now(ui) >> 5;
+    int row, x;
+
+    if (width != W || y0 < 0 || h < 1 || y0 + h > H) {
+        abort(); /* the strip is not where the screen says */
+    }
+    if (cydui_effects_level(ui) == 0) {
+        return;
+    }
+    for (row = 0; row < h; row++) {
+        for (x = 0; x < width; x++) {
+            if (((uint32_t)(y0 + row) * 7u + (uint32_t)x + t) % 5u == 0) {
+                buf[row * width + x] ^= 0x0820;
+            }
+        }
+    }
+}
+
+static const cydui_post_effect g_fx = {fx_key, fx_apply, NULL};
+
 /* A theme whose every number comes from a seed: colors, radii, border widths, shadows (0..255),
  * metrics up to the extremes, and one of five painters per kind. */
 static void make_fuzz_theme(cydui_theme *t, uint32_t seed, bool big_font)
@@ -170,6 +203,7 @@ static void make_fuzz_theme(cydui_theme *t, uint32_t seed, bool big_font)
     t->style.spacing = (uint8_t)(xorshift(&s) % 3 ? xorshift(&s) % 16 : xorshift(&s));
     t->style.min_target = (uint8_t)(xorshift(&s) % 3 ? xorshift(&s) % 40 : xorshift(&s));
     t->style.anim_ms = (uint16_t)(xorshift(&s) % 2 ? 0u : xorshift(&s) % 600u); /* widgets that change their look over time */
+    t->post = xorshift(&s) % 2 ? &g_fx : NULL;
     for (k = 0; k < CYDUI_WIDGET_COUNT; k++) {
         for (sel = 0; sel < 2; sel++) {
             for (st = 0; st < CYDUI_STATE_COUNT; st++) {
@@ -588,11 +622,13 @@ static int do_op(reader *r, vars *v, bool replay)
     }
     case 59: { /* the focus, and the keyboard */
         uint8_t b = u8(r);
-        if (b % 4u == 0) {
+        if (b % 5u == 4) {
+            cydui_set_effects_level(&g_ui, u8(r) % 5u); /* up to two above the top */
+        } else if (b % 5u == 0) {
             cydui_focus_set(&g_ui, make_text(r, tmp, sizeof(tmp)));
-        } else if (b % 4u == 1) {
+        } else if (b % 5u == 1) {
             cydui_focus_clear(&g_ui);
-        } else if (b % 4u == 2) {
+        } else if (b % 5u == 2) {
             cydui_keyboard_enable(&g_ui, (u8(r) & 1u) != 0);
         } else {
             (void)cydui_keyboard_top(&g_ui);
@@ -655,6 +691,7 @@ static uint64_t run(const uint8_t *data, size_t size, int rows, bool fancy)
     cydui_theme_init_clean(&g_th_clean);
     cydui_theme_init_clean_dark(&g_th_dark);
     g_th_dark.style.anim_ms = 150; /* the one theme of the fuzz that animates its widgets */
+    g_th_clean.post = &g_fx;
     g_th_bad = g_th_default;
     g_th_bad.style.font = NULL;
     make_fuzz_theme(&g_th_fuzz, 1, false);

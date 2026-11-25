@@ -147,6 +147,9 @@ SURFACE(int32_t, cydui_lerp, (int32_t a, int32_t b, int32_t k))
 SURFACE(uint32_t, cydui_now, (const cydui_ui *ui))
 SURFACE(cydui_wstyle, cydui_paint_look, (const cydui_theme *theme, const cydui_paint_info *info))
 SURFACE(int32_t, cydui_paint_amount, (const cydui_paint_info *info))
+SURFACE(void, cydui_set_post_effect, (cydui_ctx *ctx, const cydui_post_effect *fx))
+SURFACE(void, cydui_set_effects_level, (cydui_ui *ui, unsigned level))
+SURFACE(unsigned, cydui_effects_level, (const cydui_ui *ui))
 SURFACE(unsigned, cydui_text_input, (cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, unsigned flags))
 SURFACE(int, cydui_keyboard_top, (const cydui_ui *ui))
 SURFACE(void, cydui_keyboard_enable, (cydui_ui *ui, bool on))
@@ -189,6 +192,9 @@ CT_ASSERT(CYDUI_ERR_CMD_OVERFLOW, (long long)(CYDUI_ERR_CMD_OVERFLOW) == 1LL);
 CT_ASSERT(CYDUI_ERR_FRAME_BUDGET, (long long)(CYDUI_ERR_FRAME_BUDGET) == 512LL);
 CT_ASSERT(CYDUI_ERR_TWEEN_LIMIT, (long long)(CYDUI_ERR_TWEEN_LIMIT) == 1024LL);
 CT_ASSERT(CYDUI_ANIM_ONE, (long long)(CYDUI_ANIM_ONE) == 4096LL);
+CT_ASSERT(CYDUI_FX_NONE, (long long)(CYDUI_FX_NONE) == 0LL);
+CT_ASSERT(CYDUI_FX_LOW, (long long)(CYDUI_FX_LOW) == 1LL);
+CT_ASSERT(CYDUI_FX_FULL, (long long)(CYDUI_FX_FULL) == 2LL);
 CT_ASSERT(CYDUI_EASE_LINEAR, (long long)(CYDUI_EASE_LINEAR) == 0LL);
 CT_ASSERT(CYDUI_EASE_IN_QUAD, (long long)(CYDUI_EASE_IN_QUAD) == 1LL);
 CT_ASSERT(CYDUI_EASE_OUT_QUAD, (long long)(CYDUI_EASE_OUT_QUAD) == 2LL);
@@ -309,6 +315,9 @@ CT_ASSERT(CYDUI_SLIDER_TRACK, (long long)(CYDUI_SLIDER_TRACK) == 6LL);
 #endif
 #ifndef CYDUI_MAX_WIDGETS
 #error "CYDUI_MAX_WIDGETS is part of the API"
+#endif
+#ifndef CYDUI_FX_DEFAULT
+#error "CYDUI_FX_DEFAULT is part of the API"
 #endif
 #ifndef CYDUI_MAX_TWEENS
 #error "CYDUI_MAX_TWEENS is part of the API"
@@ -558,6 +567,14 @@ static void structs_have_their_fields(void)
         { cydui_style *p = &v.style; (void)p; }
         (void)sizeof(v.table);
         (void)sizeof(v.paint);
+        { const cydui_post_effect * *p = &v.post; (void)p; }
+    }
+    {
+        cydui_post_effect v;
+        (void)v;
+        { uint32_t (**p)(void *, int16_t, int16_t) = &v.key; (void)p; }
+        { void (**p)(void *, cydui_color *, int16_t, int16_t, int16_t) = &v.apply; (void)p; }
+        { void * *p = &v.user; (void)p; }
     }
     {
         cydui_ui_config v;
@@ -703,6 +720,9 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_errors);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_frame);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_init);
+    TEST_ASSERT_NOT_NULL(surface_cydui_set_post_effect);
+    TEST_ASSERT_NOT_NULL(surface_cydui_set_effects_level);
+    TEST_ASSERT_NOT_NULL(surface_cydui_effects_level);
     TEST_ASSERT_NOT_NULL(surface_cydui_animate);
     TEST_ASSERT_NOT_NULL(surface_cydui_ease_apply);
     TEST_ASSERT_NOT_NULL(surface_cydui_lerp);

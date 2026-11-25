@@ -31,6 +31,9 @@ unsigned cydui__keyboard_run(cydui_ui *ui, cydui_event *out);
  * bottom is not below `limit` and its top is not above the area's window. Does nothing outside a scroll area. */
 void cydui__scroll_reveal(cydui_ui *ui, cydui_rect r, int limit);
 
+/** Gives the context the post-effect of the theme in use, or none. */
+void cydui__install_post_effect(cydui_ui *ui);
+
 /** Makes the tween `id` start from scratch the next time it is asked for. */
 void cydui__animate_reset(cydui_ui *ui, cydui_id id);
 

@@ -63,6 +63,20 @@ static uint32_t floor_pow2(size_t n)
     return p;
 }
 
+/* The post-effect of the theme in use, with the ui as its user (or none). */
+void cydui__install_post_effect(cydui_ui *ui)
+{
+    const cydui_post_effect *p = ui->theme->post;
+
+    if (p && p->apply) {
+        cydui_post_effect fx = *p;
+        fx.user = ui;
+        cydui_set_post_effect(&ui->ctx, &fx);
+    } else {
+        cydui_set_post_effect(&ui->ctx, NULL);
+    }
+}
+
 uint32_t cydui_ui_init(cydui_ui *ui, const cydui_ui_config *cfg)
 {
     cydui_arena a;
@@ -77,6 +91,8 @@ uint32_t cydui_ui_init(cydui_ui *ui, const cydui_ui_config *cfg)
         return err;
     }
     ui->theme = cfg->theme;
+    ui->fx_level = CYDUI_FX_DEFAULT;
+    cydui__install_post_effect(ui);
 
     cydui_arena_init(&a, cfg->state_mem, cfg->state_mem_size);
     ui->state_cap = (uint32_t)(a.cap / sizeof(cydui_state));
