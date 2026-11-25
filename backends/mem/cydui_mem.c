@@ -33,9 +33,24 @@ bool cydui_mem_push_event(cydui_mem *m, cydui_event_type type, int16_t x, int16_
         return false;
     }
     slot = &m->events[(m->ev_head + m->ev_len) % CYDUI_MEM_EVENTS];
+    memset(slot, 0, sizeof(*slot));
     slot->type = type;
     slot->x = x;
     slot->y = y;
+    m->ev_len++;
+    return true;
+}
+
+bool cydui_mem_push_key(cydui_mem *m, cydui_event_type type, uint32_t key)
+{
+    cydui_event *slot;
+    if (m->ev_len >= CYDUI_MEM_EVENTS) {
+        return false;
+    }
+    slot = &m->events[(m->ev_head + m->ev_len) % CYDUI_MEM_EVENTS];
+    memset(slot, 0, sizeof(*slot));
+    slot->type = type;
+    slot->key = key;
     m->ev_len++;
     return true;
 }

@@ -135,6 +135,16 @@ static bool known_event(cydui_event_type t)
     return t == CYDUI_EVENT_DOWN || t == CYDUI_EVENT_MOVE || t == CYDUI_EVENT_UP;
 }
 
+/* Typed characters and keys wait for the focused widget in this frame; when there are too many the oldest go. */
+static void k_push(cydui_input *in, cydui_event ev)
+{
+    if (in->k_len >= CYDUI_KEY_QUEUE) {
+        memmove(&in->keys[0], &in->keys[1], (size_t)(CYDUI_KEY_QUEUE - 1u) * sizeof(in->keys[0]));
+        in->k_len--;
+    }
+    in->keys[in->k_len++] = ev;
+}
+
 /* Adds an event to the queue. MOVEs merge; when full, the oldest MOVE goes first, then the oldest event. */
 static void q_push(cydui_ui *ui, cydui_event ev)
 {
@@ -185,6 +195,8 @@ static void poll_backend(cydui_ui *ui)
             ui->in.quit = true;
         } else if (known_event(ev.type)) {
             q_push(ui, ev);
+        } else if (ev.type == CYDUI_EVENT_CHAR || ev.type == CYDUI_EVENT_KEY) {
+            k_push(&ui->in, ev);
         }
     }
 }
@@ -356,6 +368,11 @@ bool cydui_ui_end(cydui_ui *ui)
     if (!ui->in.down) { /* nobody can still own a press that is over */
         memset(&ui->active, 0, sizeof(ui->active));
     }
+    if ((ui->in.frame_down && !ui->focus_claimed) || !ui->focus_seen) {
+        memset(&ui->focus, 0, sizeof(ui->focus)); /* pressed somewhere else, or the focused widget is gone */
+    }
+    ui->focus_claimed = ui->focus_seen = false;
+    ui->in.k_len = 0; /* what the focused widget did not take is not kept for later */
     cydui_end_frame(&ui->ctx);
     ui->frame++;
     {
@@ -363,6 +380,28 @@ bool cydui_ui_end(cydui_ui *ui)
         ui->relayout = false;
         return more;
     }
+}
+
+void cydui_focus_set(cydui_ui *ui, const char *label)
+{
+    cydui__check_thread(ui);
+    if (label) {
+        ui->focus = cydui_id_str(ui, label);
+        ui->focus_seen = true; /* it is called later in this frame, or the focus is dropped at the end of the next */
+    } else {
+        memset(&ui->focus, 0, sizeof(ui->focus));
+    }
+}
+
+void cydui_focus_clear(cydui_ui *ui)
+{
+    cydui__check_thread(ui);
+    memset(&ui->focus, 0, sizeof(ui->focus));
+}
+
+bool cydui_has_focus(const cydui_ui *ui)
+{
+    return ui->focus.h != 0 || ui->focus.c != 0;
 }
 
 uint32_t cydui_ui_errors(const cydui_ui *ui)

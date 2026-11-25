@@ -59,3 +59,13 @@ bool rig_empty_frame(uirig *r)
     cydui_ui_begin(&r->ui, 0);
     return cydui_ui_end(&r->ui);
 }
+
+void rig_char(uirig *r, uint32_t cp)
+{
+    cydui_mem_push_key(&r->mem, CYDUI_EVENT_CHAR, cp);
+}
+
+void rig_key(uirig *r, cydui_key key)
+{
+    cydui_mem_push_key(&r->mem, CYDUI_EVENT_KEY, (uint32_t)key);
+}

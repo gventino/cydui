@@ -519,6 +519,51 @@ static void test_clean_card(void)
     golden_check_mem("clean_card", &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
 }
 
+/* The text fields in a theme: a hint, a text, a password, a disabled one and, with the focus, the last one (a limit of
+ * three characters, and with `refuse` a fourth typed one that was turned down). */
+static void text_golden(const char *name, bool dark, bool refuse)
+{
+    static char a[32], b[32], c[32], d[32], e[32];
+    cydui_theme *th = dark ? &th_dark : &th_light;
+    int i;
+
+    memset(a, 0, sizeof(a));
+    memset(e, 0, sizeof(e));
+    strcpy(b, "Rua das Flores, 12");
+    strcpy(c, "segredo");
+    strcpy(d, "Nao editavel");
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    cydui_theme_init_clean(&th_light);
+    cydui_theme_init_clean_dark(&th_dark);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
+    for (i = 0; i < 6; i++) {
+        cydui_ui_begin(&ui_rig.ui, th->style.bg);
+        cydui_text_input(&ui_rig.ui, "Endereco", a, sizeof(a), 0, 0);
+        cydui_text_input(&ui_rig.ui, "##b", b, sizeof(b), 0, 0);
+        cydui_text_input(&ui_rig.ui, "##c", c, sizeof(c), 0, CYDUI_TEXT_PASSWORD);
+        cydui_next_disabled(&ui_rig.ui);
+        cydui_text_input(&ui_rig.ui, "##d", d, sizeof(d), 0, 0);
+        cydui_text_input(&ui_rig.ui, "##e", e, sizeof(e), 3, 0);
+        cydui_ui_end(&ui_rig.ui);
+        if (i == 1) { /* tap the last field: it has the focus from the frame after the release */
+            rig_down(&ui_rig, 15, 180);
+            rig_up(&ui_rig, 15, 180);
+        }
+        if (i == 4) {
+            rig_char(&ui_rig, 'a');
+            rig_char(&ui_rig, 'b');
+            rig_char(&ui_rig, 'c');
+            if (refuse) rig_char(&ui_rig, 'd');
+        }
+    }
+    golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+static void test_clean_text(void) { text_golden("clean_text", false, false); }
+static void test_clean_text_refused(void) { text_golden("clean_text_refused", false, true); }
+static void test_clean_dark_text(void) { text_golden("clean_dark_text", true, false); }
+static void test_clean_dark_text_refused(void) { text_golden("clean_dark_text_refused", true, true); }
+
 static void scroll_golden(const char *name, bool list, int32_t y)
 {
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
@@ -652,6 +697,10 @@ int main(void)
     RUN_TEST(test_clean_scroll);
     RUN_TEST(test_clean_list);
     RUN_TEST(test_clean_card);
+    RUN_TEST(test_clean_text);
+    RUN_TEST(test_clean_text_refused);
+    RUN_TEST(test_clean_dark_text);
+    RUN_TEST(test_clean_dark_text_refused);
     RUN_TEST(test_clean_rating);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();

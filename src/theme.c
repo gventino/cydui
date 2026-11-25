@@ -112,6 +112,11 @@ void cydui_theme_derive_table(cydui_theme *t)
     set(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_NORMAL, s->bg, s->border, s->text, s->border, 0, 255);
     set(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_PRESSED, s->bg, s->border, s->text, s->text_muted, 0, 255);
 
+    /* a text field: the background, a thin outline, a thick accent one with the focus, a red one (selected) when a key was refused */
+    set(t, CYDUI_WIDGET_TEXT_INPUT, 0, CYDUI_STATE_NORMAL, s->bg, s->border, s->text, s->accent, 1, s->radius);
+    set(t, CYDUI_WIDGET_TEXT_INPUT, 0, CYDUI_STATE_DISABLED, s->panel, s->border, s->text_muted, s->accent, 1, s->radius);
+    set(t, CYDUI_WIDGET_TEXT_INPUT, 1, CYDUI_STATE_NORMAL, s->bg, CYDUI_RGB(220, 60, 60), s->text, s->accent, 2, s->radius);
+
     /* hover and focus look like normal until something produces them */
     for (k = 0; k < CYDUI_WIDGET_COUNT; k++) {
         for (sel = 0; sel < 2; sel++) {
@@ -119,6 +124,8 @@ void cydui_theme_derive_table(cydui_theme *t)
             t->table[k][sel][CYDUI_STATE_FOCUSED] = t->table[k][sel][CYDUI_STATE_NORMAL];
         }
     }
+    set(t, CYDUI_WIDGET_TEXT_INPUT, 0, CYDUI_STATE_FOCUSED, s->bg, s->accent, s->text, s->accent, 2, s->radius);
+    set(t, CYDUI_WIDGET_TEXT_INPUT, 1, CYDUI_STATE_FOCUSED, s->bg, CYDUI_RGB(220, 60, 60), s->text, s->accent, 2, s->radius);
 }
 
 void cydui_theme_default(cydui_theme *t, const cydui_font *font)
@@ -397,6 +404,7 @@ void cydui_paint_default(cydui_ui *ui, const cydui_theme *theme, const cydui_pai
         paint_tab(ui, w, info);
         break;
     case CYDUI_WIDGET_PANEL:
+    case CYDUI_WIDGET_TEXT_INPUT:
         paint_panel(ui, w, info);
         break;
     case CYDUI_WIDGET_SCROLLBAR:

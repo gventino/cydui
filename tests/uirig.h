@@ -35,6 +35,9 @@ void rig_down(uirig *r, int x, int y);
 void rig_move(uirig *r, int x, int y);
 void rig_up(uirig *r, int x, int y);
 void rig_advance(uirig *r, uint32_t ms);
+/** Queue a typed character (a code point) or an editing key (a cydui_key). */
+void rig_char(uirig *r, uint32_t cp);
+void rig_key(uirig *r, cydui_key key);
 
 /** begin + end with nothing in between; returns what cydui_ui_end returned. */
 bool rig_empty_frame(uirig *r);

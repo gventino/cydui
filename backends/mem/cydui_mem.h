@@ -31,6 +31,9 @@ void cydui_mem_init(cydui_mem *m, cydui_color *fb, int16_t width, int16_t height
  */
 bool cydui_mem_push_event(cydui_mem *m, cydui_event_type type, int16_t x, int16_t y);
 
+/** Queues a CYDUI_EVENT_CHAR (`key` is the code point) or CYDUI_EVENT_KEY (`key` is a cydui_key). Same limit as above. */
+bool cydui_mem_push_key(cydui_mem *m, cydui_event_type type, uint32_t key);
+
 /**
  * FNV-1a 64-bit over the pixels as little-endian bytes (independent of host endianness). The offset basis is
  * 1469598103934665603, a digit short of the standard 14695981039346656037; it stays so, because every golden

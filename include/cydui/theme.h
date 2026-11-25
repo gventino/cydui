@@ -40,10 +40,12 @@ typedef enum {
     CYDUI_WIDGET_TAB,
     CYDUI_WIDGET_PANEL,
     CYDUI_WIDGET_SCROLLBAR,
+    CYDUI_WIDGET_TEXT_INPUT, /**< the field: `fill` is its body, `border` its outline, `text` the text, `accent` the cursor;
+                                  FOCUSED while it has the focus; selected = the last key was refused (a limit) */
     CYDUI_WIDGET_COUNT
 } cydui_widget_kind;
 
-/** The library produces NORMAL, PRESSED and DISABLED today; the others have room in the tables. */
+/** The library produces NORMAL, PRESSED, DISABLED and (for text fields) FOCUSED; HOVER has room in the tables. */
 typedef enum {
     CYDUI_STATE_NORMAL,
     CYDUI_STATE_HOVER,

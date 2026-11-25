@@ -140,6 +140,10 @@ SURFACE(bool, cydui_ui_end, (cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_errors, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_frame, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_init, (cydui_ui *ui, const cydui_ui_config *cfg))
+SURFACE(unsigned, cydui_text_input, (cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, unsigned flags))
+SURFACE(void, cydui_focus_set, (cydui_ui *ui, const char *label))
+SURFACE(void, cydui_focus_clear, (cydui_ui *ui))
+SURFACE(bool, cydui_has_focus, (const cydui_ui *ui))
 SURFACE(size_t, cydui_textedit_len, (const char *buf, size_t cap))
 SURFACE(size_t, cydui_textedit_chars, (const char *buf, size_t cap))
 SURFACE(void, cydui_textedit_normalize, (char *buf, size_t cap, size_t *cursor))
@@ -231,7 +235,11 @@ CT_ASSERT(CYDUI_THEME_ERR_NULL, (long long)(CYDUI_THEME_ERR_NULL) == 1LL);
 CT_ASSERT(CYDUI_THEME_OK, (long long)(CYDUI_THEME_OK) == 0LL);
 CT_ASSERT(CYDUI_WIDGET_BUTTON, (long long)(CYDUI_WIDGET_BUTTON) == 0LL);
 CT_ASSERT(CYDUI_WIDGET_CHECKBOX, (long long)(CYDUI_WIDGET_CHECKBOX) == 1LL);
-CT_ASSERT(CYDUI_WIDGET_COUNT, (long long)(CYDUI_WIDGET_COUNT) == 8LL);
+CT_ASSERT(CYDUI_WIDGET_COUNT, (long long)(CYDUI_WIDGET_COUNT) == 9LL);
+CT_ASSERT(CYDUI_WIDGET_TEXT_INPUT, (long long)(CYDUI_WIDGET_TEXT_INPUT) == 8LL);
+CT_ASSERT(CYDUI_TEXT_PASSWORD, (long long)(CYDUI_TEXT_PASSWORD) == 256LL);
+CT_ASSERT(CYDUI_TEXT_CHANGED, (long long)(CYDUI_TEXT_CHANGED) == 1LL);
+CT_ASSERT(CYDUI_TEXT_CONFIRMED, (long long)(CYDUI_TEXT_CONFIRMED) == 2LL);
 CT_ASSERT(CYDUI_WIDGET_PANEL, (long long)(CYDUI_WIDGET_PANEL) == 6LL);
 CT_ASSERT(CYDUI_WIDGET_PROGRESS, (long long)(CYDUI_WIDGET_PROGRESS) == 4LL);
 CT_ASSERT(CYDUI_WIDGET_SCROLLBAR, (long long)(CYDUI_WIDGET_SCROLLBAR) == 7LL);
@@ -253,6 +261,9 @@ CT_ASSERT(CYDUI_SLIDER_TRACK, (long long)(CYDUI_SLIDER_TRACK) == 6LL);
 #endif
 #ifndef CYDUI_EVENT_QUEUE
 #error "CYDUI_EVENT_QUEUE is part of the API"
+#endif
+#ifndef CYDUI_KEY_QUEUE
+#error "CYDUI_KEY_QUEUE is part of the API"
 #endif
 #ifndef CYDUI_FILTER_CONTROL
 #error "CYDUI_FILTER_CONTROL is part of the API"
@@ -655,6 +666,10 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_errors);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_frame);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_init);
+    TEST_ASSERT_NOT_NULL(surface_cydui_text_input);
+    TEST_ASSERT_NOT_NULL(surface_cydui_focus_set);
+    TEST_ASSERT_NOT_NULL(surface_cydui_focus_clear);
+    TEST_ASSERT_NOT_NULL(surface_cydui_has_focus);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_len);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_chars);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_normalize);

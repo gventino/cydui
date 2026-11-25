@@ -170,9 +170,15 @@ typedef struct {
  * Pointer state and the events waiting for the next frame.
  * PRIVATE: the application learns what the touch did from cydui_response, not from here. Not part of the API.
  */
+#ifndef CYDUI_KEY_QUEUE
+#define CYDUI_KEY_QUEUE 32 /**< typed characters and keys that wait for the focused widget in one frame */
+#endif
+
 typedef struct {
     cydui_event queue[CYDUI_EVENT_QUEUE];
     uint8_t q_len;
+    cydui_event keys[CYDUI_KEY_QUEUE]; /**< CHAR and KEY events of this frame; the oldest goes when it is full */
+    uint8_t k_len;
     uint8_t last_processed; /**< events taken from the queue in the last frame */
     bool down;
     bool quit;
@@ -234,6 +240,9 @@ typedef struct cydui_ui {
     cydui_id id_stack[CYDUI_MAX_ID_DEPTH];
     uint8_t id_depth;
     cydui_id active; /**< the widget that owns the current press, or all zero */
+    cydui_id focus;  /**< the widget that gets the typed keys, or all zero */
+    bool focus_seen;    /**< the focused widget was called in this frame (else the focus is dropped) */
+    bool focus_claimed; /**< a press that began in this frame was on a widget that takes the focus */
     bool active_capture; /**< that widget asked to keep the press (CYDUI_CAPTURE) */
     cydui_input in;
     cydui_mods mods;
@@ -496,6 +505,38 @@ void cydui_progress(cydui_ui *ui, int32_t value, int32_t max);
  * business: `if (selected == 0) { ... }`. The bar is as wide as the room it has by default.
  */
 bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selected);
+
+/* ---- text ---- */
+
+/** Flags of the text fields. */
+#define CYDUI_TEXT_PASSWORD 0x100u /**< shows a bullet for every character; the buffer holds the real text */
+
+/** What a text field reports (a bit mask; any non-zero value means something happened). */
+#define CYDUI_TEXT_CHANGED 1u   /**< the text changed in this frame */
+#define CYDUI_TEXT_CONFIRMED 2u /**< Enter was pressed: the field gave up the focus */
+
+/**
+ * A single line text field that edits the string in `buf` (`cap` bytes, always kept NUL terminated; a buffer the
+ * application filled is made safe first, see cydui/textedit.h). `label` gives its id and, up to a "##", the hint
+ * shown while the field is empty. A tap gives it the focus and puts the cursor where the finger is; only the
+ * focused field receives the CYDUI_EVENT_CHAR and CYDUI_EVENT_KEY events (Backspace, Delete, Left, Right, Home,
+ * End edit; Enter confirms and drops the focus; Escape drops it). The focus is also dropped by a press anywhere
+ * else and when the field is not called for a frame. `max_chars` (0 = no limit) limits the characters; a refused
+ * character (the limit, or no room in `cap`) outlines the field in the "selected" look for a moment. The text
+ * scrolls sideways to keep the cursor in view. The field is as wide as the room it has by default and as tall as
+ * its text with the theme's padding (at least min_target); a NULL `buf` or `cap` 0 makes it a disabled field.
+ * Returns CYDUI_TEXT_CHANGED and CYDUI_TEXT_CONFIRMED bits.
+ */
+unsigned cydui_text_input(cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, unsigned flags);
+
+/** Gives the focus to the field with this label (in the current id scope), or to nothing if `label` is NULL. */
+void cydui_focus_set(cydui_ui *ui, const char *label);
+
+/** Drops the focus. */
+void cydui_focus_clear(cydui_ui *ui);
+
+/** True while a text field has the focus (a keyboard on the screen, if there is one, is shown then). */
+bool cydui_has_focus(const cydui_ui *ui);
 
 /* ---- setting up with static memory ---- */
 
