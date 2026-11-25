@@ -44,7 +44,7 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 - **Acceptance:** `theme-gallery` shows all widgets/states in `clean`; per widget×state goldens; runtime theme switch without leaks.
 - **Covers:** FR-25, 31..33, 36, 50..52, 54 (partial); NFR-31, 43; CT-09.
 - **Milestone:** **freeze the core API** (stable v0.x) — R-10.
-- **Status: implemented; the tag `v0.4.0` waits for the API list to be confirmed.** The API is in `docs/11-api.md` and frozen by `tests/test_api_surface.c`; the design, the measurements and the lessons are in `docs/10-core-design.md`. Decisions and deviations from the plan above:
+- **Status: done; the API list was confirmed by the user and tagged `v0.4.0`.** The API is in `docs/11-api.md` and frozen by `tests/test_api_surface.c`; the design, the measurements and the lessons are in `docs/10-core-design.md`. Decisions and deviations from the plan above:
   - one iteration, built in eight steps (themes without changing a pixel; `clean`/`clean_dark` and the gallery; slider, progress and tabs; scroll with inertia and lists; alignment and cards; the custom-widget API proved by a rating widget; extended fuzz; the freeze);
   - `clean` has a light and a dark variant (`clean`, `clean_dark`), both one function over a palette; `retro` and `cyberpunk` remain for It7 (FR-54 is partial);
   - the scroll container is `cydui_scroll_begin/end` plus a virtual list (`cydui_list_*`), not a `cydui_scroll_area`; the inertia feel is tuned on the board in It5 (the `CYDUI_SCROLL_*` defaults are not frozen);
