@@ -63,7 +63,7 @@ bool cydui_popup_begin(cydui_ui *ui, const char *label, bool *open, int w, int h
     cydui_reset_clip(&ui->ctx); /* not clipped by the container the application called it from */
     ui->popup_start = ui->ctx.cmd_len;
     {
-        cydui_id fade = cydui_id_str(ui, label ? label : "");
+        cydui_id fade = cydui__id_mix(cydui_id_str(ui, label ? label : ""), "\x01dim", 4);
         int32_t dim = DIM_ALPHA;
 
         if (st->anim_ms) { /* the dimming comes in over the first frames after the popup opens */

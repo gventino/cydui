@@ -34,6 +34,10 @@ void cydui__scroll_reveal(cydui_ui *ui, cydui_rect r, int limit);
 /** Gives the context the post-effect of the theme in use, or none. */
 void cydui__install_post_effect(cydui_ui *ui);
 
+/** Like cydui_state_get(ui, id, true) but a full table is left alone: NULL instead of replacing an entry of something else
+ * (for what is only decoration, such as the tween of a look). */
+cydui_state *cydui__state_get_keep(cydui_ui *ui, cydui_id id);
+
 /** Makes the tween `id` start from scratch the next time it is asked for. */
 void cydui__animate_reset(cydui_ui *ui, cydui_id id);
 

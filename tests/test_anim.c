@@ -292,6 +292,32 @@ void test_a_new_ui_over_old_memory_does_not_inherit_the_state_of_the_old_one(voi
     TEST_ASSERT_EQUAL_INT32(0, v); /* it starts at `from`: nobody was moving it */
 }
 
+void test_a_tween_never_takes_the_place_of_the_state_of_something_else(void)
+{
+    cydui_id a, b;
+    cydui_state *sa, *sb;
+    int32_t first, second;
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init_with(&rig, 3, 0)); /* three entries */
+    cydui_ui_begin(&rig.ui, 0);
+    a = cydui_id_str(&rig.ui, "scroll");
+    b = cydui_id_str(&rig.ui, "field");
+    sa = cydui_state_get(&rig.ui, a, true);
+    sb = cydui_state_get(&rig.ui, b, true);
+    TEST_ASSERT_NOT_NULL(sa);
+    TEST_ASSERT_NOT_NULL(sb);
+    sa->a = 77;
+    sb->a = 88;
+    first = cydui_animate(&rig.ui, cydui_id_str(&rig.ui, "one"), 0, 1000, 100, CYDUI_EASE_LINEAR);   /* takes the free entry */
+    second = cydui_animate(&rig.ui, cydui_id_str(&rig.ui, "two"), 0, 1000, 100, CYDUI_EASE_LINEAR);  /* none left: no motion */
+    TEST_ASSERT_EQUAL_INT32(0, first);
+    TEST_ASSERT_EQUAL_INT32(1000, second);
+    TEST_ASSERT_EQUAL_PTR(sa, cydui_state_get(&rig.ui, a, false));
+    TEST_ASSERT_EQUAL_PTR(sb, cydui_state_get(&rig.ui, b, false));
+    TEST_ASSERT_EQUAL_INT32(77, sa->a);
+    TEST_ASSERT_EQUAL_INT32(88, sb->a);
+    cydui_ui_end(&rig.ui);
+}
+
 void test_tweens_that_nobody_asks_for_are_recycled_and_nothing_grows(void)
 {
     int frame;
@@ -484,6 +510,24 @@ void test_a_pressed_button_goes_from_its_normal_look_to_the_pressed_one(void)
     TEST_ASSERT_TRUE(color_dist(late, normal) < color_dist(late, pressed)); /* 190 of 200 ms back: nearly normal */
 }
 
+void test_a_tween_of_the_application_on_the_id_of_a_widget_does_not_fight_the_look_of_the_widget(void)
+{
+    int i;
+    bool more = true;
+    int32_t mine = -1;
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&rig));
+    rig.theme.style.anim_ms = 200;
+    for (i = 0; i < 60 && more; i++) {
+        cydui_ui_begin(&rig.ui, 0);
+        cydui_button(&rig.ui, "Go");
+        mine = cydui_animate(&rig.ui, cydui_id_str(&rig.ui, "Go"), 0, 1000, 100, CYDUI_EASE_LINEAR); /* the id of the button */
+        more = cydui_ui_end(&rig.ui);
+        rig_advance(&rig, 16);
+    }
+    TEST_ASSERT_FALSE(more);
+    TEST_ASSERT_EQUAL_INT32(1000, mine);
+}
+
 void test_a_settled_widget_does_not_keep_the_loop_awake_when_the_theme_animates(void)
 {
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&rig));
@@ -614,12 +658,14 @@ int main(void)
     RUN_TEST(test_the_elastic_curve_stays_in_a_sane_range_and_lands_on_the_target);
     RUN_TEST(test_the_tweens_that_run_together_are_limited);
     RUN_TEST(test_a_new_ui_over_old_memory_does_not_inherit_the_state_of_the_old_one);
+    RUN_TEST(test_a_tween_never_takes_the_place_of_the_state_of_something_else);
     RUN_TEST(test_tweens_that_nobody_asks_for_are_recycled_and_nothing_grows);
     RUN_TEST(test_the_age_of_a_theme_counts_from_the_first_frame_it_is_used);
     RUN_TEST(test_a_switch_slides_over_the_duration_and_lands_on_the_plain_look);
     RUN_TEST(test_a_theme_without_a_duration_changes_at_once);
     RUN_TEST(test_a_tab_changes_its_look_over_the_duration);
     RUN_TEST(test_a_pressed_button_goes_from_its_normal_look_to_the_pressed_one);
+    RUN_TEST(test_a_tween_of_the_application_on_the_id_of_a_widget_does_not_fight_the_look_of_the_widget);
     RUN_TEST(test_a_settled_widget_does_not_keep_the_loop_awake_when_the_theme_animates);
     RUN_TEST(test_a_switch_track_blends_from_one_end_look_to_the_other);
     RUN_TEST(test_the_bar_of_a_tab_grows_from_its_middle);

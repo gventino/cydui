@@ -118,7 +118,7 @@ int32_t cydui_animate(cydui_ui *ui, cydui_id id, int32_t from, int32_t target, u
     if (!ui->in.has_clock || duration_ms == 0 || (unsigned)ease >= CYDUI_EASE_COUNT) {
         return target; /* nothing to move with: it is there at once */
     }
-    s = cydui_state_get(ui, cydui__id_mix(id, "\x01tween", 6), true);
+    s = cydui__state_get_keep(ui, cydui__id_mix(id, "\x01tween", 6));
     if (!s) {
         return target; /* the state table is full */
     }

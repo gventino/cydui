@@ -559,7 +559,8 @@ bool cydui_id_claim(cydui_ui *ui, cydui_id id)
 
 /* ---- state table ---- */
 
-cydui_state *cydui_state_get(cydui_ui *ui, cydui_id id, bool create)
+/* `evict`: when the table is full, an entry is replaced (the one unused for the longest time); without it nothing is. */
+static cydui_state *state_get(cydui_ui *ui, cydui_id id, bool create, bool evict)
 {
     uint32_t i, free_slot = ui->state_cap, oldest = ui->state_cap;
     cydui_state *s;
@@ -588,7 +589,7 @@ cydui_state *cydui_state_get(cydui_ui *ui, cydui_id id, bool create)
     if (!create) {
         return NULL;
     }
-    if (free_slot == ui->state_cap) {
+    if (free_slot == ui->state_cap && evict) {
         free_slot = oldest; /* full: replace the entry unused for the longest time */
     }
     if (free_slot == ui->state_cap) {
@@ -600,4 +601,14 @@ cydui_state *cydui_state_get(cydui_ui *ui, cydui_id id, bool create)
     s->used = 1;
     s->last_frame = ui->frame;
     return s;
+}
+
+cydui_state *cydui_state_get(cydui_ui *ui, cydui_id id, bool create)
+{
+    return state_get(ui, id, create, true);
+}
+
+cydui_state *cydui__state_get_keep(cydui_ui *ui, cydui_id id)
+{
+    return state_get(ui, id, true, false);
 }

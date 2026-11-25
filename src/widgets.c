@@ -79,7 +79,7 @@ static void look_tween(cydui_ui *ui, cydui_id id, bool on, bool select, cydui_pa
     if (ms == 0 || pi->state == CYDUI_STATE_DISABLED) {
         return;
     }
-    v = cydui_animate(ui, id, end, end, ms, CYDUI_EASE_OUT_QUAD);
+    v = cydui_animate(ui, cydui__id_mix(id, "\x01look", 5), end, end, ms, CYDUI_EASE_OUT_QUAD); /* apart from the tweens of the application on this id */
     if (v == end) {
         return; /* settled */
     }
