@@ -202,6 +202,47 @@ static void print_hashes(void)
 #endif
 
 #if CONFIG_GALLERY_BENCH_SECONDS > 0 && !CONFIG_GALLERY_ACCEPTANCE
+static unsigned states_used(void)
+{
+    unsigned n = 0;
+    uint32_t i;
+
+    for (i = 0; i < ui.state_cap; i++) {
+        n += ui.state[i].used ? 1u : 0u;
+    }
+    return n;
+}
+
+/* CT-08: the animated theme through a long run of pages and a clock that moves by itself: the state table does not
+ * grow, no tween is left moving, and nothing is raised. */
+static void tween_growth_test(void)
+{
+    unsigned at_200 = 0, most_running = 0;
+    uint32_t f;
+    bool more = false;
+
+    virt_clock = true;
+    virt_now = 0;
+    if (!start_ui(4, 0)) {
+        virt_clock = false;
+        return;
+    }
+    for (f = 0; f < 1500; f++) {
+        g.tab = (int)((f / 50) % GALLERY_PAGES); /* another page every 50 frames: tabs, buttons and checkboxes come and go */
+        more = one_frame();
+        virt_now += 16;
+        if (f == 200) at_200 = states_used();
+        if (ui.tweens_now > most_running) most_running = ui.tweens_now;
+    }
+    for (f = 0; f < 60 && more; f++) { /* and then nothing is asked: it settles */
+        more = one_frame();
+        virt_now += 16;
+    }
+    virt_clock = false;
+    printf("GALLERY_TWEENS states_used_at_200=%u states_used_at_1500=%u state_entries=%u most_running=%u settled=%d errors=0x%x\n",
+           at_200, states_used(), (unsigned)ui.state_cap, most_running, !more, (unsigned)cydui_ui_errors(&ui));
+}
+
 /* Frames as fast as they go for a few seconds. `page` 0 is the page of controls, 4 the animation; with
  * `all_strips` every frame is invalidated first (every strip is drawn and sent, the worst case). */
 static void bench(const char *name, int theme, int page, bool all_strips)
@@ -517,6 +558,7 @@ void app_main(void)
     bench("cyberpunk_full_redraw", 4, 0, true);
     bench("cyberpunk_animation_dirty_regions", 4, 4, false);
     bench("cyberpunk_animation_all_strips", 4, 4, true);
+    tween_growth_test();
 #endif
 #if CONFIG_GALLERY_PROFILE && !CONFIG_GALLERY_ACCEPTANCE
     profile_commands();
