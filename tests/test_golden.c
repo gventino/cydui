@@ -536,6 +536,7 @@ static void text_golden(const char *name, bool dark, bool refuse)
     cydui_theme_init_clean(&th_light);
     cydui_theme_init_clean_dark(&th_dark);
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
+    cydui_keyboard_enable(&ui_rig.ui, false); /* the fields alone: the keyboard has its own goldens */
     for (i = 0; i < 6; i++) {
         cydui_ui_begin(&ui_rig.ui, th->style.bg);
         cydui_text_input(&ui_rig.ui, "Endereco", a, sizeof(a), 0, 0);
@@ -576,6 +577,7 @@ static void textarea_golden(const char *name, bool dark)
     cydui_theme_init_clean(&th_light);
     cydui_theme_init_clean_dark(&th_dark);
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
+    cydui_keyboard_enable(&ui_rig.ui, false);
     y = 8 + 6 + th->style.font->line_height * 3 / 2; /* the middle of the second row */
     for (i = 0; i < 6; i++) {
         cydui_ui_begin(&ui_rig.ui, th->style.bg);
@@ -627,6 +629,69 @@ static void popup_golden(const char *name, bool dark)
 
 static void test_clean_popup(void) { popup_golden("clean_popup", false); }
 static void test_clean_dark_popup(void) { popup_golden("clean_dark_popup", true); }
+
+/* The keyboard under a field that has the focus: `taps` are screen points to tap first (to change page, Shift...). */
+static void keyboard_golden(const char *name, bool dark, const int (*taps)[2], int n_taps)
+{
+    static char text[40];
+    cydui_theme *th = dark ? &th_dark : &th_light;
+    int i, t;
+
+    strcpy(text, "Ola, mundo");
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    cydui_theme_init_clean(&th_light);
+    cydui_theme_init_clean_dark(&th_dark);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
+    for (t = -1; t < n_taps; t++) {
+        if (t >= 0) {
+            rig_down(&ui_rig, taps[t][0], taps[t][1]);
+        } else {
+            rig_down(&ui_rig, 15, 20); /* the field: the focus, and the keyboard */
+        }
+        for (i = 0; i < 2; i++) {
+            cydui_ui_begin(&ui_rig.ui, th->style.bg);
+            cydui_text_input(&ui_rig.ui, "Mensagem", text, sizeof(text), 0, 0);
+            cydui_label(&ui_rig.ui, "Teclado na tela");
+            cydui_ui_end(&ui_rig.ui);
+            if (i == 0) {
+                if (t >= 0) rig_up(&ui_rig, taps[t][0], taps[t][1]);
+                else rig_up(&ui_rig, 15, 20);
+            }
+        }
+        for (i = 0; i < 3; i++) {
+            cydui_ui_begin(&ui_rig.ui, th->style.bg);
+            cydui_text_input(&ui_rig.ui, "Mensagem", text, sizeof(text), 0, 0);
+            cydui_label(&ui_rig.ui, "Teclado na tela");
+            cydui_ui_end(&ui_rig.ui);
+        }
+    }
+    golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+/* Keys of the 320 x 240 screen: rows are at y = 100, 135, 170 and 205 (32 tall); the first key of the third row is Shift or
+ * the page of symbols, the first and second of the fourth are the pages 123 and accents. */
+static void test_clean_keyboard(void) { keyboard_golden("clean_keyboard", false, NULL, 0); }
+static void test_clean_dark_keyboard(void) { keyboard_golden("clean_dark_keyboard", true, NULL, 0); }
+static void test_clean_keyboard_shift(void)
+{
+    static const int taps[][2] = {{20, 186}};
+    keyboard_golden("clean_keyboard_shift", false, taps, 1);
+}
+static void test_clean_keyboard_numbers(void)
+{
+    static const int taps[][2] = {{20, 221}};
+    keyboard_golden("clean_keyboard_numbers", false, taps, 1);
+}
+static void test_clean_keyboard_symbols(void)
+{
+    static const int taps[][2] = {{20, 221}, {20, 186}};
+    keyboard_golden("clean_keyboard_symbols", false, taps, 2);
+}
+static void test_clean_dark_keyboard_accents(void)
+{
+    static const int taps[][2] = {{65, 221}};
+    keyboard_golden("clean_dark_keyboard_accents", true, taps, 1);
+}
 
 static void scroll_golden(const char *name, bool list, int32_t y)
 {
@@ -769,6 +834,12 @@ int main(void)
     RUN_TEST(test_clean_dark_textarea);
     RUN_TEST(test_clean_popup);
     RUN_TEST(test_clean_dark_popup);
+    RUN_TEST(test_clean_keyboard);
+    RUN_TEST(test_clean_dark_keyboard);
+    RUN_TEST(test_clean_keyboard_shift);
+    RUN_TEST(test_clean_keyboard_numbers);
+    RUN_TEST(test_clean_keyboard_symbols);
+    RUN_TEST(test_clean_dark_keyboard_accents);
     RUN_TEST(test_clean_rating);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();

@@ -245,6 +245,12 @@ typedef struct cydui_ui {
     bool focus_seen;    /**< the focused widget was called in this frame (else the focus is dropped) */
     bool focus_claimed; /**< a press that began in this frame was on a widget that takes the focus */
     bool popup_prev;    /**< a popup was shown in the previous frame: what is outside it does not react */
+    bool kb_prev;       /**< the keyboard was shown in the previous frame: what is under it does not react */
+    bool kb_off;        /**< the application turned the keyboard off (cydui_keyboard_enable) */
+    bool in_kb;         /**< the keyboard's own keys are being handled */
+    bool kb_shift;
+    uint8_t kb_page;
+    uint32_t kb_rep;    /**< repeats of a held Backspace so far */
     bool popup_now;     /**< a popup is shown in this frame */
     bool in_popup;      /**< between cydui_popup_begin and cydui_popup_end */
     uint32_t popup_start, popup_end; /**< its commands, to be moved to the end of the list */
@@ -571,6 +577,21 @@ bool cydui_popup_begin(cydui_ui *ui, const char *label, bool *open, int w, int h
 
 /** Ends the content of the popup; only after cydui_popup_begin returned true. */
 void cydui_popup_end(cydui_ui *ui);
+
+/* ---- the keyboard on the screen ---- */
+
+/**
+ * While a text field has the focus a keyboard is shown at the bottom of the screen, above everything else, and its
+ * keys give the field CYDUI_EVENT_CHAR and CYDUI_EVENT_KEY events. Pages: letters (Shift for one capital), numbers
+ * and punctuation, symbols, and accented letters (Latin-1). A key that is held when it is Backspace repeats.
+ * Nothing else reacts to a touch on it. The keyboard is part of the UI, you do not call it; the application only
+ * has to leave the field where the keyboard does not cover it: cydui_keyboard_top says where the keyboard begins
+ * (the previous frame's: the first frame of a focus still reports the height of the screen).
+ */
+int cydui_keyboard_top(const cydui_ui *ui);
+
+/** Turns the keyboard on the screen on (the default) or off, for an application that has another way to type. */
+void cydui_keyboard_enable(cydui_ui *ui, bool on);
 
 /** Gives the focus to the field with this label (in the current id scope), or to nothing if `label` is NULL. */
 void cydui_focus_set(cydui_ui *ui, const char *label);

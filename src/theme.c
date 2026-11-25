@@ -113,6 +113,10 @@ void cydui_theme_derive_table(cydui_theme *t)
     set(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_PRESSED, s->bg, s->border, s->text, s->text_muted, 0, 255);
 
     set(t, CYDUI_WIDGET_POPUP, 0, CYDUI_STATE_NORMAL, s->panel, s->border, s->text, s->accent, 1, 12);
+    set(t, CYDUI_WIDGET_KEY, 0, CYDUI_STATE_NORMAL, shade(s->panel, 85), s->border, s->text, s->accent, 0, 6);
+    set(t, CYDUI_WIDGET_KEY, 0, CYDUI_STATE_PRESSED, shade(s->panel, 60), s->border, s->text, s->accent, 0, 6);
+    set(t, CYDUI_WIDGET_KEY, 1, CYDUI_STATE_NORMAL, s->accent, s->border, s->accent_text, s->accent, 0, 6);
+    set(t, CYDUI_WIDGET_KEY, 1, CYDUI_STATE_PRESSED, shade(s->accent, 90), s->border, s->accent_text, s->accent, 0, 6);
     /* a text field: the background, a thin outline, a thick accent one with the focus, a red one (selected) when a key was refused */
     set(t, CYDUI_WIDGET_TEXT_INPUT, 0, CYDUI_STATE_NORMAL, s->bg, s->border, s->text, s->accent, 1, s->radius);
     set(t, CYDUI_WIDGET_TEXT_INPUT, 0, CYDUI_STATE_DISABLED, s->panel, s->border, s->text_muted, s->accent, 1, s->radius);
@@ -387,6 +391,7 @@ void cydui_paint_default(cydui_ui *ui, const cydui_theme *theme, const cydui_pai
     }
     switch (info->kind) {
     case CYDUI_WIDGET_BUTTON:
+    case CYDUI_WIDGET_KEY:
         paint_button(ui, w, info);
         break;
     case CYDUI_WIDGET_CHECKBOX:

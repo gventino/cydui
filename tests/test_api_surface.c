@@ -141,6 +141,8 @@ SURFACE(uint32_t, cydui_ui_errors, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_frame, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_init, (cydui_ui *ui, const cydui_ui_config *cfg))
 SURFACE(unsigned, cydui_text_input, (cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, unsigned flags))
+SURFACE(int, cydui_keyboard_top, (const cydui_ui *ui))
+SURFACE(void, cydui_keyboard_enable, (cydui_ui *ui, bool on))
 SURFACE(bool, cydui_popup_begin, (cydui_ui *ui, const char *label, bool *open, int w, int h, unsigned flags))
 SURFACE(void, cydui_popup_end, (cydui_ui *ui))
 SURFACE(unsigned, cydui_text_area, (cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, int rows, unsigned flags))
@@ -238,7 +240,8 @@ CT_ASSERT(CYDUI_THEME_ERR_NULL, (long long)(CYDUI_THEME_ERR_NULL) == 1LL);
 CT_ASSERT(CYDUI_THEME_OK, (long long)(CYDUI_THEME_OK) == 0LL);
 CT_ASSERT(CYDUI_WIDGET_BUTTON, (long long)(CYDUI_WIDGET_BUTTON) == 0LL);
 CT_ASSERT(CYDUI_WIDGET_CHECKBOX, (long long)(CYDUI_WIDGET_CHECKBOX) == 1LL);
-CT_ASSERT(CYDUI_WIDGET_COUNT, (long long)(CYDUI_WIDGET_COUNT) == 10LL);
+CT_ASSERT(CYDUI_WIDGET_COUNT, (long long)(CYDUI_WIDGET_COUNT) == 11LL);
+CT_ASSERT(CYDUI_WIDGET_KEY, (long long)(CYDUI_WIDGET_KEY) == 10LL);
 CT_ASSERT(CYDUI_WIDGET_POPUP, (long long)(CYDUI_WIDGET_POPUP) == 9LL);
 CT_ASSERT(CYDUI_POPUP_MODAL, (long long)(CYDUI_POPUP_MODAL) == 1LL);
 CT_ASSERT(CYDUI_WIDGET_TEXT_INPUT, (long long)(CYDUI_WIDGET_TEXT_INPUT) == 8LL);
@@ -672,6 +675,8 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_frame);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_init);
     TEST_ASSERT_NOT_NULL(surface_cydui_text_input);
+    TEST_ASSERT_NOT_NULL(surface_cydui_keyboard_top);
+    TEST_ASSERT_NOT_NULL(surface_cydui_keyboard_enable);
     TEST_ASSERT_NOT_NULL(surface_cydui_popup_begin);
     TEST_ASSERT_NOT_NULL(surface_cydui_popup_end);
     TEST_ASSERT_NOT_NULL(surface_cydui_text_area);

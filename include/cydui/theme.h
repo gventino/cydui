@@ -42,7 +42,10 @@ typedef enum {
     CYDUI_WIDGET_SCROLLBAR,
     CYDUI_WIDGET_TEXT_INPUT, /**< the field: `fill` is its body, `border` its outline, `text` the text, `accent` the cursor;
                                   FOCUSED while it has the focus; selected = the last key was refused (a limit) */
-    CYDUI_WIDGET_POPUP,      /**< the panel of a popup (the dimming behind it is drawn by the library) */
+    CYDUI_WIDGET_POPUP,      /**< the panel of a popup (the dimming behind it is drawn by the library); also the
+                                  background of the keyboard on the screen */
+    CYDUI_WIDGET_KEY,        /**< a key of the keyboard on the screen: `fill` the key, `text` its label; selected = a
+                                  toggle that is on (Shift) or the page that is shown */
     CYDUI_WIDGET_COUNT
 } cydui_widget_kind;
 

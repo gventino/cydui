@@ -295,7 +295,8 @@ cydui_response cydui_interact(cydui_ui *ui, cydui_id id, cydui_rect r, unsigned 
         return resp;
     }
     if (in->frame_down && !in->claimed && ui->active.h == 0 && ui->active.c == 0 &&
-        hit(ui, r, in->press_x, in->press_y)) {
+        hit(ui, r, in->press_x, in->press_y) &&
+        (ui->in_kb || !cydui__keyboard_hit(ui, in->press_x, in->press_y))) { /* under the keyboard nothing is pressed */
         ui->active = id;
         ui->active_capture = (flags & CYDUI_CAPTURE) != 0;
         in->claimed = true; /* a press has one owner, even if it ends in this same frame */
@@ -359,20 +360,15 @@ static void sweep_state(cydui_ui *ui)
 
 bool cydui_ui_end(cydui_ui *ui)
 {
+    cydui_event kb_out[8];
+    unsigned kb_n = 0, i;
+
     cydui__check_thread(ui);
     ui->id_depth = 0;
     cydui__layout_end_frame(ui);
     if (ui->state_cap) {
         sweep_state(ui);
     }
-    if (!ui->in.down) { /* nobody can still own a press that is over */
-        memset(&ui->active, 0, sizeof(ui->active));
-    }
-    if ((ui->in.frame_down && !ui->focus_claimed) || !ui->focus_seen) {
-        memset(&ui->focus, 0, sizeof(ui->focus)); /* pressed somewhere else, or the focused widget is gone */
-    }
-    ui->focus_claimed = ui->focus_seen = false;
-    ui->in.k_len = 0; /* what the focused widget did not take is not kept for later */
     if (ui->in_popup) { /* a popup that was not ended */
         ui->in_popup = false;
         ui->ctx.errors |= CYDUI_ERR_LAYOUT;
@@ -383,10 +379,34 @@ bool cydui_ui_end(cydui_ui *ui)
     ui->popup_prev = ui->popup_now;
     ui->popup_now = false;
     ui->popup_start = ui->popup_end = 0;
+
+    /* a press on the keyboard keeps the focus; a press anywhere else, or the focused widget gone, drops it */
+    if (ui->in.frame_down && cydui__keyboard_hit(ui, ui->in.press_x, ui->in.press_y)) {
+        ui->focus_claimed = true;
+    }
+    if ((ui->in.frame_down && !ui->focus_claimed) || !ui->focus_seen) {
+        memset(&ui->focus, 0, sizeof(ui->focus));
+    }
+    if (cydui_has_focus(ui) && !ui->kb_off) { /* above everything, and last: its keys have the press */
+        kb_n = cydui__keyboard_run(ui, kb_out);
+        ui->kb_prev = true;
+    } else {
+        ui->kb_prev = false;
+        ui->kb_page = 0;
+        ui->kb_shift = false;
+    }
+    if (!ui->in.down) { /* nobody can still own a press that is over */
+        memset(&ui->active, 0, sizeof(ui->active));
+    }
+    ui->focus_claimed = ui->focus_seen = false;
+    ui->in.k_len = 0; /* what the focused widget did not take is not kept for later */
+    for (i = 0; i < kb_n; i++) { /* what the keys of the keyboard typed is for the field in the next frame */
+        k_push(&ui->in, kb_out[i]);
+    }
     cydui_end_frame(&ui->ctx);
     ui->frame++;
     {
-        bool more = ui->in.down || ui->in.q_len > 0 || ui->relayout;
+        bool more = ui->in.down || ui->in.q_len > 0 || ui->in.k_len > 0 || ui->relayout;
         ui->relayout = false;
         return more;
     }

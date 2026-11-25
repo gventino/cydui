@@ -217,7 +217,7 @@ static void test_a_tap_puts_the_cursor_on_the_line_and_the_character(void)
     tap(300, row_y(2)); /* far to the right of the third line */
     type("Y");
     TEST_ASSERT_EQUAL_STRING("aa\nbXb\nccY", buf);
-    tap(20, row_y(2) + 200); /* below the area? that is the button or nothing: the focus is dropped */
+    tap(300, 92); /* below the area and above the keyboard: nothing there, so the focus is dropped */
     TEST_ASSERT_FALSE(cydui_has_focus(&rig.ui));
 }
 
@@ -386,7 +386,7 @@ static void test_the_area_and_the_field_share_the_focus_rules(void)
     frame();
     TEST_ASSERT_FALSE(cydui_has_focus(&rig.ui));
     tap(15, row_y(0));
-    tap(300, 230); /* elsewhere */
+    tap(300, 92); /* elsewhere */
     TEST_ASSERT_FALSE(cydui_has_focus(&rig.ui));
 }
 

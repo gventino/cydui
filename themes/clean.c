@@ -110,6 +110,12 @@ static void init(cydui_theme *t, const palette_t *p)
     entry(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_NORMAL, p->bg, p->border, p->text, p->thumb, 0, 255, 0);
     entry(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_PRESSED, p->bg, p->border, p->text, mix(p->thumb, p->accent, 120), 0, 255, 0);
 
+    /* a key of the keyboard on the screen: a soft tile, the accent for a toggle that is on */
+    entry(t, CYDUI_WIDGET_KEY, 0, CYDUI_STATE_NORMAL, p->disabled, p->border, p->text, p->accent, 0, 6, 0);
+    entry(t, CYDUI_WIDGET_KEY, 0, CYDUI_STATE_PRESSED, mix(p->disabled, p->border, 150), p->border, p->text, p->accent, 0, 6, 0);
+    entry(t, CYDUI_WIDGET_KEY, 1, CYDUI_STATE_NORMAL, p->accent, p->border, p->accent_text, p->accent, 0, 6, 0);
+    entry(t, CYDUI_WIDGET_KEY, 1, CYDUI_STATE_PRESSED, accent_dark, p->border, p->accent_text, p->accent, 0, 6, 0);
+
     /* a popup: a card, with a shadow where the theme has one */
     entry(t, CYDUI_WIDGET_POPUP, 0, CYDUI_STATE_NORMAL, p->panel, mix(p->bg, p->border, 130), p->text, p->accent, 1, 12, p->card_shadow);
 
@@ -130,7 +136,7 @@ static void init(cydui_theme *t, const palette_t *p)
     /* what was not given for a selected button/slider/progress/scroll bar is its unselected look */
     for (k = 0; k < CYDUI_WIDGET_COUNT; k++) {
         if (k == CYDUI_WIDGET_CHECKBOX || k == CYDUI_WIDGET_TOGGLE || k == CYDUI_WIDGET_TAB || k == CYDUI_WIDGET_PANEL ||
-            k == CYDUI_WIDGET_TEXT_INPUT || k == CYDUI_WIDGET_POPUP) {
+            k == CYDUI_WIDGET_TEXT_INPUT || k == CYDUI_WIDGET_POPUP || k == CYDUI_WIDGET_KEY) {
             continue;
         }
         for (st = 0; st < CYDUI_STATE_COUNT; st++) {

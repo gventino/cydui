@@ -21,6 +21,11 @@ bool cydui__open_region(cydui_ui *ui, cydui_layout_kind kind, int cols, int pad)
 bool cydui__open_region_at(cydui_ui *ui, cydui_layout_kind kind, cydui_rect rect);
 void cydui__end_kind(cydui_ui *ui, cydui_layout_kind kind);
 
+/** The keyboard on the screen: true if a press at (x, y) is on the keyboard shown in the previous frame; and the step
+ * that handles and draws it at the end of a frame, returning how many events its keys produced (at most 8). */
+bool cydui__keyboard_hit(const cydui_ui *ui, int x, int y);
+unsigned cydui__keyboard_run(cydui_ui *ui, cydui_event *out);
+
 /** A popup's container: at the rectangle, and taking no room in its parent. */
 bool cydui__open_overlay(cydui_ui *ui, cydui_rect rect);
 bool cydui__close_overlay(cydui_ui *ui);

@@ -174,7 +174,7 @@ static void test_a_press_elsewhere_drops_the_focus_but_a_press_on_the_field_keep
     focus_the_field();
     tap(15, 20); /* on the field again */
     TEST_ASSERT_TRUE(cydui_has_focus(&rig.ui));
-    tap(300, 200); /* empty space */
+    tap(300, 60); /* empty space (the keyboard is below y = 97) */
     TEST_ASSERT_FALSE(cydui_has_focus(&rig.ui));
     tap(15, 20);
     tap(15, 56); /* the button below */
