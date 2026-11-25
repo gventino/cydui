@@ -38,7 +38,7 @@ Backend ─ UC-12 Update data and UI reflects it
 - **Post:** no core file modified. **NFR:** 43.
 
 ### UC-04 Add a font
-- **Flow:** `python tools/fontgen.py --ttf X.ttf --size 14 --chars "A-Za-z0-9áéç" --out font_x14.c`; include the `.c`; reference it in the theme. **FR:** 10, 13.
+- **Flow:** `python tools/fontgen.py --ttf X.ttf --size 14 --chars "A-Za-z0-9éï" --out font_x14.c`; include the `.c`; reference it in the theme. **FR:** 10, 13.
 - **Alternate:** missing glyph → renders the fallback glyph (□).
 
 ### UC-05 Run on PC

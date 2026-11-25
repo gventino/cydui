@@ -159,7 +159,7 @@ typedef struct {
 | `test_raster` | exact pixels, clipping, symmetry, AA area vs. geometry, strip-height independence |
 | `test_golden` | nine scenes (six drawing, three text) pinned by FNV-1a 64 hashes of the framebuffer (`tests/golden/*.hash`); the PNG of every run goes to `build/**/golden/` for looking at |
 | `test_utf8` | 45 vectors, every scalar round-trips, every truncation, exhaustive 1-3 byte inputs on exact-size heap buffers |
-| `test_font`, `test_fonts_bundled` | lookup and fallback, validation of every kind of malformed font, bounds-checked glyph access; every bundled font validates and the Portuguese subset has ink |
+| `test_font`, `test_fonts_bundled` | lookup and fallback, validation of every kind of malformed font, bounds-checked glyph access; every bundled font validates and the Western European subset has ink |
 | `test_text` | layout by hand on a monospace font (wrap, long words, newlines, edge cases, termination over many inputs), the length limit and its character boundary, alignment, filter boundaries with real glyphs on both sides, the text arena, malformed fonts, ink far from the line box, strip-height independence |
 | `fuzz_cmds` (clang) | random call sequences with extreme parameters, text with arbitrary bytes and fonts built from the input, under ASan/UBSan, asserting strip-height independence (CT-12). Seed inputs in `tests/fuzz_seeds/` are run by `ctest`. |
 | `fuzz_utf8` (clang) | the decoder always progresses, stays inside the buffer, only returns scalar values, and re-encodes what it decoded |

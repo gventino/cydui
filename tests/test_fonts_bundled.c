@@ -41,7 +41,7 @@ static void test_bundled_fonts_validate(void)
     }
 }
 
-/* Every character the subset promises, in particular everything Portuguese needs. */
+/* Every character the subset promises, in particular the accented letters of western Europe. */
 static void test_subset_is_present(void)
 {
     static const uint32_t wanted[] = {

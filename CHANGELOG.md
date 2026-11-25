@@ -30,7 +30,7 @@ Versions are tagged per iteration. Until 1.0 a new minor version may change the 
 - The keyboard on the screen (letters, numbers, symbols, Latin-1 accents), shown by the library while a field has the focus; `cydui_keyboard_top`, `cydui_keyboard_enable`. A field inside a scroll area is scrolled to stay above it.
 - `CYDUI_EVENT_CHAR`, `CYDUI_EVENT_KEY`, `cydui_key` and `cydui_event.key`; the SDL backend types with the keyboard of the computer; `CYDUI_KEY_QUEUE` (32).
 - Theme kinds `CYDUI_WIDGET_TEXT_INPUT`, `CYDUI_WIDGET_POPUP`, `CYDUI_WIDGET_KEY`, filled by the default and both `clean` themes.
-- The gallery has a page "Texto" (18 hashes instead of 15 on the PC and on the board) and the board firmware a self-test that types on the keyboard of the screen.
+- The gallery has a page "Text" (18 hashes instead of 15 on the PC and on the board) and the board firmware a self-test that types on the keyboard of the screen.
 
 ### API changes
 - `sizeof(cydui_event)` goes from 8 to 12 (the new field `key`); code that builds events with `{type, x, y}` still works.

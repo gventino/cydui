@@ -485,7 +485,7 @@ esp_err_t cydui_esp32_calibrate(cydui_esp32 *d, cydui_ctx *ctx, const cydui_font
             char line[40];
             float rx = 0, ry = 0;
 
-            snprintf(line, sizeof(line), attempt ? "Toque a cruz (%d/5), de novo" : "Toque a cruz (%d/5)", i + 1);
+            snprintf(line, sizeof(line), attempt ? "Tap the cross (%d/5), again" : "Tap the cross (%d/5)", i + 1);
             cal_screen(ctx, font, i, line, true);
             e = cal_point(d, timeout_ms, &rx, &ry);
             if (e != ESP_OK) {
@@ -506,13 +506,13 @@ esp_err_t cydui_esp32_calibrate(cydui_esp32 *d, cydui_ctx *ctx, const cydui_font
             portEXIT_CRITICAL(&d->touch_lock);
             ESP_LOGI(TAG, "calibrated: worst target %.1f px; map x=%.5f*rx%+.5f*ry%+.2f y=%.5f*rx%+.5f*ry%+.2f", (double)worst,
                      (double)fit.m[0], (double)fit.m[1], (double)fit.m[2], (double)fit.m[3], (double)fit.m[4], (double)fit.m[5]);
-            cal_screen(ctx, font, 4, "Calibrado", false);
+            cal_screen(ctx, font, 4, "Calibrated", false);
             vTaskDelay(pdMS_TO_TICKS(600));
             cydui_invalidate(ctx);
             return e;
         }
         ESP_LOGW(TAG, "calibration refused (status %d, worst target %.1f px): again", (int)st, (double)worst);
-        cal_screen(ctx, font, 4, "Erro grande: vamos de novo", false);
+        cal_screen(ctx, font, 4, "Error too big: again", false);
         vTaskDelay(pdMS_TO_TICKS(1200));
     }
     cydui_invalidate(ctx);

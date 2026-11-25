@@ -31,8 +31,8 @@ static char text_mem[2048];
 static cydui_color framebuffer[W * H];
 
 static const char paragraph[] =
-    "Manter o foco em uma lista curta de tarefas ajuda a terminar o dia com a sensação de dever "
-    "cumprido. Arraste o mouse para mudar a largura desta caixa e veja o texto refluir.";
+    "Keeping a short list of tasks in focus helps to finish the day with a sense of a job well "
+    "done. Drag the mouse to change the width of this box and watch the text reflow.";
 
 static const char *align_name(cydui_align a)
 {
@@ -46,9 +46,9 @@ static void draw_scene(cydui_ctx *ctx, int box_w, cydui_align align)
     cydui_rect box;
 
     cydui_draw_rect(ctx, (cydui_rect){0, 0, W, H}, CYDUI_RGB(16, 20, 32), 255);
-    cydui_draw_text(ctx, &cydui_sans_24, 8, 4, 0, CYDUI_ALIGN_LEFT, "cydui texto", CYDUI_NTS,
+    cydui_draw_text(ctx, &cydui_sans_24, 8, 4, 0, CYDUI_ALIGN_LEFT, "cydui text", CYDUI_NTS,
                     CYDUI_RGB(255, 210, 90), 255);
-    cydui_draw_text(ctx, &cydui_sans_16, 8, 34, 0, CYDUI_ALIGN_LEFT, "Olá, mundo! Ação é ótima.",
+    cydui_draw_text(ctx, &cydui_sans_16, 8, 34, 0, CYDUI_ALIGN_LEFT, "Café, naïve Zoë! Ångström €5.",
                     CYDUI_NTS, CYDUI_RGB(255, 255, 255), 255);
 
     box.x = 8;
@@ -61,7 +61,7 @@ static void draw_scene(cydui_ctx *ctx, int box_w, cydui_align align)
                     CYDUI_RGB(235, 238, 250), 255);
 
     /* The info line is built in a temporary buffer: the library copies what it is given. */
-    snprintf(info, sizeof(info), "caixa %d px, %s, %u linhas, %d px de altura", box_w,
+    snprintf(info, sizeof(info), "box %d px, %s, %u lines, %d px high", box_w,
              align_name(align), (unsigned)e.lines, (int)e.h);
     cydui_draw_text(ctx, &cydui_sans_12, 8, 222, 0, CYDUI_ALIGN_LEFT, info, CYDUI_NTS,
                     CYDUI_RGB(120, 220, 160), 255);

@@ -148,11 +148,11 @@ static void scene_text_sizes(cydui_ctx *c)
 
     cydui_draw_rect(c, tu_rect(0, 0, 320, 240), CYDUI_RGB(16, 20, 32), 255);
     for (i = 0; i < 3; i++) {
-        y = put_line(c, sans[i], y, "Olá, mundo! Ação é ótima.", WHITE);
+        y = put_line(c, sans[i], y, "Café, naïve Zoë! Ångström €5.", WHITE);
     }
     y = put_line(c, sans[0], y, "ÁÉÍÓÚ ÀÂÃÊÔÕ ÇÑ üÜ 0123456789 @#$%&*()[]{}<>", CYDUI_RGB(255, 210, 90));
     y = put_line(c, sans[1], y, "ÁÉÍÓÚ ÀÂÃÊÔÕ ÇÑ üÜ 0123", CYDUI_RGB(255, 210, 90));
-    y = put_line(c, sans[2], y, "ÇÃO ÉÚ 0123", CYDUI_RGB(255, 210, 90));
+    y = put_line(c, sans[2], y, "ÇÅÖ ÉÚ 0123", CYDUI_RGB(255, 210, 90));
     /* symbols in the subset, and one that is not (the check mark): it shows the fallback box */
     y = put_line(c, sans[1], y, "\xE2\x86\x90 \xE2\x86\x91 \xE2\x86\x92 \xE2\x86\x93  \xE2\x82\xAC  \xE2\x80\xA2  "
                               "\xE2\x80\xA6  \xE2\x9C\x93", CYDUI_RGB(120, 220, 160));
@@ -161,8 +161,8 @@ static void scene_text_sizes(cydui_ctx *c)
 
 static void scene_text_wrap(cydui_ctx *c)
 {
-    static const char para[] = "Manter o foco em uma lista curta de tarefas ajuda a terminar o dia "
-                               "com a sensação de dever cumprido.";
+    static const char para[] = "Keeping a short list of tasks in focus helps to finish the day "
+                               "with a sense of a job well done.";
     static const cydui_align al[3] = {CYDUI_ALIGN_LEFT, CYDUI_ALIGN_CENTER, CYDUI_ALIGN_RIGHT};
     int i;
 
@@ -174,16 +174,16 @@ static void scene_text_wrap(cydui_ctx *c)
                         sizeof(para) - 1, WHITE, 255);
     }
     cydui_draw_text(c, &cydui_sans_12, 10, 136, 300, CYDUI_ALIGN_CENTER,
-                    "Primeira linha\nSegunda linha, bem mais longa que a primeira\n\nQuarta, depois de um vazio",
+                    "First line\nSecond line, much longer than the first\n\nFourth, after a gap",
                     CYDUI_NTS, CYDUI_RGB(255, 210, 90), 255);
     /* a clip rectangle cuts the text; the faint copy shows what is hidden */
-    cydui_draw_text(c, &cydui_sans_16, 192, 206, 0, CYDUI_ALIGN_LEFT, "Texto cortado por clip", CYDUI_NTS,
+    cydui_draw_text(c, &cydui_sans_16, 192, 206, 0, CYDUI_ALIGN_LEFT, "Text cut off by the clip", CYDUI_NTS,
                     CYDUI_RGB(70, 70, 80), 255);
     cydui_set_clip(c, tu_rect(200, 204, 100, 24));
-    cydui_draw_text(c, &cydui_sans_16, 192, 206, 0, CYDUI_ALIGN_LEFT, "Texto cortado por clip", CYDUI_NTS,
+    cydui_draw_text(c, &cydui_sans_16, 192, 206, 0, CYDUI_ALIGN_LEFT, "Text cut off by the clip", CYDUI_NTS,
                     WHITE, 255);
     cydui_reset_clip(c);
-    cydui_draw_text(c, &cydui_sans_12, 6, 220, 180, CYDUI_ALIGN_LEFT, "translucido", CYDUI_NTS, WHITE, 110);
+    cydui_draw_text(c, &cydui_sans_12, 6, 220, 180, CYDUI_ALIGN_LEFT, "translucent", CYDUI_NTS, WHITE, 110);
 }
 
 static void scene_text_hostile(cydui_ctx *c)
@@ -198,7 +198,7 @@ static void scene_text_hostile(cydui_ctx *c)
         "range: \xF4\x90\x80\x80 \xF5 end",
         "emoji, CJK: \xF0\x9F\x98\x80 \xE4\xB8\xAD\xE6\x96\x87 .",
         "cut off: x\xE2\x82",
-        "fine again: Olá, ação!",
+        "fine again: café!",
     };
     size_t i;
     int y = 4;
@@ -239,25 +239,25 @@ static void run_ui_widgets(uirig *r, bool press)
             cydui_next_disabled(&r->ui);
             cydui_button(&r->ui, "Remove");
             cydui_spacer_fill(&r->ui);
-            cydui_label(&r->ui, "3 tarefas");
+            cydui_label(&r->ui, "3 tasks");
         }
         CYDUI_ROW(&r->ui) {
             cydui_next_width(&r->ui, 150);
             CYDUI_COLUMN(&r->ui) {
                 cydui_checkbox(&r->ui, "Wi-Fi", &wifi);
-                cydui_checkbox(&r->ui, "Modo escuro", &dark);
+                cydui_checkbox(&r->ui, "Dark mode", &dark);
                 cydui_next_disabled(&r->ui);
-                cydui_checkbox(&r->ui, "Bloqueado", &locked);
+                cydui_checkbox(&r->ui, "Locked", &locked);
             }
             CYDUI_COLUMN(&r->ui) {
-                cydui_toggle(&r->ui, "Ligado", &on);
-                cydui_toggle(&r->ui, "Desligado", &off);
+                cydui_toggle(&r->ui, "On", &on);
+                cydui_toggle(&r->ui, "Off", &off);
                 cydui_next_disabled(&r->ui);
-                cydui_toggle(&r->ui, "Inativo", &off_dim);
+                cydui_toggle(&r->ui, "Idle", &off_dim);
             }
         }
-        cydui_label_wrapped(&r->ui, "Cada controle tem alvo de toque de pelo menos 32 px. Os "
-                                    "desabilitados aparecem esmaecidos e nao respondem.");
+        cydui_label_wrapped(&r->ui, "Every control has a touch target of at least 32 px. The "
+                                    "disabled ones look faded and do not respond.");
         cydui_ui_end(&r->ui);
         r->mem.now += 16;
     }
@@ -309,7 +309,7 @@ static void matrix_half(uirig *r, const cydui_theme *t, int x0, cydui_widget_kin
             pc.rect = (cydui_rect){(int16_t)(x0 + 14), (int16_t)(y + 20), 132, 40};
             cydui_paint(&r->ui, &pc);
             if (i == 2) {
-                matrix_text(&r->ui, t, x0 + 26, y + 32, "Comprar leite", t->style.text);
+                matrix_text(&r->ui, t, x0 + 26, y + 32, "Buy milk", t->style.text);
             }
             continue;
         }
@@ -331,7 +331,7 @@ static void matrix_half(uirig *r, const cydui_theme *t, int x0, cydui_widget_kin
             continue;
         }
         if (kind == CYDUI_WIDGET_TAB) { /* a bar of three: the active one differs per row */
-            static const char *const tl[3] = {"Hoje", "Mes", "Todas"};
+            static const char *const tl[3] = {"Today", "Month", "All"};
             int k;
             for (k = 0; k < 3; k++) {
                 cydui_paint_info pt;
@@ -356,9 +356,9 @@ static void matrix_half(uirig *r, const cydui_theme *t, int x0, cydui_widget_kin
             if (kind == CYDUI_WIDGET_BUTTON) {
                 if (sel) continue; /* a button has one look per state */
                 pi.rect = (cydui_rect){(int16_t)(x0 + 12), (int16_t)(y + 20), 136, 34};
-                pi.text = "Salvar";
-                pi.text_len = 6;
-                pi.text_extent = cydui_text_size(t->style.font, "Salvar", 6, 0);
+                pi.text = "Save";
+                pi.text_len = 4;
+                pi.text_extent = cydui_text_size(t->style.font, "Save", 4, 0);
             } else if (kind == CYDUI_WIDGET_CHECKBOX) {
                 pi.rect = (cydui_rect){(int16_t)(x0 + 16 + sel * 60), (int16_t)(y + 26), 20, 20};
             } else if (kind == CYDUI_WIDGET_TOGGLE) {
@@ -415,7 +415,7 @@ static void scroll_scene(cydui_ui *ui, bool list, bool jump, int32_t y)
                 cydui_list_begin(ui, "area", 40, 34, 200, &first, &last);
                 for (i = first; i < last; i++) {
                     char label[24];
-                    snprintf(label, sizeof(label), "Tarefa %d", (int)i + 1);
+                    snprintf(label, sizeof(label), "Task %d", (int)i + 1);
                     cydui_begin_list_item(ui, i);
                     flags[side][i % 4] = (i % 3) == 0;
                     cydui_checkbox(ui, label, &flags[side][i % 4]);
@@ -424,15 +424,15 @@ static void scroll_scene(cydui_ui *ui, bool list, bool jump, int32_t y)
                 cydui_list_end(ui);
             } else {
                 CYDUI_SCROLL(ui, "area", 200) {
-                    cydui_label(ui, "Ajustes");
-                    cydui_button(ui, "Salvar");
+                    cydui_label(ui, "Settings");
+                    cydui_button(ui, "Save");
                     cydui_checkbox(ui, "Wi-Fi", &flags[side][0]);
-                    cydui_toggle(ui, "Avisos", &flags[side][1]);
+                    cydui_toggle(ui, "Alerts", &flags[side][1]);
                     cydui_next_width(ui, 120);
                     cydui_slider(ui, "Vol", &slider_v[side], 0, 100);
                     cydui_progress(ui, 60, 100);
-                    cydui_button(ui, "Remover");
-                    cydui_label(ui, "fim");
+                    cydui_button(ui, "Remove");
+                    cydui_label(ui, "end");
                 }
             }
             cydui_pop_id(ui);
@@ -456,18 +456,18 @@ static void card_scene(cydui_ui *ui)
             cydui_push_id_int(ui, side);
             cydui_next_width(ui, 144);
             CYDUI_CARD(ui) {
-                cydui_label(ui, "Nova tarefa");
+                cydui_label(ui, "New task");
                 CYDUI_ROW(ui) {
                     cydui_set_cross_align(ui, CYDUI_PLACE_CENTER);
-                    cydui_label(ui, "Prazo");
-                    cydui_button(ui, "Hoje");
+                    cydui_label(ui, "Due");
+                    cydui_button(ui, "Today");
                 }
-                cydui_checkbox(ui, "Lembrar", &flags[side][0]);
-                cydui_toggle(ui, "Repetir", &flags[side][1]);
+                cydui_checkbox(ui, "Remind", &flags[side][0]);
+                cydui_toggle(ui, "Repeat", &flags[side][1]);
                 cydui_next_stretch(ui);
                 CYDUI_ROW(ui) {
                     cydui_set_main_align(ui, CYDUI_PLACE_END);
-                    cydui_button(ui, "Nao");
+                    cydui_button(ui, "No");
                     cydui_button(ui, "Ok");
                 }
             }
@@ -486,14 +486,14 @@ static void rating_scene(cydui_ui *ui)
     cydui_draw_rect(&ui->ctx, (cydui_rect){0, 0, 320, 96}, th_light.style.bg, 255);
     cydui_draw_rect(&ui->ctx, (cydui_rect){0, 96, 320, 144}, th_dark.style.bg, 255);
     cydui_set_theme(ui, &th_light);
-    rating(ui, "Comida", &v[0]);
+    rating(ui, "Food", &v[0]);
     cydui_next_disabled(ui);
-    rating(ui, "Preco", &v[1]);
+    rating(ui, "Price", &v[1]);
     cydui_spacer(ui, 8);
     cydui_set_theme(ui, &th_dark);
-    rating(ui, "Comida##dark", &v[2]); /* the same text again in one frame: told apart by the suffix */
+    rating(ui, "Food##dark", &v[2]); /* the same text again in one frame: told apart by the suffix */
     cydui_next_disabled(ui);
-    rating(ui, "Preco##dark", &v[3]);
+    rating(ui, "Price##dark", &v[3]);
     cydui_ui_end(ui);
 }
 
@@ -550,15 +550,15 @@ static void text_golden(const char *name, int which, bool refuse)
 
     memset(a, 0, sizeof(a));
     memset(e, 0, sizeof(e));
-    strcpy(b, "Rua das Flores, 12");
-    strcpy(c, "segredo");
-    strcpy(d, "Nao editavel");
+    strcpy(b, "12 Flower Street");
+    strcpy(c, "secret");
+    strcpy(d, "Not editable");
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
     cydui_keyboard_enable(&ui_rig.ui, false); /* the fields alone: the keyboard has its own goldens */
     for (i = 0; i < 6; i++) {
         cydui_ui_begin(&ui_rig.ui, th->style.bg);
-        cydui_text_input(&ui_rig.ui, "Endereco", a, sizeof(a), 0, 0);
+        cydui_text_input(&ui_rig.ui, "Address", a, sizeof(a), 0, 0);
         cydui_text_input(&ui_rig.ui, "##b", b, sizeof(b), 0, 0);
         cydui_text_input(&ui_rig.ui, "##c", c, sizeof(c), 0, CYDUI_TEXT_PASSWORD);
         cydui_next_disabled(&ui_rig.ui);
@@ -591,15 +591,15 @@ static void textarea_golden(const char *name, int which)
     cydui_theme *th = pick_theme(which);
     int i, y;
 
-    strcpy(notes, "Comprar pao, leite e cafe\nLigar para o medico amanha cedo e marcar a consulta da semana que vem");
+    strcpy(notes, "Buy bread, milk and coffee\nCall the doctor early tomorrow and book next week's appointment");
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
     cydui_keyboard_enable(&ui_rig.ui, false);
     y = 8 + 6 + th->style.font->line_height * 3 / 2; /* the middle of the second row */
     for (i = 0; i < 6; i++) {
         cydui_ui_begin(&ui_rig.ui, th->style.bg);
-        cydui_text_area(&ui_rig.ui, "Notas", notes, sizeof(notes), 0, 4, 0);
-        cydui_text_area(&ui_rig.ui, "Escreva aqui##vazio", notes + 199, 1, 0, 2, 0); /* no room: shows its hint, disabled */
+        cydui_text_area(&ui_rig.ui, "Notes", notes, sizeof(notes), 0, 4, 0);
+        cydui_text_area(&ui_rig.ui, "Write here##empty", notes + 199, 1, 0, 2, 0); /* no room: shows its hint, disabled */
         golden_end();
         if (i == 1) {
             rig_down(&ui_rig, 150, y);
@@ -625,15 +625,15 @@ static void popup_scene(int which)
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
     for (i = 0; i < 4; i++) {
         cydui_ui_begin(&ui_rig.ui, th->style.bg);
-        cydui_label(&ui_rig.ui, "Tarefas de hoje");
-        cydui_checkbox(&ui_rig.ui, "Comprar pao", &on);
+        cydui_label(&ui_rig.ui, "Today's tasks");
+        cydui_checkbox(&ui_rig.ui, "Buy bread", &on);
         cydui_slider(&ui_rig.ui, "##v", &v, 0, 100);
-        cydui_button(&ui_rig.ui, "Adicionar");
-        if (cydui_popup_begin(&ui_rig.ui, "Excluir", &open, 240, 120, CYDUI_POPUP_MODAL)) {
-            cydui_label(&ui_rig.ui, "Excluir esta tarefa?");
+        cydui_button(&ui_rig.ui, "Add");
+        if (cydui_popup_begin(&ui_rig.ui, "Delete", &open, 240, 120, CYDUI_POPUP_MODAL)) {
+            cydui_label(&ui_rig.ui, "Delete this task?");
             CYDUI_ROW(&ui_rig.ui) {
-                cydui_button(&ui_rig.ui, "Cancelar");
-                cydui_button(&ui_rig.ui, "Excluir");
+                cydui_button(&ui_rig.ui, "Cancel");
+                cydui_button(&ui_rig.ui, "Delete");
             }
             cydui_popup_end(&ui_rig.ui);
         }
@@ -675,7 +675,7 @@ static void keyboard_golden(const char *name, int which, const int (*taps)[2], i
     cydui_theme *th = pick_theme(which);
     int i, t;
 
-    strcpy(text, "Ola, mundo");
+    strcpy(text, "Hello, world");
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
     for (t = -1; t < n_taps; t++) {
@@ -686,8 +686,8 @@ static void keyboard_golden(const char *name, int which, const int (*taps)[2], i
         }
         for (i = 0; i < 2; i++) {
             cydui_ui_begin(&ui_rig.ui, th->style.bg);
-            cydui_text_input(&ui_rig.ui, "Mensagem", text, sizeof(text), 0, 0);
-            cydui_label(&ui_rig.ui, "Teclado na tela");
+            cydui_text_input(&ui_rig.ui, "Message", text, sizeof(text), 0, 0);
+            cydui_label(&ui_rig.ui, "On-screen keyboard");
             golden_end();
             if (i == 0) {
                 if (t >= 0) rig_up(&ui_rig, taps[t][0], taps[t][1]);
@@ -696,8 +696,8 @@ static void keyboard_golden(const char *name, int which, const int (*taps)[2], i
         }
         for (i = 0; i < 3; i++) {
             cydui_ui_begin(&ui_rig.ui, th->style.bg);
-            cydui_text_input(&ui_rig.ui, "Mensagem", text, sizeof(text), 0, 0);
-            cydui_label(&ui_rig.ui, "Teclado na tela");
+            cydui_text_input(&ui_rig.ui, "Message", text, sizeof(text), 0, 0);
+            cydui_label(&ui_rig.ui, "On-screen keyboard");
             golden_end();
         }
     }
@@ -783,9 +783,9 @@ static void cyber_fx_golden(const char *name, uint32_t ms, unsigned level)
         cydui_ui_begin(&ui_rig.ui, th->style.bg);
         cydui_label(&ui_rig.ui, "Cyberpunk");
         cydui_checkbox(&ui_rig.ui, "Wi-Fi", &on);
-        cydui_checkbox(&ui_rig.ui, "Modo escuro", &off);
-        cydui_toggle(&ui_rig.ui, "Avisos", &on);
-        cydui_button(&ui_rig.ui, "Salvar");
+        cydui_checkbox(&ui_rig.ui, "Dark mode", &off);
+        cydui_toggle(&ui_rig.ui, "Alerts", &on);
+        cydui_button(&ui_rig.ui, "Save");
         cydui_ui_end(&ui_rig.ui);
     }
     golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));

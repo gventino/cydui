@@ -411,7 +411,7 @@ static void test_a_long_label_does_not_leave_its_widget(void)
 static void test_a_wrapped_label_wraps_at_the_room_it_has(void)
 {
     cydui_rect after_wide, after_narrow;
-    static const char text[] = "Um texto que precisa de varias linhas quando a caixa e estreita";
+    static const char text[] = "A text that needs several lines when the box is narrow";
 
     start();
     cydui_ui_begin(&rig.ui, 0);

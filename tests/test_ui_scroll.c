@@ -489,20 +489,20 @@ static void rich_frame(int32_t scroll_y, bool jump)
     }
     cydui_ui_begin(&rig.ui, 0);
     CYDUI_SCROLL(&rig.ui, "s", 100) {
-        cydui_label(&rig.ui, "Titulo");
+        cydui_label(&rig.ui, "Title");
         CYDUI_ROW(&rig.ui) {
-            cydui_button(&rig.ui, "Um");
-            cydui_button(&rig.ui, "Dois");
+            cydui_button(&rig.ui, "One");
+            cydui_button(&rig.ui, "Two");
         }
         CYDUI_CARD(&rig.ui) {
-            cydui_label(&rig.ui, "Dentro do cartao");
-            cydui_checkbox(&rig.ui, "Marcar", &flags[0]);
+            cydui_label(&rig.ui, "Inside the card");
+            cydui_checkbox(&rig.ui, "Check", &flags[0]);
         }
-        cydui_toggle(&rig.ui, "Ligar", &flags[1]);
+        cydui_toggle(&rig.ui, "Turn on", &flags[1]);
         cydui_next_width(&rig.ui, 120);
         cydui_slider(&rig.ui, "Vol", &sv, 0, 100);
         cydui_progress(&rig.ui, 50, 100);
-        cydui_button(&rig.ui, "Fim");
+        cydui_button(&rig.ui, "End");
     }
     cydui_ui_end(&rig.ui);
 }

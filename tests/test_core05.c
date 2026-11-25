@@ -124,7 +124,7 @@ static uint32_t rnd(uint32_t *s)
 static const uint8_t mask_a[50] = {ROW_A, ROW_A, ROW_A, ROW_A, ROW_A, ROW_A, ROW_A, ROW_A, ROW_A, ROW_A};
 static const uint8_t mask_b[50] = {ROW_B, ROW_B, ROW_B, ROW_B, ROW_B, ROW_B, ROW_B, ROW_B, ROW_B, ROW_B};
 
-static const char *const words[4] = {"abc", "xyz", "Oi!", "123"};
+static const char *const words[4] = {"abc", "xyz", "Hi!", "123"};
 
 /* shape `i` in variant `v` */
 static void shape(cydui_ctx *c, int i, uint32_t v)

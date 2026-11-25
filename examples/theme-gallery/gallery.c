@@ -6,7 +6,7 @@
 #include "gallery.h"
 #include "rating.h"
 
-static const char *const theme_names[GALLERY_THEMES] = {"Base", "Claro", "Noite", "Retro", "Cyber"};
+static const char *const theme_names[GALLERY_THEMES] = {"Base", "Light", "Night", "Retro", "Cyber"};
 
 void gallery_init(gallery *g, int theme, int tab)
 {
@@ -32,7 +32,7 @@ static void task_list(cydui_ui *ui, gallery *app)
     cydui_list_begin(ui, "tasks", GALLERY_TASKS, 36, 180, &first, &last);
     for (i = first; i < last; i++) {
         char label[32];
-        snprintf(label, sizeof(label), "Tarefa %d", (int)i + 1);
+        snprintf(label, sizeof(label), "Task %d", (int)i + 1);
         cydui_begin_list_item(ui, i);
         cydui_checkbox(ui, label, &app->task_done[i]);
         cydui_end_list_item(ui);
@@ -83,14 +83,14 @@ static void touch_page(cydui_ui *ui, gallery *g)
 
     CYDUI_ROW(ui) {
         cydui_set_cross_align(ui, CYDUI_PLACE_CENTER);
-        if (cydui_button(ui, "Calibrar")) {
+        if (cydui_button(ui, "Calibrate")) {
             g->calibrate_requested = true;
         }
         if (g->touch.known) {
             snprintf(text, sizeof(text), "%d,%d raw %d,%d z%d", g->touch.x, g->touch.y, g->touch.raw_x, g->touch.raw_y,
                      g->touch.raw_z);
         } else {
-            snprintf(text, sizeof(text), "toque nos alvos");
+            snprintf(text, sizeof(text), "tap the targets");
         }
         cydui_label(ui, text);
     }
@@ -135,9 +135,9 @@ static void touch_page(cydui_ui *ui, gallery *g)
         if (as == GALLERY_ACCEPT_TARGETS) {
             snprintf(text, sizeof(text), "toque os circulos: %d/%d", g->check_n, GALLERY_CHECKS);
         } else if (as == GALLERY_ACCEPT_TAPS_LEFT) {
-            snprintf(text, sizeof(text), "erro max %d px. Toque mais %d vezes", max_px, GALLERY_ACCEPT_TAPS - g->touch.lat_n);
+            snprintf(text, sizeof(text), "max error %d px. Tap %d more times", max_px, GALLERY_ACCEPT_TAPS - g->touch.lat_n);
         } else {
-            snprintf(text, sizeof(text), "%s: %d px, p95 %u ms", as == GALLERY_ACCEPT_PASS ? "PASSOU" : "FALHOU", max_px,
+            snprintf(text, sizeof(text), "%s: %d px, p95 %u ms", as == GALLERY_ACCEPT_PASS ? "PASSED" : "FAILED", max_px,
                      g->touch.lat_p95_us / 1000u);
         }
         n = strlen(text);
@@ -170,12 +170,12 @@ static void text_page(cydui_ui *ui, gallery *g)
 
     view = view > avail.h ? avail.h : (view < 60 ? 60 : view);
     cydui_scroll_begin(ui, "texto", (int16_t)view);
-    cydui_text_input(ui, "Nome", g->name, sizeof(g->name), 24, 0);
-    cydui_text_input(ui, "Senha", g->secret, sizeof(g->secret), 16, CYDUI_TEXT_PASSWORD);
-    cydui_text_area(ui, "Observacoes", g->notes, sizeof(g->notes), 0, 3, 0);
+    cydui_text_input(ui, "Name", g->name, sizeof(g->name), 24, 0);
+    cydui_text_input(ui, "Password", g->secret, sizeof(g->secret), 16, CYDUI_TEXT_PASSWORD);
+    cydui_text_area(ui, "Comments", g->notes, sizeof(g->notes), 0, 3, 0);
     CYDUI_ROW(ui) {
         cydui_set_cross_align(ui, CYDUI_PLACE_CENTER);
-        if (cydui_button(ui, "Limpar")) {
+        if (cydui_button(ui, "Clear")) {
             g->confirm_clear = true;
         }
         snprintf(text, sizeof(text), "%u + %u + %u letras", (unsigned)strlen(g->name), (unsigned)strlen(g->secret),
@@ -183,13 +183,13 @@ static void text_page(cydui_ui *ui, gallery *g)
         cydui_label(ui, text);
     }
     cydui_scroll_end(ui);
-    if (cydui_popup_begin(ui, "Limpar tudo", &g->confirm_clear, 240, 110, CYDUI_POPUP_MODAL)) {
-        cydui_label(ui, "Apagar os tres textos?");
+    if (cydui_popup_begin(ui, "Clear all", &g->confirm_clear, 240, 110, CYDUI_POPUP_MODAL)) {
+        cydui_label(ui, "Delete all three texts?");
         CYDUI_ROW(ui) {
-            if (cydui_button(ui, "Cancelar")) {
+            if (cydui_button(ui, "Cancel")) {
                 g->confirm_clear = false;
             }
-            if (cydui_button(ui, "Apagar")) {
+            if (cydui_button(ui, "Delete")) {
                 g->name[0] = g->secret[0] = g->notes[0] = '\0';
                 g->confirm_clear = false;
             }
@@ -202,18 +202,18 @@ static void anim_page(cydui_ui *ui, gallery *g)
 {
     int32_t a = (int32_t)((g->frame * 3u) % 101u), b = (int32_t)((g->frame * 7u) % 101u);
 
-    cydui_label(ui, "Animacao");
+    cydui_label(ui, "Animation");
     cydui_next_width(ui, 280);
     cydui_progress(ui, a, 100);
     cydui_next_width(ui, 280);
     cydui_slider(ui, "##anim", &b, 0, 100);
-    cydui_label(ui, "so as faixas das barras mudam");
+    cydui_label(ui, "only the strips of the bars change");
 }
 
 void gallery_frame(cydui_ui *ui, gallery *app)
 {
-    static const char *const names[3] = {"Wi-Fi", "Modo escuro", "Bloqueado"};
-    static const char *const tabs[GALLERY_PAGES] = {"Itens", "Lista", "Notas", "Toque", "Anim.", "Texto"};
+    static const char *const names[3] = {"Wi-Fi", "Dark mode", "Locked"};
+    static const char *const tabs[GALLERY_PAGES] = {"Items", "List", "Notes", "Touch", "Anim.", "Text"};
     char text[48];
     bool locked = true;
 
@@ -237,10 +237,10 @@ void gallery_frame(cydui_ui *ui, gallery *app)
     }
     if (app->tab == 2) {
         CYDUI_CARD(ui) {
-            rating(ui, "Comida", &app->stars[0]);
-            rating(ui, "Servico", &app->stars[1]);
+            rating(ui, "Food", &app->stars[0]);
+            rating(ui, "Service", &app->stars[1]);
             cydui_next_disabled(ui);
-            rating(ui, "Preco", &app->stars[2]);
+            rating(ui, "Price", &app->stars[2]);
         }
         return;
     }
@@ -254,21 +254,21 @@ void gallery_frame(cydui_ui *ui, gallery *app)
             cydui_checkbox(ui, names[2], &locked);
         }
         CYDUI_COLUMN(ui) {
-            cydui_toggle(ui, "Avisos", &app->notify);
-            cydui_toggle(ui, "Sons", &app->done[0]);
+            cydui_toggle(ui, "Alerts", &app->notify);
+            cydui_toggle(ui, "Sounds", &app->done[0]);
             cydui_next_disabled(ui);
-            cydui_toggle(ui, "Fixo", &locked);
+            cydui_toggle(ui, "Fixed", &locked);
         }
     }
     CYDUI_ROW(ui) {
         cydui_set_cross_align(ui, CYDUI_PLACE_CENTER); /* the counter sits in the middle of the buttons */
-        if (cydui_button(ui, "Salvar")) {
+        if (cydui_button(ui, "Save")) {
             app->saves++;
         }
         cydui_next_disabled(ui);
-        cydui_button(ui, "Remover");
+        cydui_button(ui, "Remove");
         cydui_spacer_fill(ui);
-        snprintf(text, sizeof(text), "salvo %dx", app->saves);
+        snprintf(text, sizeof(text), "saved %dx", app->saves);
         cydui_label(ui, text);
     }
 }

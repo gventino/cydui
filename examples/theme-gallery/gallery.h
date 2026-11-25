@@ -36,7 +36,7 @@ typedef struct {
     int saves;
     uint32_t frame;                /* frames built so far: the animation page follows it */
     gallery_touch touch;           /* filled by the platform */
-    bool calibrate_requested;      /* the "Calibrar" button: the platform runs its calibration and clears this */
+    bool calibrate_requested;      /* the "Calibrate" button: the platform runs its calibration and clears this */
     int check_n;                   /* touch test: targets tapped so far (GALLERY_CHECKS when done) */
     int check_err[GALLERY_CHECKS]; /* ... and how far from each target the tap was, in pixels */
     bool acceptance;               /* the platform asks for the guided test: the taps after the four do not start over */

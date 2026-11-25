@@ -214,22 +214,22 @@ static void test_only_the_visible_part_of_the_label_counts(void)
     int x0;
 
     start();
-    e = cydui_text_size(rig.theme.style.font, "Nota", 4, 0);
+    e = cydui_text_size(rig.theme.style.font, "Note", 4, 0);
     x0 = 8 + e.w + 8; /* the label, a gap of 8, then the first target */
     cydui_ui_begin(&rig.ui, 0);
-    rating(&rig.ui, "Nota##1", &value);
+    rating(&rig.ui, "Note##1", &value);
     cydui_ui_end(&rig.ui);
     rig_down(&rig, x0 + 16, 24);
     rig_up(&rig, x0 + 16, 24);
     cydui_ui_begin(&rig.ui, 0);
-    changed = rating(&rig.ui, "Nota##1", &value);
+    changed = rating(&rig.ui, "Note##1", &value);
     cydui_ui_end(&rig.ui);
     TEST_ASSERT_TRUE(changed);
     TEST_ASSERT_EQUAL_INT(1, value);
     rig_down(&rig, x0 + 160 + 16, 24); /* where a sixth target would be: nothing there */
     rig_up(&rig, x0 + 160 + 16, 24);
     cydui_ui_begin(&rig.ui, 0);
-    changed = rating(&rig.ui, "Nota##1", &value);
+    changed = rating(&rig.ui, "Note##1", &value);
     cydui_ui_end(&rig.ui);
     TEST_ASSERT_FALSE(changed);
 }
@@ -240,15 +240,15 @@ static void test_equal_labels_collide_and_suffixes_tell_them_apart(void)
 
     start();
     cydui_ui_begin(&rig.ui, 0);
-    rating(&rig.ui, "Nota", &a);
-    rating(&rig.ui, "Nota", &b);
+    rating(&rig.ui, "Note", &a);
+    rating(&rig.ui, "Note", &b);
     cydui_ui_end(&rig.ui);
     TEST_ASSERT_TRUE(cydui_ui_errors(&rig.ui) & CYDUI_ERR_ID_COLLISION);
 
     cydui_ui_clear_errors(&rig.ui);
     cydui_ui_begin(&rig.ui, 0);
-    rating(&rig.ui, "Nota##a", &a);
-    rating(&rig.ui, "Nota##b", &b);
+    rating(&rig.ui, "Note##a", &a);
+    rating(&rig.ui, "Note##b", &b);
     cydui_ui_end(&rig.ui);
     TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui) & CYDUI_ERR_ID_COLLISION);
 }
@@ -284,10 +284,10 @@ static void test_a_label_taller_than_the_stars_makes_the_widget_taller(void)
     start();
     rig.theme.style.font = &cydui_sans_24;
     rig.theme.style.min_target = 0; /* the stars then give 20 px, less than a 24 px line */
-    e = cydui_text_size(&cydui_sans_24, "Nota", 4, 0);
+    e = cydui_text_size(&cydui_sans_24, "Note", 4, 0);
     TEST_ASSERT_TRUE(e.h > 20);
     cydui_ui_begin(&rig.ui, 0);
-    rating(&rig.ui, "Nota", &value);
+    rating(&rig.ui, "Note", &value);
     next = cydui_alloc_rect(&rig.ui, 10, 10);
     cydui_ui_end(&rig.ui);
     TEST_ASSERT_EQUAL_INT(8 + e.h + 8, next.y);
@@ -391,7 +391,7 @@ static void test_label_len_stops_at_the_suffix_and_at_the_limit(void)
     TEST_ASSERT_EQUAL_UINT32(0, (uint32_t)cydui_label_len(""));
     TEST_ASSERT_EQUAL_UINT32(0, (uint32_t)cydui_label_len("##a"));
     TEST_ASSERT_EQUAL_UINT32(2, (uint32_t)cydui_label_len("ab##"));
-    TEST_ASSERT_EQUAL_UINT32(4, (uint32_t)cydui_label_len("Nota##1"));
+    TEST_ASSERT_EQUAL_UINT32(4, (uint32_t)cydui_label_len("Note##1"));
     TEST_ASSERT_EQUAL_UINT32(3, (uint32_t)cydui_label_len("a#b"));
     TEST_ASSERT_EQUAL_UINT32(1, (uint32_t)cydui_label_len("#"));
     TEST_ASSERT_EQUAL_UINT32(2, (uint32_t)cydui_label_len("a#"));

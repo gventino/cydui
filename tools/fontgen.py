@@ -11,7 +11,7 @@ regenerating it must give byte-identical files.
 writes fonts/my_font_16.c and fonts/my_font_16.h declaring `const cydui_font my_font_16`.
 
 --chars is a comma-separated list of: U+XXXX, U+XXXX-U+YYYY, or literal characters where X-Y is a
-range ("A-Za-z0-9áéç"). Code points the font does not have are skipped with a note.
+range ("A-Za-z0-9éï"). Code points the font does not have are skipped with a note.
 
 The fallback glyph (stored under U+FFFD) is always a hollow box drawn by this script, never the
 font's own replacement glyph, so that control characters and bad bytes look the same in every font.

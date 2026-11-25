@@ -135,27 +135,27 @@ static void test_the_text_page_edits_three_texts_and_clears_them_after_a_confirm
     start(5);
     settle();
     tap(30, 64); /* the name field */
-    type_text("Ana");
+    type_text("Ann");
     rig_key(&rig, CYDUI_KEY_ENTER); /* confirmed: the keyboard goes away */
     settle();
-    TEST_ASSERT_EQUAL_STRING("Ana", g.name);
+    TEST_ASSERT_EQUAL_STRING("Ann", g.name);
     TEST_ASSERT_FALSE(cydui_has_focus(&rig.ui));
     tap(30, 104); /* the password */
-    type_text("segredo");
+    type_text("secret");
     rig_key(&rig, CYDUI_KEY_ENTER);
     settle();
-    TEST_ASSERT_EQUAL_STRING("segredo", g.secret);
+    TEST_ASSERT_EQUAL_STRING("secret", g.secret);
 
-    tap(40, 215); /* Limpar: asks first */
+    tap(40, 215); /* Clear: asks first */
     TEST_ASSERT_TRUE(g.confirm_clear);
-    tap(80, 115); /* Cancelar */
+    tap(80, 115); /* Cancel */
     TEST_ASSERT_FALSE(g.confirm_clear);
-    TEST_ASSERT_EQUAL_STRING("Ana", g.name);
+    TEST_ASSERT_EQUAL_STRING("Ann", g.name);
     settle(); /* what is under a popup reacts again one frame after it is gone */
 
     tap(40, 215);
     TEST_ASSERT_TRUE(g.confirm_clear);
-    tap(190, 115); /* Apagar */
+    tap(190, 115); /* Delete */
     TEST_ASSERT_FALSE(g.confirm_clear);
     TEST_ASSERT_EQUAL_STRING("", g.name);
     TEST_ASSERT_EQUAL_STRING("", g.secret);

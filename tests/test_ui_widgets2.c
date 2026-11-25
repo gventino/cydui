@@ -439,7 +439,7 @@ static void test_a_disabled_progress_bar_looks_disabled(void)
 
 /* ---- tabs ---- */
 
-static const char *const labels3[3] = {"Um", "Dois", "Tres"};
+static const char *const labels3[3] = {"One", "Two", "Three"};
 static int sel;
 
 static bool tabs_frame(const char *const *labels, int count)
@@ -633,8 +633,8 @@ static uint64_t tabs_hash(const char *const *labels, int count)
 
 static void test_a_selection_equal_to_the_count_is_the_last_tab_and_the_labels_are_drawn(void)
 {
-    static const char *const a[3] = {"Um", "Dois", "Tres"};
-    static const char *const b[3] = {"Um", "Dois", "Tres!"};
+    static const char *const a[3] = {"One", "Two", "Three"};
+    static const char *const b[3] = {"One", "Two", "Three!"};
     static const char *const none[3] = {NULL, NULL, NULL};
 
     start();

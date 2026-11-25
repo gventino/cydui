@@ -34,7 +34,7 @@ typedef struct {
     char status[48];
 } app_t;
 
-static const char *const names[3] = {"Comprar leite", "Ligar para a mae", "Pagar a conta"};
+static const char *const names[3] = {"Buy milk", "Call mom", "Pay the bill"};
 
 static void ui_frame(cydui_ui *ui, app_t *app)
 {
@@ -42,19 +42,19 @@ static void ui_frame(cydui_ui *ui, app_t *app)
     int i;
 
     CYDUI_ROW(ui) {
-        if (cydui_button(ui, "Adicionar")) {
+        if (cydui_button(ui, "Add")) {
             app->tasks++;
-            snprintf(app->status, sizeof(app->status), "adicionada: %d tarefa(s)", app->tasks);
+            snprintf(app->status, sizeof(app->status), "added: %d task(s)", app->tasks);
         }
         if (app->tasks == 0) {
             cydui_next_disabled(ui);
         }
-        if (cydui_button(ui, "Remover") && app->tasks > 0) {
+        if (cydui_button(ui, "Remove") && app->tasks > 0) {
             app->tasks--;
-            snprintf(app->status, sizeof(app->status), "removida: %d tarefa(s)", app->tasks);
+            snprintf(app->status, sizeof(app->status), "removed: %d task(s)", app->tasks);
         }
         cydui_spacer_fill(ui);
-        snprintf(text, sizeof(text), "%d tarefas", app->tasks);
+        snprintf(text, sizeof(text), "%d tasks", app->tasks);
         cydui_label(ui, text);
     }
     CYDUI_ROW(ui) {
@@ -68,8 +68,8 @@ static void ui_frame(cydui_ui *ui, app_t *app)
         }
         CYDUI_COLUMN(ui) {
             cydui_toggle(ui, "Wi-Fi", &app->wifi);
-            cydui_toggle(ui, "Modo escuro", &app->dark);
-            cydui_toggle(ui, "Avisos", &app->notify);
+            cydui_toggle(ui, "Dark mode", &app->dark);
+            cydui_toggle(ui, "Alerts", &app->notify);
         }
     }
     CYDUI_GRID(ui, 4) {
@@ -82,7 +82,7 @@ static void ui_frame(cydui_ui *ui, app_t *app)
             }
         }
     }
-    snprintf(text, sizeof(text), "botao %d  |  %s", app->picked, app->status);
+    snprintf(text, sizeof(text), "button %d  |  %s", app->picked, app->status);
     cydui_label(ui, text);
 }
 
@@ -92,7 +92,7 @@ static void init_app(app_t *app)
     app->tasks = 3;
     app->wifi = true;
     app->done[1] = true;
-    snprintf(app->status, sizeof(app->status), "pronto");
+    snprintf(app->status, sizeof(app->status), "ready");
 }
 
 static int init_ui(cydui_ui *ui, cydui_theme *theme, const cydui_backend *be)

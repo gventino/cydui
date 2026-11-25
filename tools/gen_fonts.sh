@@ -16,7 +16,7 @@ TTF="${CYDUI_TTF:-/usr/share/fonts/liberation/LiberationSans-Regular.ttf}"
 MONO_TTF="${CYDUI_MONO_TTF:-/usr/share/fonts/liberation/LiberationMono-Regular.ttf}"
 SIZES="12 16 24"
 
-# ASCII, Latin-1 (Portuguese and most of western Europe), ellipsis, bullet, euro, arrows, check mark.
+# ASCII, Latin-1 (most of western Europe), ellipsis, bullet, euro, arrows, check mark.
 CHARS="U+0020-U+007E,U+00A0-U+00FF,U+2022,U+2026,U+20AC,U+2190-U+2193,U+2713"
 
 NOTICE="Licensed under the SIL Open Font License 1.1 (fonts/LICENSE-OFL.txt), not the MIT license

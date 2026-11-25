@@ -102,7 +102,7 @@ idf.py build && idf.py -p /dev/ttyUSB0 flash
 python3 ../../../tools/serial_capture.py -p /dev/ttyUSB0 -t 60 --reset   # the GALLERY_* lines: hashes, speed, memory
 ```
 
-With no calibration in the flash it asks for five touches on crosses at the first start (a stylus is better than a finger); the **Calibrar** button of the touch page does it again. `CONFIG_GALLERY_ACCEPTANCE` runs a guided accuracy and latency test on the screen. After adding a Kconfig symbol run `idf.py reconfigure`. The clock (40 MHz default, 80 MHz opt-in), the rotation (0 or 180) and the pins are Kconfig options of the backend (`backends/esp32/Kconfig`).
+With no calibration in the flash it asks for five touches on crosses at the first start (a stylus is better than a finger); the **Calibrate** button of the touch page does it again. `CONFIG_GALLERY_ACCEPTANCE` runs a guided accuracy and latency test on the screen. After adding a Kconfig symbol run `idf.py reconfigure`. The clock (40 MHz default, 80 MHz opt-in), the rotation (0 or 180) and the pins are Kconfig options of the backend (`backends/esp32/Kconfig`).
 
 ## Fonts
 
@@ -113,7 +113,7 @@ python3 -m venv tools/.venv && tools/.venv/bin/pip install -r tools/requirements
 tools/gen_fonts.sh            # regenerate fonts/
 tools/gen_fonts.sh --check    # fail if fonts/ differs from the generator output
 tools/.venv/bin/python tools/fontgen.py --ttf Some.ttf --size 14 --name my_font_14 \
-    --chars "U+0020-U+007E,U+00E0-U+00FF" --out my_font_14 --preview "Olá, mundo"
+    --chars "U+0020-U+007E,U+00E0-U+00FF" --out my_font_14 --preview "Café, naïve"
 ```
 
 ## License

@@ -424,14 +424,13 @@ static void text_selftest(void)
     strips0 = cydui_esp32_flushes(&dev);
     tap_at(30, 64, &worst, &frames, &sum);                              /* the name field: the focus, the keyboard */
     tap_at(key_x(w_row2, 9, 0), row_y[2], &worst, &frames, &sum);       /* Shift */
-    tap_at(key_x(w10, 10, 8), row_y[0], &worst, &frames, &sum);         /* O */
-    tap_at(key_x(w9, 9, 8), row_y[1], &worst, &frames, &sum);           /* l */
-    tap_at(key_x(w9, 9, 0), row_y[1], &worst, &frames, &sum);           /* a */
+    tap_at(key_x(w9, 9, 5), row_y[1], &worst, &frames, &sum);          /* H */
+    tap_at(key_x(w10, 10, 7), row_y[0], &worst, &frames, &sum);         /* i */
     tap_at(key_x(w_bottom, 5, 2), row_y[3], &worst, &frames, &sum);     /* space */
     tap_at(key_x(w_bottom, 5, 0), row_y[3], &worst, &frames, &sum);     /* the page of numbers */
     tap_at(key_x(w10, 10, 0), row_y[0], &worst, &frames, &sum);         /* 1 */
     tap_at(key_x(w_bottom, 5, 3), row_y[3], &worst, &frames, &sum);     /* Ok: confirms and closes */
-    ok = strcmp(g.name, "Ola 1") == 0 && !cydui_has_focus(&ui);
+    ok = strcmp(g.name, "Hi 1") == 0 && !cydui_has_focus(&ui);
     printf("GALLERY_TEXT_TEST pass=%d name=\"%s\" focus_after=%d frames=%" PRIu32 " avg_frame_us=%" PRId64 " worst_frame_us=%" PRId64
            " strips_per_frame=%.2f errors=0x%x\n",
            ok, g.name, cydui_has_focus(&ui), frames, frames ? sum / frames : 0, worst,
