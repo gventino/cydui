@@ -21,6 +21,10 @@ bool cydui__open_region(cydui_ui *ui, cydui_layout_kind kind, int cols, int pad)
 bool cydui__open_region_at(cydui_ui *ui, cydui_layout_kind kind, cydui_rect rect);
 void cydui__end_kind(cydui_ui *ui, cydui_layout_kind kind);
 
+/** A popup's container: at the rectangle, and taking no room in its parent. */
+bool cydui__open_overlay(cydui_ui *ui, cydui_rect rect);
+bool cydui__close_overlay(cydui_ui *ui);
+
 /** Moves the commands [mid, end) of the list in front of [start, mid), keeping the order within each. */
 void cydui__cmd_move_tail(cydui_ctx *ctx, uint32_t start, uint32_t mid);
 

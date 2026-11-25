@@ -125,6 +125,7 @@ typedef struct {
     uint8_t scroll_flags;  /**< CYDUI_SCROLL_F_* */
     uint8_t place_cross, place_main; /**< cydui_place of the children across and along the container */
     uint8_t keep_ext;      /**< the parent places its children: remember how big this container is */
+    uint8_t overlay;       /**< a popup: it takes no room in its parent */
     uint8_t card;          /**< opened by cydui_begin_card */
     uint8_t known;         /**< its size from the previous frame was found in the state table */
     int16_t prev_w, prev_h; /**< size of the children as measured in the previous frame */
@@ -243,6 +244,11 @@ typedef struct cydui_ui {
     cydui_id focus;  /**< the widget that gets the typed keys, or all zero */
     bool focus_seen;    /**< the focused widget was called in this frame (else the focus is dropped) */
     bool focus_claimed; /**< a press that began in this frame was on a widget that takes the focus */
+    bool popup_prev;    /**< a popup was shown in the previous frame: what is outside it does not react */
+    bool popup_now;     /**< a popup is shown in this frame */
+    bool in_popup;      /**< between cydui_popup_begin and cydui_popup_end */
+    uint32_t popup_start, popup_end; /**< its commands, to be moved to the end of the list */
+    cydui_rect popup_saved_clip;
     bool active_capture; /**< that widget asked to keep the press (CYDUI_CAPTURE) */
     cydui_input in;
     cydui_mods mods;
@@ -538,6 +544,33 @@ unsigned cydui_text_input(cydui_ui *ui, const char *label, char *buf, size_t cap
  * `flags` is reserved (0). Returns CYDUI_TEXT_CHANGED when the text changed.
  */
 unsigned cydui_text_area(cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, int rows, unsigned flags);
+
+/* ---- popups ---- */
+
+/** Flags of cydui_popup_begin. */
+#define CYDUI_POPUP_MODAL 1u /**< a press outside does not close it (and neither does Escape): the user has to choose */
+
+/**
+ * A panel in the middle of the screen, above everything else, that takes the touch while it is shown (FR-35):
+ * the widgets outside it do not react. Call it every frame with the application's `*open`; when it returns true
+ * build the content, in a column inside the panel, and then call cydui_popup_end (when it returns false do not):
+ *
+ *     if (cydui_popup_begin(ui, "Delete?", &confirm_open, 240, 120, CYDUI_POPUP_MODAL)) {
+ *         cydui_label(ui, "Delete this task?");
+ *         if (cydui_button(ui, "Delete")) { ...; confirm_open = false; }
+ *         cydui_popup_end(ui);
+ *     }
+ *
+ * `w` and `h` are the size of the panel (clamped to the screen). Without CYDUI_POPUP_MODAL a press outside
+ * the panel, or Escape, sets *open to false. The label is also an id scope: the widgets inside cannot collide with
+ * the ones outside. It may be called wherever in the frame, also inside a container or a scroll area (it is not
+ * clipped by them and takes no room in them); one popup at a time, a second one in the same frame is refused.
+ * The text field that has the focus keeps it while the popup is open, so a field in the popup works.
+ */
+bool cydui_popup_begin(cydui_ui *ui, const char *label, bool *open, int w, int h, unsigned flags);
+
+/** Ends the content of the popup; only after cydui_popup_begin returned true. */
+void cydui_popup_end(cydui_ui *ui);
 
 /** Gives the focus to the field with this label (in the current id scope), or to nothing if `label` is NULL. */
 void cydui_focus_set(cydui_ui *ui, const char *label);

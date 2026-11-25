@@ -291,7 +291,7 @@ cydui_response cydui_interact(cydui_ui *ui, cydui_id id, cydui_rect r, unsigned 
 
     memset(&resp, 0, sizeof(resp));
     cydui__check_thread(ui);
-    if (flags & CYDUI_DISABLED) {
+    if ((flags & CYDUI_DISABLED) || (ui->popup_prev && !ui->in_popup)) { /* under a popup nothing reacts */
         return resp;
     }
     if (in->frame_down && !in->claimed && ui->active.h == 0 && ui->active.c == 0 &&
@@ -373,6 +373,16 @@ bool cydui_ui_end(cydui_ui *ui)
     }
     ui->focus_claimed = ui->focus_seen = false;
     ui->in.k_len = 0; /* what the focused widget did not take is not kept for later */
+    if (ui->in_popup) { /* a popup that was not ended */
+        ui->in_popup = false;
+        ui->ctx.errors |= CYDUI_ERR_LAYOUT;
+    }
+    if (ui->popup_now && ui->popup_start < ui->popup_end) { /* the popup is above everything the frame drew */
+        cydui__cmd_move_tail(&ui->ctx, ui->popup_start, ui->popup_end);
+    }
+    ui->popup_prev = ui->popup_now;
+    ui->popup_now = false;
+    ui->popup_start = ui->popup_end = 0;
     cydui_end_frame(&ui->ctx);
     ui->frame++;
     {

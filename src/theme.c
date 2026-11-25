@@ -112,6 +112,7 @@ void cydui_theme_derive_table(cydui_theme *t)
     set(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_NORMAL, s->bg, s->border, s->text, s->border, 0, 255);
     set(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_PRESSED, s->bg, s->border, s->text, s->text_muted, 0, 255);
 
+    set(t, CYDUI_WIDGET_POPUP, 0, CYDUI_STATE_NORMAL, s->panel, s->border, s->text, s->accent, 1, 12);
     /* a text field: the background, a thin outline, a thick accent one with the focus, a red one (selected) when a key was refused */
     set(t, CYDUI_WIDGET_TEXT_INPUT, 0, CYDUI_STATE_NORMAL, s->bg, s->border, s->text, s->accent, 1, s->radius);
     set(t, CYDUI_WIDGET_TEXT_INPUT, 0, CYDUI_STATE_DISABLED, s->panel, s->border, s->text_muted, s->accent, 1, s->radius);
@@ -404,6 +405,7 @@ void cydui_paint_default(cydui_ui *ui, const cydui_theme *theme, const cydui_pai
         paint_tab(ui, w, info);
         break;
     case CYDUI_WIDGET_PANEL:
+    case CYDUI_WIDGET_POPUP:
     case CYDUI_WIDGET_TEXT_INPUT:
         paint_panel(ui, w, info);
         break;

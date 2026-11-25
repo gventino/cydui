@@ -593,6 +593,41 @@ static void textarea_golden(const char *name, bool dark)
 static void test_clean_textarea(void) { textarea_golden("clean_textarea", false); }
 static void test_clean_dark_textarea(void) { textarea_golden("clean_dark_textarea", true); }
 
+/* A confirmation over a page: the dimming, the panel with its shadow and the content in a column. */
+static void popup_golden(const char *name, bool dark)
+{
+    cydui_theme *th = dark ? &th_dark : &th_light;
+    bool open = true;
+    int32_t v = 60;
+    bool on = true;
+    int i;
+
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    cydui_theme_init_clean(&th_light);
+    cydui_theme_init_clean_dark(&th_dark);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
+    for (i = 0; i < 4; i++) {
+        cydui_ui_begin(&ui_rig.ui, th->style.bg);
+        cydui_label(&ui_rig.ui, "Tarefas de hoje");
+        cydui_checkbox(&ui_rig.ui, "Comprar pao", &on);
+        cydui_slider(&ui_rig.ui, "##v", &v, 0, 100);
+        cydui_button(&ui_rig.ui, "Adicionar");
+        if (cydui_popup_begin(&ui_rig.ui, "Excluir", &open, 240, 120, CYDUI_POPUP_MODAL)) {
+            cydui_label(&ui_rig.ui, "Excluir esta tarefa?");
+            CYDUI_ROW(&ui_rig.ui) {
+                cydui_button(&ui_rig.ui, "Cancelar");
+                cydui_button(&ui_rig.ui, "Excluir");
+            }
+            cydui_popup_end(&ui_rig.ui);
+        }
+        cydui_ui_end(&ui_rig.ui);
+    }
+    golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+static void test_clean_popup(void) { popup_golden("clean_popup", false); }
+static void test_clean_dark_popup(void) { popup_golden("clean_dark_popup", true); }
+
 static void scroll_golden(const char *name, bool list, int32_t y)
 {
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
@@ -732,6 +767,8 @@ int main(void)
     RUN_TEST(test_clean_dark_text_refused);
     RUN_TEST(test_clean_textarea);
     RUN_TEST(test_clean_dark_textarea);
+    RUN_TEST(test_clean_popup);
+    RUN_TEST(test_clean_dark_popup);
     RUN_TEST(test_clean_rating);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();

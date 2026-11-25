@@ -110,6 +110,9 @@ static void init(cydui_theme *t, const palette_t *p)
     entry(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_NORMAL, p->bg, p->border, p->text, p->thumb, 0, 255, 0);
     entry(t, CYDUI_WIDGET_SCROLLBAR, 0, CYDUI_STATE_PRESSED, p->bg, p->border, p->text, mix(p->thumb, p->accent, 120), 0, 255, 0);
 
+    /* a popup: a card, with a shadow where the theme has one */
+    entry(t, CYDUI_WIDGET_POPUP, 0, CYDUI_STATE_NORMAL, p->panel, mix(p->bg, p->border, 130), p->text, p->accent, 1, 12, p->card_shadow);
+
     /* a text field: the card color inside, a thin outline; with the focus the accent, thick; red when a key was refused */
     entry(t, CYDUI_WIDGET_TEXT_INPUT, 0, CYDUI_STATE_NORMAL, p->panel, p->border, p->text, p->accent, 1, 8, 0);
     entry(t, CYDUI_WIDGET_TEXT_INPUT, 0, CYDUI_STATE_DISABLED, p->disabled, p->border, p->muted, p->accent, 1, 8, 0);
@@ -127,7 +130,7 @@ static void init(cydui_theme *t, const palette_t *p)
     /* what was not given for a selected button/slider/progress/scroll bar is its unselected look */
     for (k = 0; k < CYDUI_WIDGET_COUNT; k++) {
         if (k == CYDUI_WIDGET_CHECKBOX || k == CYDUI_WIDGET_TOGGLE || k == CYDUI_WIDGET_TAB || k == CYDUI_WIDGET_PANEL ||
-            k == CYDUI_WIDGET_TEXT_INPUT) {
+            k == CYDUI_WIDGET_TEXT_INPUT || k == CYDUI_WIDGET_POPUP) {
             continue;
         }
         for (st = 0; st < CYDUI_STATE_COUNT; st++) {

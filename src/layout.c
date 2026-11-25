@@ -460,6 +460,9 @@ static void close_region(cydui_ui *ui)
 
     save_fill_state(ui, &done);
     ui->depth--;
+    if (done.overlay) {
+        return; /* a popup takes no room in its parent */
+    }
     parent = top(ui);
 
     w = done.ext_w + 2 * done.pad;
@@ -477,6 +480,26 @@ static void close_region(cydui_ui *ui)
     mods_reset(&none);
     none.fill = done.was_fill;
     commit(parent, rect, &none);
+}
+
+bool cydui__open_overlay(cydui_ui *ui, cydui_rect rect)
+{
+    if (!cydui__open_region_at(ui, CYDUI_LAYOUT_COLUMN, rect)) {
+        ui->skipped--; /* the caller does not call the end of one that was not opened */
+        return false;
+    }
+    top(ui)->overlay = 1;
+    return true;
+}
+
+bool cydui__close_overlay(cydui_ui *ui)
+{
+    if (ui->depth == 0 || top(ui)->kind != CYDUI_LAYOUT_COLUMN || !top(ui)->overlay) {
+        ui->ctx.errors |= CYDUI_ERR_LAYOUT;
+        return false;
+    }
+    close_region(ui);
+    return true;
 }
 
 void cydui__end_kind(cydui_ui *ui, cydui_layout_kind kind)
