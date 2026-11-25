@@ -2,7 +2,7 @@
  * theme-gallery: the widgets in every theme, with a switch at run time.
  *   theme-gallery                       window; the mouse is the touch screen
  *   theme-gallery --frames N            window, quits by itself after N frames
- *   theme-gallery --headless [--theme 0|1|2] [--tab 0|1|2] [--press X,Y [--release]] [--hash] [--png FILE]
+ *   theme-gallery --headless [--theme 0|1|2] [--tab 0..4] [--press X,Y [--release]] [--hash] [--png FILE]
  *                                       renders into memory (themes: 0 default, 1 clean, 2 clean_dark)
  */
 

@@ -42,6 +42,9 @@ cydui_test(test_touch_filter)
 target_link_libraries(test_touch_filter PRIVATE cydui_esp32_pure)
 cydui_test(test_pins)
 target_include_directories(test_pins PRIVATE ${CMAKE_SOURCE_DIR}/backends/esp32)
+cydui_test(test_gallery ${CMAKE_SOURCE_DIR}/examples/theme-gallery/gallery.c)
+target_include_directories(test_gallery PRIVATE ${CMAKE_SOURCE_DIR}/examples/theme-gallery)
+target_link_libraries(test_gallery PRIVATE cydui_rating cydui_themes cydui_fonts)
 
 # CT-14: the pin checks must stop the build for a bad pin and let a good one through. MODE: 1 required
 # output, 2 required input, 3 optional output, 4 optional input.

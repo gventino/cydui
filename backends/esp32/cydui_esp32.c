@@ -12,8 +12,10 @@
 #include "esp_check.h"
 #include "esp_log.h"
 #include "esp_memory_utils.h"
+#include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "freertos/task.h"
+#include "esp32_internal.h"
 #include "pins.h"
 #include "sdkconfig.h"
 
@@ -309,6 +311,9 @@ static void esp32_flush(void *user, const cydui_rect *area, const cydui_color *p
 static void esp32_frame_end(void *user)
 {
     lcd_wait((cydui_esp32 *)user); /* every transfer is complete when the frame is over */
+#ifdef CONFIG_CYDUI_ESP32_TASK_WDT
+    (void)esp_task_wdt_reset(); /* the UI loop is alive */
+#endif
 }
 
 static uint32_t esp32_now_ms(void *user)
@@ -332,12 +337,20 @@ esp_err_t cydui_esp32_init(cydui_esp32 *d, const cydui_esp32_config *cfg)
     d->be.flush_strip = esp32_flush;
     d->be.frame_end = esp32_frame_end;
     d->be.now_ms = esp32_now_ms;
-    d->be.poll_event = NULL; /* the touch screen is added by esp32_touch.c */
+    d->be.poll_event = cydui_esp32_poll_event; /* esp32_touch.c */
 
     e = backlight_start();
     if (e == ESP_OK) {
         e = lcd_start(d);
     }
+    if (e == ESP_OK) {
+        cydui_esp32_touch_start(d); /* its result is in cydui_esp32_touch_status */
+    }
+#ifdef CONFIG_CYDUI_ESP32_TASK_WDT
+    if (e == ESP_OK && esp_task_wdt_status(NULL) == ESP_ERR_NOT_FOUND) {
+        (void)esp_task_wdt_add(NULL); /* the calling task is the UI task (CT-15) */
+    }
+#endif
     return e;
 }
 

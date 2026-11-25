@@ -38,15 +38,113 @@ static void task_list(cydui_ui *ui, gallery *app)
     cydui_list_end(ui);
 }
 
+
+/* ---- the touch test: where the UI believes the finger is, and how far from four targets it taps ---- */
+
+static int isqrt_int(int v)
+{
+    int r = 0;
+    while ((r + 1) * (r + 1) <= v) r++;
+    return r;
+}
+
+static void touch_page(cydui_ui *ui, gallery *g)
+{
+    static const int tx[GALLERY_CHECKS] = {25, 75, 25, 75}; /* the targets, in percent of the area */
+    static const int ty[GALLERY_CHECKS] = {25, 25, 75, 75};
+    const cydui_style *st = &cydui_theme_of(ui)->style;
+    char text[72];
+    cydui_rect room, area;
+    cydui_id id;
+    cydui_response resp;
+    int i, worst = 0, sum = 0;
+
+    CYDUI_ROW(ui) {
+        cydui_set_cross_align(ui, CYDUI_PLACE_CENTER);
+        if (cydui_button(ui, "Calibrar")) {
+            g->calibrate_requested = true;
+        }
+        if (g->touch.known) {
+            snprintf(text, sizeof(text), "%d,%d raw %d,%d z%d", g->touch.x, g->touch.y, g->touch.raw_x, g->touch.raw_y,
+                     g->touch.raw_z);
+        } else {
+            snprintf(text, sizeof(text), "toque nos alvos");
+        }
+        cydui_label(ui, text);
+    }
+    room = cydui_layout_avail(ui);
+    area = cydui_alloc_rect(ui, room.w, room.h);
+    id = cydui_id_str(ui, "touch-area");
+    cydui_id_claim(ui, id);
+    resp = cydui_interact(ui, id, area, CYDUI_SENSE_CLICK | CYDUI_SENSE_DRAG);
+
+    cydui_draw_rrect(&ui->ctx, area, st->radius, st->panel, 255);
+    for (i = 0; i < GALLERY_CHECKS; i++) {
+        int cx = area.x + area.w * tx[i] / 100, cy = area.y + area.h * ty[i] / 100;
+        bool next = i == g->check_n, done = i < g->check_n;
+        cydui_rect r = {(int16_t)(cx - 10), (int16_t)(cy - 10), 20, 20};
+        cydui_draw_rrect_outline(&ui->ctx, r, 10, next ? 3 : 2, next ? st->accent : st->border, 255);
+        if (done) {
+            cydui_draw_rrect(&ui->ctx, (cydui_rect){(int16_t)(cx - 3), (int16_t)(cy - 3), 6, 6}, 3, st->accent, 255);
+        }
+    }
+    if (resp.clicked && g->check_n < GALLERY_CHECKS) {
+        int cx = area.x + area.w * tx[g->check_n] / 100, cy = area.y + area.h * ty[g->check_n] / 100;
+        int dx = resp.x - cx, dy = resp.y - cy;
+        g->check_err[g->check_n++] = isqrt_int(dx * dx + dy * dy);
+    } else if (resp.clicked) {
+        g->check_n = 0; /* a tap after the four: start over */
+    }
+    if (resp.pressed) { /* a cross under the finger, where the UI thinks it is */
+        cydui_draw_line(&ui->ctx, (int16_t)(resp.x - 12), resp.y, (int16_t)(resp.x + 12), resp.y, 1, st->text, 255);
+        cydui_draw_line(&ui->ctx, resp.x, (int16_t)(resp.y - 12), resp.x, (int16_t)(resp.y + 12), 1, st->text, 255);
+    }
+    if (g->check_n >= GALLERY_CHECKS) {
+        for (i = 0; i < GALLERY_CHECKS; i++) {
+            sum += g->check_err[i];
+            worst = g->check_err[i] > worst ? g->check_err[i] : worst;
+        }
+        snprintf(text, sizeof(text), "erro medio %d px, maximo %d px", sum / GALLERY_CHECKS, worst);
+        {
+            size_t n = strlen(text);
+            cydui_text_extent e = cydui_text_size(st->font, text, n, 0);
+            cydui_draw_text_in(ui, area, area.x + (area.w - e.w) / 2, area.y + (area.h - e.h) / 2, text, n, st->text);
+        }
+    }
+}
+
+/* ---- the animation: two bars that move by themselves, so that only a couple of strips change per frame ---- */
+
+static void anim_page(cydui_ui *ui, gallery *g)
+{
+    int32_t a = (int32_t)((g->frame * 3u) % 101u), b = (int32_t)((g->frame * 7u) % 101u);
+
+    cydui_label(ui, "Animacao");
+    cydui_next_width(ui, 280);
+    cydui_progress(ui, a, 100);
+    cydui_next_width(ui, 280);
+    cydui_slider(ui, "##anim", &b, 0, 100);
+    cydui_label(ui, "so as faixas das barras mudam");
+}
+
 void gallery_frame(cydui_ui *ui, gallery *app)
 {
     static const char *const names[3] = {"Wi-Fi", "Modo escuro", "Bloqueado"};
-    static const char *const tabs[3] = {"Controles", "Lista", "Estrelas"};
+    static const char *const tabs[GALLERY_PAGES] = {"Itens", "Lista", "Notas", "Toque", "Anim."};
     char text[48];
     bool locked = true;
     int i;
 
-    cydui_tabs(ui, tabs, 3, &app->tab);
+    app->frame++;
+    cydui_tabs(ui, tabs, GALLERY_PAGES, &app->tab);
+    if (app->tab == 3) {
+        touch_page(ui, app);
+        return;
+    }
+    if (app->tab == 4) {
+        anim_page(ui, app);
+        return;
+    }
     if (app->tab == 1) {
         task_list(ui, app);
         return;
@@ -95,6 +193,11 @@ void gallery_frame(cydui_ui *ui, gallery *app)
         snprintf(text, sizeof(text), "salvo %dx", app->saves);
         cydui_label(ui, text);
     }
+}
+
+bool gallery_animating(const gallery *g)
+{
+    return g->tab == 4;
 }
 
 void gallery_apply(cydui_ui *ui, gallery *g)

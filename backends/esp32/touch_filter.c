@@ -92,6 +92,10 @@ bool cydui_touch_tick(cydui_touch_filter *f, const cydui_touch_read *reads, int 
         if (spread_x > f->cfg.max_spread || spread_y > f->cfg.max_spread) {
             return false; /* a contact that is bouncing: no vote, neither for a press nor for a release */
         }
+        f->sample_x = x;
+        f->sample_y = y;
+        f->sample_z = z;
+        f->samples++;
         pressed = f->down ? z >= f->cfg.z_off : z >= f->cfg.z_on;
     }
 

@@ -40,6 +40,7 @@ def main() -> int:
                 print(text, flush=True)
                 if out:
                     out.write(text + "\n")
+                    out.flush()  # a long capture can be read while it runs
     if out:
         out.close()
     return 0

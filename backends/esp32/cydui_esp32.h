@@ -16,9 +16,13 @@
 #include "cydui/backend.h"
 #include "cydui/cydui.h"
 #include "driver/spi_master.h"
+#include "touch_cal.h"
+#include "touch_filter.h"
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,6 +44,20 @@ typedef struct cydui_esp32 {
     uint32_t rejected;
     bool hash_on;
     uint64_t hash;
+    /* the touch screen */
+    spi_device_handle_t touch;
+    esp_err_t touch_status;
+    QueueHandle_t touch_q;      /* cydui_event, already in pixels */
+    SemaphoreHandle_t touch_irq; /* given by the pen interrupt */
+    TaskHandle_t touch_task;
+    cydui_touch_filter filter;
+    cydui_touch_cal cal;
+    bool calibrated;
+    portMUX_TYPE touch_lock;
+    uint16_t raw_x, raw_y, raw_z; /* the latest steady sample */
+    int16_t px, py;               /* ... and where the map puts it */
+    bool pressed;
+    uint32_t sample_count;
 } cydui_esp32;
 
 /**
@@ -53,6 +71,44 @@ const cydui_backend *cydui_esp32_backend(cydui_esp32 *dev);
 
 /** Backlight brightness, 0..100. */
 void cydui_esp32_set_backlight(cydui_esp32 *dev, int percent);
+
+/**
+ * The result of starting the touch screen. cydui_esp32_init only fails for the display; a touch controller
+ * that does not answer leaves the screen working and this says why (the application decides what to do).
+ */
+esp_err_t cydui_esp32_touch_status(const cydui_esp32 *dev);
+
+/** The latest steady sample (raw controller units), where the calibration puts it, and whether it is pressed. */
+typedef struct {
+    uint16_t raw_x, raw_y, raw_z;
+    int16_t x, y;
+    bool down;
+    uint32_t samples;
+} cydui_esp32_touch_info;
+void cydui_esp32_touch_state(cydui_esp32 *dev, cydui_esp32_touch_info *out);
+
+/** True when a calibration saved in the flash (or made by cydui_esp32_calibrate) is in use. */
+bool cydui_esp32_calibrated(const cydui_esp32 *dev);
+
+/** Forgets the saved calibration (and goes back to the default map). */
+esp_err_t cydui_esp32_calibration_erase(cydui_esp32 *dev);
+
+/**
+ * Calibrates the touch screen with five targets (the four corners and the center), drawn with the
+ * primitives of `ctx` (the context of the UI: &ui.ctx) and labeled with `font`. Each target is touched once;
+ * the map is fitted by least squares, REFUSED if any target ends up farther than
+ * CONFIG_CYDUI_ESP32_CAL_MAX_RESIDUAL pixels from where the map puts it (CT-06; it asks again, three times),
+ * saved in the flash and used from then on. Returns ESP_OK, ESP_ERR_TIMEOUT (nobody touched a target for
+ * timeout_ms: the previous map stays), ESP_ERR_INVALID_RESPONSE (three bad rounds) or the flash error.
+ * It runs in the calling task and feeds the watchdog.
+ */
+esp_err_t cydui_esp32_calibrate(cydui_esp32 *dev, cydui_ctx *ctx, const cydui_font *font, uint32_t timeout_ms);
+
+/**
+ * Sleeps for up to `ms` milliseconds, or less: it returns as soon as a touch event is waiting, so an
+ * application that has nothing to redraw uses no CPU (NFR-04). The task watchdog is fed.
+ */
+void cydui_esp32_wait(cydui_esp32 *dev, uint32_t ms);
 
 /** Strips handed to the panel since the start. */
 uint32_t cydui_esp32_flushes(const cydui_esp32 *dev);

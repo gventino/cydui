@@ -10,7 +10,16 @@
 
 #define GALLERY_THEMES 3
 #define GALLERY_TASKS 200
-#define GALLERY_PAGES 3
+#define GALLERY_PAGES 5 /* controls, a list, a custom widget, a touch test, an animation */
+#define GALLERY_CHECKS 4
+
+/** What the platform knows about the touch screen; it fills it before every frame (the PC has no raw numbers). */
+typedef struct {
+    bool known;            /* the platform fills this in */
+    bool down;
+    int16_t x, y;          /* the last position, in pixels */
+    int raw_x, raw_y, raw_z; /* the controller's own numbers */
+} gallery_touch;
 
 typedef struct {
     cydui_theme themes[GALLERY_THEMES]; /* default, clean, clean_dark */
@@ -20,6 +29,11 @@ typedef struct {
     bool task_done[GALLERY_TASKS];
     int stars[3];
     int saves;
+    uint32_t frame;                /* frames built so far: the animation page follows it */
+    gallery_touch touch;           /* filled by the platform */
+    bool calibrate_requested;      /* the "Calibrar" button: the platform runs its calibration and clears this */
+    int check_n;                   /* touch test: targets tapped so far (GALLERY_CHECKS when done) */
+    int check_err[GALLERY_CHECKS]; /* ... and how far from each target the tap was, in pixels */
 } gallery;
 
 /** Builds the themes and sets the state of the first screen: `theme` (0..2) and page `tab` (0..2). */
@@ -27,6 +41,9 @@ void gallery_init(gallery *g, int theme, int tab);
 
 /** The widgets of one frame, between cydui_ui_begin and cydui_ui_end. */
 void gallery_frame(cydui_ui *ui, gallery *g);
+
+/** True while the page shows something that moves by itself: the platform keeps drawing frames then. */
+bool gallery_animating(const gallery *g);
 
 /** After the frame: switches the theme if a button asked for another one (it shows from the next frame). */
 void gallery_apply(cydui_ui *ui, gallery *g);

@@ -266,6 +266,34 @@ static void test_a_single_tick_far_away_is_a_glitch_and_two_that_agree_are_a_mov
     TEST_ASSERT_EQUAL_INT(2200, ev.x);
 }
 
+static void test_the_latest_steady_sample_is_there_for_a_calibration_to_average(void)
+{
+    cydui_touch_read r[5];
+    int i;
+
+    start();
+    TEST_ASSERT_EQUAL_UINT32(0, f.samples);
+    touch(2000, 1500, 1200);
+    TEST_ASSERT_EQUAL_UINT32(1, f.samples);
+    TEST_ASSERT_EQUAL_UINT16(2000, f.sample_x);
+    TEST_ASSERT_EQUAL_UINT16(1500, f.sample_y);
+    TEST_ASSERT_EQUAL_UINT16(1200, f.sample_z);
+    touch(2100, 1400, 1300);
+    TEST_ASSERT_EQUAL_UINT32(2, f.samples);
+    TEST_ASSERT_EQUAL_UINT16(2100, f.sample_x);
+    release(); /* no touch: nothing new */
+    TEST_ASSERT_EQUAL_UINT32(2, f.samples);
+    TEST_ASSERT_EQUAL_UINT16(2100, f.sample_x);
+    for (i = 0; i < 5; i++) {
+        r[i] = (cydui_touch_read){(uint16_t)(1000 + 300 * i), 1500, 1500}; /* a bouncing burst: thrown away */
+    }
+    cydui_touch_tick(&f, r, 5, true, &ev);
+    TEST_ASSERT_EQUAL_UINT32(2, f.samples);
+    TEST_ASSERT_EQUAL_UINT16(2100, f.sample_x);
+    cydui_touch_tick(&f, r, 5, false, &ev); /* the pen interrupt says no: nothing either */
+    TEST_ASSERT_EQUAL_UINT32(2, f.samples);
+}
+
 static void test_it_survives_odd_calls(void)
 {
     cydui_touch_read many[20];
@@ -330,6 +358,7 @@ int main(void)
     RUN_TEST(test_a_bouncing_contact_does_not_press);
     RUN_TEST(test_the_pressure_has_a_hysteresis);
     RUN_TEST(test_a_single_tick_far_away_is_a_glitch_and_two_that_agree_are_a_move);
+    RUN_TEST(test_the_latest_steady_sample_is_there_for_a_calibration_to_average);
     RUN_TEST(test_it_survives_odd_calls);
     RUN_TEST(test_the_configuration_is_made_safe);
     RUN_TEST(test_touches_follow_each_other);

@@ -46,6 +46,10 @@ typedef struct {
     bool jump_pending;
     uint16_t x, y;   /* the last reported position */
     uint16_t jx, jy; /* a jump waiting for its second tick */
+    /** The steady position and pressure of the latest accepted burst of a touched screen, and how many
+     * there have been: what a calibration averages while a finger is held on a target. */
+    uint16_t sample_x, sample_y, sample_z;
+    uint32_t samples;
 } cydui_touch_filter;
 
 /** Sensible numbers for an XPT2046 on a CYD (raw range about 400..3600, pressure 1100..2800 while touched). */

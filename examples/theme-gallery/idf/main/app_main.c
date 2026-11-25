@@ -15,6 +15,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "cydui_sans_16.h"
 #include "gallery.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
@@ -51,6 +52,28 @@ static bool one_frame(void)
     t_end += c - b;
     n_frames++;
     return more;
+}
+
+static void fill_touch(void)
+{
+    cydui_esp32_touch_info st;
+
+    cydui_esp32_touch_state(&dev, &st);
+    g.touch.known = cydui_esp32_touch_status(&dev) == ESP_OK;
+    g.touch.down = st.down;
+    g.touch.x = st.x;
+    g.touch.y = st.y;
+    g.touch.raw_x = st.raw_x;
+    g.touch.raw_y = st.raw_y;
+    g.touch.raw_z = st.raw_z;
+}
+
+static void calibrate(void)
+{
+    esp_err_t e = cydui_esp32_calibrate(&dev, &ui.ctx, &cydui_sans_16, 60000);
+
+    printf("GALLERY_CALIBRATION result=%s\n", esp_err_to_name(e));
+    g.check_n = 0;
 }
 
 static bool start_ui(int theme, int tab)
@@ -157,6 +180,7 @@ void app_main(void)
     cydui_esp32_config cfg = {.max_strip_bytes = ROWS * W * sizeof(cydui_color)};
     esp_err_t e = nvs_flash_init();
     int64_t last = esp_timer_get_time();
+    bool checked = false;
 
     if (e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -186,10 +210,41 @@ void app_main(void)
     if (!start_ui(1, 0)) {
         return;
     }
+    if (cydui_esp32_touch_status(&dev) == ESP_OK) {
+#if CONFIG_GALLERY_FORCE_CALIBRATION
+        calibrate();
+#elif CONFIG_GALLERY_CALIBRATE_AT_BOOT
+        if (!cydui_esp32_calibrated(&dev)) {
+            calibrate();
+        }
+#endif
+    } else {
+        ESP_LOGW(TAG, "no touch: %s", esp_err_to_name(cydui_esp32_touch_status(&dev)));
+    }
     for (;;) {
-        bool more = one_frame();
-        int64_t now = esp_timer_get_time();
+        bool more;
+        int64_t now;
 
+        fill_touch();
+        more = one_frame() || gallery_animating(&g);
+        if (g.calibrate_requested) {
+            g.calibrate_requested = false;
+            calibrate();
+            more = true;
+        }
+        if (g.check_n >= GALLERY_CHECKS && !checked) { /* the four taps of the touch test, once */
+            int sum = 0, worst = 0, i;
+            for (i = 0; i < GALLERY_CHECKS; i++) {
+                sum += g.check_err[i];
+                worst = g.check_err[i] > worst ? g.check_err[i] : worst;
+            }
+            printf("GALLERY_TOUCH_CHECK err=%d,%d,%d,%d mean=%d max=%d px calibrated=%d\n", g.check_err[0], g.check_err[1],
+                   g.check_err[2], g.check_err[3], sum / GALLERY_CHECKS, worst, cydui_esp32_calibrated(&dev));
+            checked = true;
+        } else if (g.check_n < GALLERY_CHECKS) {
+            checked = false;
+        }
+        now = esp_timer_get_time();
         if (now - last > 2000000) {
             printf("GALLERY_STATS frames=%" PRIu32 " ui_us=%" PRId64 " end_us=%" PRId64 " strips_sent=%" PRIu32
                    " free_heap=%u min_free=%u\n",
@@ -201,7 +256,7 @@ void app_main(void)
             last = now;
         }
         if (!more) {
-            vTaskDelay(pdMS_TO_TICKS(20));
+            cydui_esp32_wait(&dev, 1000); /* asleep until a touch event, or a second */
         }
     }
 }

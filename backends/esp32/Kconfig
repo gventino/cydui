@@ -166,6 +166,14 @@ menu "cydui ESP32 backend"
             default 12
     endmenu
 
+    config CYDUI_ESP32_TASK_WDT
+        bool "Watch the UI task with the task watchdog (CT-15)"
+        default y
+        help
+            cydui_esp32_init subscribes the calling task (the one that runs the UI loop) to the task
+            watchdog, and the end of every frame and cydui_esp32_wait feed it, so a frame that never ends
+            or a loop that never yields resets the chip instead of freezing it.
+
     config CYDUI_ESP32_PIXEL_HASH
         bool "Be able to hash what is sent to the panel (to compare with the PC)"
         default y

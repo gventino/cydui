@@ -7,6 +7,14 @@ menu "theme-gallery"
             The nine hashes are in the format of `theme-gallery --headless --hash` on the PC; the same
             number means the pixels sent to the panel are the pixels the PC renders.
 
+    config GALLERY_CALIBRATE_AT_BOOT
+        bool "Calibrate the touch screen at boot when there is no calibration in the flash"
+        default y
+
+    config GALLERY_FORCE_CALIBRATION
+        bool "Calibrate at every boot, even with a calibration in the flash"
+        default n
+
     config GALLERY_BENCH_SECONDS
         int "Seconds to measure a full redraw of every frame at boot (0: skip)"
         range 0 30
