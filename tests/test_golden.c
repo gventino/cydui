@@ -596,7 +596,7 @@ static void test_clean_textarea(void) { textarea_golden("clean_textarea", false)
 static void test_clean_dark_textarea(void) { textarea_golden("clean_dark_textarea", true); }
 
 /* A confirmation over a page: the dimming, the panel with its shadow and the content in a column. */
-static void popup_golden(const char *name, bool dark)
+static void popup_scene(bool dark)
 {
     cydui_theme *th = dark ? &th_dark : &th_light;
     bool open = true;
@@ -624,7 +624,30 @@ static void popup_golden(const char *name, bool dark)
         }
         cydui_ui_end(&ui_rig.ui);
     }
+}
+
+static void popup_golden(const char *name, bool dark)
+{
+    popup_scene(dark);
     golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+/* The shadow darkens, it does not tint: below the panel red, green and blue are as dark as each other. */
+static void test_the_shadow_of_a_popup_has_no_tint(void)
+{
+    int x, y, shadow_pixels = 0;
+
+    popup_scene(false);
+    for (y = 182; y < 190; y++) { /* the panel is (40, 60, 240, 120) */
+        for (x = 70; x < 250; x++) {
+            cydui_color c = ui_rig.fb[y * RIG_W + x];
+            int r = ((c >> 11) & 31) * 255 / 31, g = ((c >> 5) & 63) * 255 / 63, b = (c & 31) * 255 / 31;
+            TEST_ASSERT_TRUE_MESSAGE(r - g <= 8 && g - r <= 8 && b - g <= 8 && g - b <= 8, "the shadow has a tint");
+            shadow_pixels++;
+        }
+    }
+    TEST_ASSERT_EQUAL_INT(8 * 180, shadow_pixels);
+    TEST_ASSERT_TRUE(ui_rig.fb[185 * RIG_W + 160] != ui_rig.fb[200 * RIG_W + 160]); /* and it is there: darker than the dimmed page */
 }
 
 static void test_clean_popup(void) { popup_golden("clean_popup", false); }
@@ -833,6 +856,7 @@ int main(void)
     RUN_TEST(test_clean_textarea);
     RUN_TEST(test_clean_dark_textarea);
     RUN_TEST(test_clean_popup);
+    RUN_TEST(test_the_shadow_of_a_popup_has_no_tint);
     RUN_TEST(test_clean_dark_popup);
     RUN_TEST(test_clean_keyboard);
     RUN_TEST(test_clean_dark_keyboard);

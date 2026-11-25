@@ -221,19 +221,22 @@ const cydui_theme *cydui_theme_of(const cydui_ui *ui)
 /*
  * A soft drop shadow from stacked translucent rounded rectangles, each a little larger than the one
  * inside it and all lowered a little: where they overlap the shadow gets darker, so the edge fades.
- * `strength` is how far it spreads, in pixels (at most 8).
+ * `strength` is how far it spreads, in pixels (at most 8). Two pixels of spread per layer: a layer
+ * darkens by 2/32, and a tinier step would be rounded so coarsely in the 5 bits of red and blue and the
+ * 6 of green that the shadow turned green.
  */
 static void paint_shadow(cydui_ui *ui, cydui_rect r, int radius, int strength)
 {
-    int layers = strength > 8 ? 8 : strength, i;
+    int layers = strength > 8 ? 8 : strength, n = (layers + 1) / 2, k;
 
-    for (i = layers; i >= 1; i--) {
+    for (k = n; k >= 1; k--) {
+        int i = (k * layers + n - 1) / n; /* the outermost reaches `layers` */
         cydui_rect q;
         q.x = (int16_t)(r.x - i);
         q.y = (int16_t)(r.y - i + (layers + 1) / 2);
         q.w = (int16_t)(r.w + 2 * i);
         q.h = (int16_t)(r.h + 2 * i);
-        cydui_draw_rrect(&ui->ctx, q, (uint8_t)(radius + i > 255 ? 255 : radius + i), 0, 8);
+        cydui_draw_rrect(&ui->ctx, q, (uint8_t)(radius + i > 255 ? 255 : radius + i), 0, 16);
     }
 }
 
