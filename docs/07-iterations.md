@@ -58,7 +58,8 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 ## It5 — ESP32 backend (ILI9341 + XPT2046)
 - **Deliverables:** ESP32 backend with SPI+DMA double buffering, PWM backlight, filtered touch, NVS calibration, Kconfig, dirty regions; `theme-gallery` app on the board.
 - **Acceptance:** board shows the gallery with the same hash/appearance as SDL (modulo panel); FPS and heap measured and recorded; ≥ 30 FPS on simple animation; accurate touch after calibration; NFR-10 met.
-- **Covers:** FR-05, 42, 43, 62, 63; NFR-01..04, 10, 13, 60, 61; CT-06, 13, 15; R-01, R-02, R-04, R-06.
+- **Covers:** FR-05, 42, 43, 62, 63; NFR-01..04, 10, 13, 60, 61; CT-06, 13, 14, 15; R-01, R-02, R-04, R-06.
+- **Result:** done, numbers in `09-hardware-notes.md`. Same hash as the PC in 15 of 15 pages; animation above 30 fps with dirty regions; touch 4 px and p95 24 ms with the stylus. **Deviations:** (1) the speed of drawing is only measured, its optimization moves to It7 (a full redraw is 24 fps); (2) 80 MHz, rotation 180 and the touch with a bare finger were not checked on the hardware; (3) the hardware-disconnected test of NFR-60 was not run.
 
 ## It6 — Advanced text and popups
 - **Deliverables:** `text_input` with cursor, virtual keyboard (alpha/num/symbols layouts), popup/modal; size limits.

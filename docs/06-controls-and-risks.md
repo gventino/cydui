@@ -37,13 +37,16 @@ Type: **P** preventive, **D** detective, **C** corrective/safe degradation. Owne
 | CT-03 | done | `src/utf8.c`, `tests/test_utf8.c`, `tests/fuzz_utf8.c` |
 | CT-04 | done, with a wider set than written (adds C0/C1 controls, U+061C, U+200E/200F); always on for controls, `CYDUI_FILTER_CONTROL` for the bidi marks | `src/text.c` |
 | CT-05 | done: queue of 32 events with MOVE merging and oldest-first dropping, 64 polled and 16 processed per frame; a flood and overflowing bursts leave the pointer state right | `src/ui.c`, `tests/test_ui_input.c`, `tests/fuzz_ui.c` |
-| CT-06 | coordinates are clamped to the screen (done); the calibration matrix checks come with the ESP32 backend (It5) | `src/ui.c` |
+| CT-06 | done: coordinates are clamped to the screen; the calibration is refused when the matrix is degenerate or a target is further than 12 px from where it falls, and a stored one is checked by magic and CRC32 | `src/ui.c`, `backends/esp32/touch_cal.c`, `tests/test_touch_cal.c` |
 | CT-07 | done: id with a separate 16-bit check, `##` suffixes and `push_id`, same-frame collision detection in debug builds, the active widget never evicted | `src/ui.c`, `tests/test_ui_ids.c` |
 | CT-09 | done: fonts (`cydui_font_validate`, bounds-checked glyph access, unusable font rejected) and themes (`cydui_theme_validate`; `cydui_set_theme` refuses an invalid one and keeps the current; a NULL painter means the default, kinds and states outside the table mean the plain one) | `src/font.c`, `src/theme.c`, `tests/test_theme.c` |
 | CT-10 | done | `src/ctx.c` |
 | CT-11 | done: not thread-safe by contract, debug check through `thread_id` (the ESP32 backend supplies the task handle in It5) | `src/ui.c`, `tests/test_ui_ids.c` |
 | CT-12 | done for commands, text, the UTF-8 decoder and the whole UI layer (events, themes built from the input, scroll areas and lists, alignment, cards, the custom widget); `text_input` comes with it. The undefined-behavior sanitizer is fatal (`-fno-sanitize-recover=undefined`). | `tests/fuzz_*.c` |
-| CT-08, 13..15 | later iterations | |
+| CT-13 | done: strong stack protector, comprehensive heap poisoning and `-Wformat-security` in the gallery firmware, checked by the local `ci.sh` | `examples/theme-gallery/idf/sdkconfig.defaults` |
+| CT-14 | done: the Kconfig rejects pins that are not usable (`pins.h`, tested) | `backends/esp32/pins.h`, `tests/test_pins.c` |
+| CT-15 | done: the task watchdog is subscribed and fed every frame; the frame budget was proved on the board | `backends/esp32/cydui_esp32.c` |
+| CT-08 | later iteration | |
 | CT-16..22 | owned by the app | |
 
 ## 2. Threat → control traceability
@@ -75,10 +78,10 @@ Probability (P) and impact (I): 1–3. Score = P×I. Residual after controls.
 | ID | Risk | P | I | Score | Response | Residual |
 |----|------|---|---|-------|----------|----------|
 | R-01 | Insufficient RAM (no PSRAM) with WiFi+TLS+UI. | 2 | 3 | 6 | Strip rendering, fixed arenas, measure early in It5; smaller strips (H=10) if needed. | Low |
-| R-02 | FPS < 30 in the cyberpunk theme with post-effects. | 3 | 2 | 6 | SPI at 40–80 MHz, dirty regions, cheap effects (LUT), per-strip budget, downgrade effects via Kconfig. | Medium |
+| R-02 | FPS < 30 in the cyberpunk theme with post-effects. | 3 | 2 | 6 | SPI at 40–80 MHz, dirty regions, cheap effects (LUT), per-strip budget, downgrade effects via Kconfig. **Measured in It5:** drawing a full frame costs ~26 ms on the board (the SPI at 40 MHz another 34 ms, overlapped), a full redraw is 24 / 30 fps; with dirty regions an animation is 83 / 104 fps. Optimizing the renderer (the per-command costs are in `09`) is the first task of It7. | Medium |
 | R-03 | Panel/touch clones with a different native orientation, color inversion, RGB/BGR order, or touch noise. **Materialized in It0:** the panel is natively 320x240 (ILI9342C-like), the controller ID cannot be read, and the touch axes are swapped. | 3 | 2 | 6 | Kconfig for raw `MADCTL`, native orientation, inversion; touch axis swap and calibration in the backend; findings in `09-hardware-notes.md`; re-run `hw-probe` on any new board. | Medium |
 | R-04 | Noisy/imprecise resistive touch. | 3 | 2 | 6 | 5-point calibration, median, debounce, widgets with targets ≥ 32 px. | Low |
-| R-05 | Immediate-mode layout without retention becomes costly or unstable (auto size). | 2 | 2 | 4 | Single-pass layout + one-frame delay; limit auto-size to simple cases. **Done:** positions are final when placed, only `fill` uses last frame's numbers and asks for another frame; 40 widgets cost 9.6 µs on a PC. Real cost on the board comes in It5. | Low |
+| R-05 | Immediate-mode layout without retention becomes costly or unstable (auto size). | 2 | 2 | 4 | Single-pass layout + one-frame delay; limit auto-size to simple cases. **Done:** positions are final when placed, only `fill` uses last frame's numbers and asks for another frame; 40 widgets cost 9.6 µs on a PC. Real cost on the board (It5): 0.7 to 1.5 ms. | Low |
 | R-06 | Tearing/flicker from partial flush with DMA. | 2 | 2 | 4 | Double buffering, flush by whole strips; simple synchronization. | Low |
 | R-07 | Generated fonts weigh on flash (many sizes/glyphs). | 2 | 2 | 4 | Per-app subset, 4bpp, shared identical bitmaps; NFR-50 budget. **Measured:** the three bundled fonts (ASCII + Latin-1 + symbols) take 45.7 KB, the whole core 6.8 KB. | Low |
 | R-08 | Determinism gaps between SDL and ESP32 (floating point, operation order). | 2 | 2 | 4 | Integer/fixed-point raster; no `float` in the pixel path. | Low |

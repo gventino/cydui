@@ -123,6 +123,15 @@ typedef struct {
   - `frame_end` was added to FR-60: the SDL backend needs it to present the frame.
   - FR-61's "headless mode with framebuffer hash" is the separate `mem` backend instead of a mode of the SDL backend. It has no dependencies, so every test and local check run uses it; the SDL backend is only the window.
 
+## The ESP32 backend (FR-62, FR-63, FR-05, FR-42, FR-43, CT-06, CT-13..15)
+`backends/esp32/`, built by the root `CMakeLists.txt` as an ESP-IDF component. Everything that can be decided without hardware is plain C and tested on the PC: `touch_filter`, `touch_cal`, `latency` and the pin rules (`pins.h`).
+- **Display:** SPI2 with DMA queued transactions; the strip is byte-swapped in place and sent while the next one is drawn (`strip_buffers = 2`); `flush_strip` does not return before the previous transfer ended and `frame_end` waits for all. The backlight is a PWM (LEDC), switched on after the first frame. Controller, pins, clock, inversion, BGR and rotation (0 or 180) are Kconfig.
+- **Dirty regions:** the core hashes the commands that touch each strip (FNV-1a, 64 bits, bounded by the clip; text by content, bitmaps by pointer) and draws and sends only the strips whose hash changed; `cydui_invalidate` forces all. The application provides `dirty_mem`.
+- **Touch:** a task of its own samples the XPT2046 (asleep on the pen interrupt, every 10 ms while held), so the touch does not depend on the duration of a frame. Per burst: the first conversion after a channel change is discarded, a trimmed mean, rejection of spread, pressure hysteresis, debounce, confirmation of jumps. The result goes through `touch_cal` (affine, least squares over five targets) to a queue that `poll_event` reads; `cydui_esp32_wait` sleeps until an event is queued.
+- **Calibration:** `cydui_esp32_calibrate` shows five targets, fits the map and refuses it when a target is further than `CONFIG_CYDUI_ESP32_CAL_MAX_RESIDUAL` (12 px) from where the map puts it or the matrix is degenerate (up to three tries). It is stored in NVS with a magic and a CRC32; one that fails the check is ignored and the default map of the CYD is used.
+- **Time and failure:** the frame budget (`frame_budget_ms`) skips the widgets still to be called; the task watchdog is subscribed by `cydui_esp32_init` and fed at the end of every frame and in `wait`; transfers and waits have timeouts. Latency of the last 128 presses is kept and shown by the gallery (`cydui_esp32_latency`).
+- **Not done here (It7):** optimization of the renderer (it is ~26 ms for a full frame, see `09-hardware-notes.md`), rotation 90/270.
+
 ## Testing
 | Layer | What it checks |
 |-------|----------------|

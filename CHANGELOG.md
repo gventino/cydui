@@ -2,9 +2,11 @@
 
 Versions are tagged per iteration. Until 1.0 a new minor version may change the API; every change is listed under "API changes" (see `docs/11-api.md`).
 
-## 0.5.0 — iteration 5 (in progress): the ESP32 backend
+## 0.5.0 — iteration 5: the ESP32 backend
 
 ### Added
+- The ESP32 backend (`backends/esp32/`): SPI + DMA with two strip buffers, PWM backlight, XPT2046 on a task of its own with a filter, a 5-point calibration kept in NVS, Kconfig for controller, pins, clock and rotation, the task watchdog, timeouts and the touch-to-picture latency (`cydui_esp32_*`, see `cydui_esp32.h`; this is not part of the frozen core API).
+- `examples/theme-gallery` runs on the board (Touch and Animation pages, a guided acceptance test), with the hash of every page printed to compare with the PC (15 of 15 equal), and measurements of speed, memory and idle CPU in `docs/09-hardware-notes.md`.
 - `cydui_config.strip_buffers` (2 = two strip buffers used in turn, so a backend can send a strip while the next one is drawn; the contract is in `backend.h`), `cydui_config.dirty_mem` and `cydui_invalidate` (dirty regions: a strip whose commands did not change is neither drawn nor sent), `cydui_ui_config.frame_budget_ms` and `CYDUI_ERR_FRAME_BUDGET` (a frame that takes too long skips the widgets that are left).
 - Version macros are no longer frozen by value in `tests/test_api_surface.c` (only that they exist).
 

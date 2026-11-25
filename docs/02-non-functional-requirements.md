@@ -40,6 +40,9 @@ All must be **measurable**; the "Verification" column says how.
 | NFR-42 | Every public function documented (Doxygen-style comment), with an example for widgets. | Local check (script). |
 | NFR-43 | Creating a new theme: copy a base theme and change the table; no core changes. | `retro` theme built this way. `clean` and `clean_dark` are one function over a palette (a variant costs a few colors); `retro` in It7. |
 
+## Status after It5 (measured on the board; details in `09-hardware-notes.md`)
+NFR-01: animation 83 fps at 40 MHz and 104 fps at 80 MHz with dirty regions, a full redraw 24 / 30 fps, so the cyberpunk theme (It7) depends on optimizing the renderer. NFR-02: p95 24 ms with the stylus. NFR-03: 0.7 to 1.5 ms. NFR-04: 0.12 % CPU idle, no strip sent. NFR-10: 37 KB static. NFR-13: 305 KB of free heap before Wi-Fi (not measured with Wi-Fi). NFR-50: as measured in It4. NFR-60 and 61: by timeouts, error returns and review; the hardware-disconnected test of NFR-60 was not done.
+
 ## Footprint
 | ID | Requirement | Verification |
 |----|-------------|--------------|
