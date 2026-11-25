@@ -8,6 +8,7 @@
  * different table (NFR-43); a painter is for the effects a table cannot express.
  */
 
+#include "cydui/anim.h"
 #include "cydui/font.h"
 #include "cydui/text.h"
 #include "cydui/types.h"
@@ -26,6 +27,7 @@ typedef struct {
     uint8_t pad_x, pad_y;
     uint8_t spacing;
     uint8_t min_target; /**< smallest touch target in pixels (R-04) */
+    uint16_t anim_ms;   /**< how long a widget takes to change its look (FR-53); 0 = at once, which is also what a backend without a clock gets */
 } cydui_style;
 
 /** A dark style around `font`. */
@@ -82,7 +84,12 @@ typedef struct {
     cydui_text_extent text_extent; /**< its size in the theme's font */
     int32_t value, min, max;  /**< slider and progress value; scroll bar: offset, 0, content - view */
     cydui_rect aux;           /**< widget specific: the scroll bar's viewport */
+    uint16_t mix;             /**< 0: settled, draw `state` and `selected`. Else the widget is changing its look: how far it
+                                   got from the look of `from_state`/`from_selected` to this one, 1..CYDUI_ANIM_ONE - 1 */
+    cydui_widget_state from_state;
+    bool from_selected;
 } cydui_paint_info;
+
 
 /** Sizes a slider is built from, so that the widget and every painter agree on where the knob is. */
 #define CYDUI_SLIDER_KNOB 20  /**< diameter of the knob */
@@ -138,6 +145,19 @@ void cydui_theme_derive_table(cydui_theme *t);
 
 /** Draws a widget with the table (the default painter). Safe for any `info`. */
 void cydui_paint_default(struct cydui_ui *ui, const cydui_theme *theme, const cydui_paint_info *info);
+
+/**
+ * The look of the widget in `info` from the table: while it changes (`mix`) the colors are halfway between
+ * the two ends and the numbers are interpolated. A painter of a theme should draw with this, not with the
+ * table directly, to take part in the transitions.
+ */
+cydui_wstyle cydui_paint_look(const cydui_theme *theme, const cydui_paint_info *info);
+
+/**
+ * How selected the widget is right now, 0 .. CYDUI_ANIM_ONE: a check box, switch or tab that is changing
+ * is in between (what a switch needs to place its knob).
+ */
+int32_t cydui_paint_amount(const cydui_paint_info *info);
 
 #ifdef __cplusplus
 }

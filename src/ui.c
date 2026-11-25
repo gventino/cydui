@@ -336,6 +336,7 @@ bool cydui_ui_begin(cydui_ui *ui, cydui_color clear)
     process_events(ui);
     cydui_begin_frame(&ui->ctx, clear);
     ui->widgets = 0;
+    ui->tweens_now = 0;
     ui->id_depth = 0;
     cydui__layout_begin_frame(ui);
     if (ui->idset_cap) {
@@ -406,7 +407,7 @@ bool cydui_ui_end(cydui_ui *ui)
     cydui_end_frame(&ui->ctx);
     ui->frame++;
     {
-        bool more = ui->in.down || ui->in.q_len > 0 || ui->in.k_len > 0 || ui->relayout;
+        bool more = ui->in.down || ui->in.q_len > 0 || ui->in.k_len > 0 || ui->relayout || ui->tweens_now > 0;
         ui->relayout = false;
         return more;
     }

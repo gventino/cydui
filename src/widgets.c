@@ -65,6 +65,35 @@ cydui_widget_state cydui_state_of(bool disabled, bool pressed)
     return disabled ? CYDUI_STATE_DISABLED : (pressed ? CYDUI_STATE_PRESSED : CYDUI_STATE_NORMAL);
 }
 
+/*
+ * Moves the look of a widget between its two ends over the theme's anim_ms (FR-53). `on` is the end it is
+ * heading for: the pressed state (`select` false) or the selected look (`select` true); `pi` already holds
+ * that end. A disabled widget, a theme without a duration and a backend without a clock change at once.
+ */
+static void look_tween(cydui_ui *ui, cydui_id id, bool on, bool select, cydui_paint_info *pi)
+{
+    const uint16_t ms = ui->theme->style.anim_ms;
+    const int32_t end = on ? CYDUI_ANIM_ONE : 0;
+    int32_t v;
+
+    if (ms == 0 || pi->state == CYDUI_STATE_DISABLED) {
+        return;
+    }
+    v = cydui_animate(ui, id, end, end, ms, CYDUI_EASE_OUT_QUAD);
+    if (v == end) {
+        return; /* settled */
+    }
+    v = on ? v : CYDUI_ANIM_ONE - v; /* how far it got towards the end it is heading for */
+    pi->mix = (uint16_t)(v < 1 ? 1 : (v > CYDUI_ANIM_ONE - 1 ? CYDUI_ANIM_ONE - 1 : v));
+    pi->from_state = pi->state;
+    pi->from_selected = pi->selected;
+    if (select) {
+        pi->from_selected = !pi->selected;
+    } else {
+        pi->from_state = on ? CYDUI_STATE_NORMAL : CYDUI_STATE_PRESSED;
+    }
+}
+
 /* ---- widgets ---- */
 
 void cydui_label(cydui_ui *ui, const char *text)
@@ -143,6 +172,7 @@ bool cydui_button(cydui_ui *ui, const char *label)
         pi.text = label;
         pi.text_len = n;
         pi.text_extent = e;
+        look_tween(ui, id, pi.state == CYDUI_STATE_PRESSED, false, &pi);
         cydui_paint(ui, &pi);
     }
     return resp.clicked;
@@ -194,6 +224,7 @@ static bool control_with_label(cydui_ui *ui, const char *label, bool *value, int
         pi.state = cydui_state_of(m.disabled, resp.pressed);
         pi.selected = checked;
         pi.rect = ctl;
+        look_tween(ui, id, checked, true, &pi);
         cydui_paint(ui, &pi);
     }
     if (n) {
@@ -316,6 +347,7 @@ bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selecte
     const cydui_style *st = &ui->theme->style;
     cydui_response resp[CYDUI_MAX_TABS];
     cydui_rect tab[CYDUI_MAX_TABS];
+    cydui_id tab_id[CYDUI_MAX_TABS];
     size_t len[CYDUI_MAX_TABS];
     cydui_text_extent ext[CYDUI_MAX_TABS];
     cydui_rect bar;
@@ -348,6 +380,7 @@ bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selecte
         ext[i] = cydui_text_size(st->font, label, len[i], 0);
         cydui_push_id_int(ui, i); /* equal labels are fine: every tab has its own id */
         id = cydui_id_str(ui, label);
+        tab_id[i] = id;
         cydui_id_claim(ui, id);
         resp[i] = cydui_interact(ui, id, tab[i], CYDUI_SENSE_CLICK | (m.disabled ? CYDUI_DISABLED : 0u));
         cydui_pop_id(ui);
@@ -372,6 +405,7 @@ bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selecte
         pi.text = labels[i] ? labels[i] : "";
         pi.text_len = len[i];
         pi.text_extent = ext[i];
+        look_tween(ui, tab_id[i], pi.selected, true, &pi);
         cydui_paint(ui, &pi);
     }
     return changed;

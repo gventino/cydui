@@ -24,6 +24,7 @@
 #include "cydui/text.h"
 #include "cydui/backend.h"
 #include "cydui/cydui.h"
+#include "cydui/anim.h"
 #include "cydui/theme.h"
 #include "cydui/ui.h"
 #include "unity.h"
@@ -140,6 +141,12 @@ SURFACE(bool, cydui_ui_end, (cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_errors, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_frame, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_init, (cydui_ui *ui, const cydui_ui_config *cfg))
+SURFACE(int32_t, cydui_animate, (cydui_ui *ui, cydui_id id, int32_t from, int32_t target, uint16_t duration_ms, cydui_ease ease))
+SURFACE(int32_t, cydui_ease_apply, (cydui_ease e, int32_t t))
+SURFACE(int32_t, cydui_lerp, (int32_t a, int32_t b, int32_t k))
+SURFACE(uint32_t, cydui_now, (const cydui_ui *ui))
+SURFACE(cydui_wstyle, cydui_paint_look, (const cydui_theme *theme, const cydui_paint_info *info))
+SURFACE(int32_t, cydui_paint_amount, (const cydui_paint_info *info))
 SURFACE(unsigned, cydui_text_input, (cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, unsigned flags))
 SURFACE(int, cydui_keyboard_top, (const cydui_ui *ui))
 SURFACE(void, cydui_keyboard_enable, (cydui_ui *ui, bool on))
@@ -180,6 +187,18 @@ CT_ASSERT(CYDUI_ERR_BAD_ARG, (long long)(CYDUI_ERR_BAD_ARG) == 2LL);
 CT_ASSERT(CYDUI_ERR_BAD_BITMAP, (long long)(CYDUI_ERR_BAD_BITMAP) == 8LL);
 CT_ASSERT(CYDUI_ERR_CMD_OVERFLOW, (long long)(CYDUI_ERR_CMD_OVERFLOW) == 1LL);
 CT_ASSERT(CYDUI_ERR_FRAME_BUDGET, (long long)(CYDUI_ERR_FRAME_BUDGET) == 512LL);
+CT_ASSERT(CYDUI_ERR_TWEEN_LIMIT, (long long)(CYDUI_ERR_TWEEN_LIMIT) == 1024LL);
+CT_ASSERT(CYDUI_ANIM_ONE, (long long)(CYDUI_ANIM_ONE) == 4096LL);
+CT_ASSERT(CYDUI_EASE_LINEAR, (long long)(CYDUI_EASE_LINEAR) == 0LL);
+CT_ASSERT(CYDUI_EASE_IN_QUAD, (long long)(CYDUI_EASE_IN_QUAD) == 1LL);
+CT_ASSERT(CYDUI_EASE_OUT_QUAD, (long long)(CYDUI_EASE_OUT_QUAD) == 2LL);
+CT_ASSERT(CYDUI_EASE_IN_OUT_QUAD, (long long)(CYDUI_EASE_IN_OUT_QUAD) == 3LL);
+CT_ASSERT(CYDUI_EASE_IN_CUBIC, (long long)(CYDUI_EASE_IN_CUBIC) == 4LL);
+CT_ASSERT(CYDUI_EASE_OUT_CUBIC, (long long)(CYDUI_EASE_OUT_CUBIC) == 5LL);
+CT_ASSERT(CYDUI_EASE_IN_OUT_CUBIC, (long long)(CYDUI_EASE_IN_OUT_CUBIC) == 6LL);
+CT_ASSERT(CYDUI_EASE_OUT_BACK, (long long)(CYDUI_EASE_OUT_BACK) == 7LL);
+CT_ASSERT(CYDUI_EASE_OUT_ELASTIC, (long long)(CYDUI_EASE_OUT_ELASTIC) == 8LL);
+CT_ASSERT(CYDUI_EASE_COUNT, (long long)(CYDUI_EASE_COUNT) == 9LL);
 CT_ASSERT(CYDUI_ERR_ID_COLLISION, (long long)(CYDUI_ERR_ID_COLLISION) == 32LL);
 CT_ASSERT(CYDUI_ERR_LAYOUT, (long long)(CYDUI_ERR_LAYOUT) == 64LL);
 CT_ASSERT(CYDUI_ERR_NO_MEMORY, (long long)(CYDUI_ERR_NO_MEMORY) == 4LL);
@@ -290,6 +309,12 @@ CT_ASSERT(CYDUI_SLIDER_TRACK, (long long)(CYDUI_SLIDER_TRACK) == 6LL);
 #endif
 #ifndef CYDUI_MAX_WIDGETS
 #error "CYDUI_MAX_WIDGETS is part of the API"
+#endif
+#ifndef CYDUI_MAX_TWEENS
+#error "CYDUI_MAX_TWEENS is part of the API"
+#endif
+#ifndef CYDUI_ANIM_MAX_MS
+#error "CYDUI_ANIM_MAX_MS is part of the API"
 #endif
 #ifndef CYDUI_POLL_PER_FRAME
 #error "CYDUI_POLL_PER_FRAME is part of the API"
@@ -449,6 +474,9 @@ static void structs_have_their_fields(void)
         { int32_t *p = &v.min; (void)p; }
         { int32_t *p = &v.max; (void)p; }
         { cydui_rect *p = &v.aux; (void)p; }
+        { uint16_t *p = &v.mix; (void)p; }
+        { cydui_widget_state *p = &v.from_state; (void)p; }
+        { bool *p = &v.from_selected; (void)p; }
     }
     {
         cydui_rect v;
@@ -498,6 +526,7 @@ static void structs_have_their_fields(void)
         { uint8_t *p = &v.pad_y; (void)p; }
         { uint8_t *p = &v.spacing; (void)p; }
         { uint8_t *p = &v.min_target; (void)p; }
+        { uint16_t *p = &v.anim_ms; (void)p; }
     }
     {
         cydui_text_extent v;
@@ -674,6 +703,12 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_errors);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_frame);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_init);
+    TEST_ASSERT_NOT_NULL(surface_cydui_animate);
+    TEST_ASSERT_NOT_NULL(surface_cydui_ease_apply);
+    TEST_ASSERT_NOT_NULL(surface_cydui_lerp);
+    TEST_ASSERT_NOT_NULL(surface_cydui_now);
+    TEST_ASSERT_NOT_NULL(surface_cydui_paint_look);
+    TEST_ASSERT_NOT_NULL(surface_cydui_paint_amount);
     TEST_ASSERT_NOT_NULL(surface_cydui_text_input);
     TEST_ASSERT_NOT_NULL(surface_cydui_keyboard_top);
     TEST_ASSERT_NOT_NULL(surface_cydui_keyboard_enable);

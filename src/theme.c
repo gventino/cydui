@@ -22,6 +22,7 @@ cydui_style cydui_style_default(const cydui_font *font)
     s.pad_y = 6;
     s.spacing = 8;
     s.min_target = 32;
+    s.anim_ms = 0;
     return s;
 }
 
@@ -304,8 +305,9 @@ static void paint_tab(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_inf
     const cydui_text_extent e = p->text_extent;
 
     cydui_draw_rrect(&ui->ctx, r, w->radius, w->fill, 255);
-    if (p->selected) { /* a bar too narrow to exist is simply not drawn */
-        cydui_rect bar = {(int16_t)(r.x + 4), (int16_t)(r.y + r.h - 3), (int16_t)(r.w - 8), 3};
+    if (cydui_paint_amount(p) > 0) { /* a bar too narrow to exist is simply not drawn; it grows from the middle */
+        int full = r.w - 8, grown = (int)((int64_t)full * cydui_paint_amount(p) / CYDUI_ANIM_ONE);
+        cydui_rect bar = {(int16_t)(r.x + 4 + (full - grown) / 2), (int16_t)(r.y + r.h - 3), (int16_t)grown, 3};
         cydui_draw_rrect(&ui->ctx, bar, 1, w->accent, 255);
     }
     if (p->text && p->text_len) {
@@ -357,7 +359,7 @@ static void paint_check_box(cydui_ui *ui, const cydui_wstyle *w, const cydui_pai
     if (w->border_w) {
         cydui_draw_rrect_outline(&ui->ctx, box, w->radius, w->border_w, w->border, 255);
     }
-    if (p->selected) {
+    if (cydui_paint_amount(p) >= CYDUI_ANIM_ONE / 2) {
         cydui_draw_line(&ui->ctx, (int16_t)(box.x + 5), (int16_t)(box.y + 10), (int16_t)(box.x + 8),
                         (int16_t)(box.y + 13), 2, w->text, 255);
         cydui_draw_line(&ui->ctx, (int16_t)(box.x + 8), (int16_t)(box.y + 13), (int16_t)(box.x + 15),
@@ -373,19 +375,53 @@ static void paint_toggle(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_
     cydui_draw_rrect(&ui->ctx, track, w->radius, w->fill, 255);
     knob.w = knob.h = KNOB;
     knob.y = (int16_t)(track.y + (track.h - KNOB) / 2);
-    knob.x = (int16_t)(p->selected ? track.x + track.w - KNOB - (track.h - KNOB) / 2
-                                   : track.x + (track.h - KNOB) / 2);
+    knob.x = (int16_t)cydui_lerp(track.x + (track.h - KNOB) / 2, track.x + track.w - KNOB - (track.h - KNOB) / 2,
+                                 cydui_paint_amount(p));
     cydui_draw_rrect(&ui->ctx, knob, KNOB / 2, w->text, 255);
+}
+
+static uint8_t lerp_u8(uint8_t a, uint8_t b, int32_t k)
+{
+    int32_t v = cydui_lerp(a, b, k);
+    return (uint8_t)(v < 0 ? 0 : (v > 255 ? 255 : v));
+}
+
+cydui_wstyle cydui_paint_look(const cydui_theme *t, const cydui_paint_info *p)
+{
+    cydui_wstyle w = *entry(t, p->kind, p->state, p->selected);
+
+    if (p->mix > 0 && p->mix < CYDUI_ANIM_ONE) {
+        const cydui_wstyle *f = entry(t, p->kind, p->from_state, p->from_selected);
+        uint8_t a = (uint8_t)((uint32_t)p->mix * 255u / CYDUI_ANIM_ONE);
+
+        w.fill = cydui_blend(f->fill, w.fill, a);
+        w.border = cydui_blend(f->border, w.border, a);
+        w.text = cydui_blend(f->text, w.text, a);
+        w.accent = cydui_blend(f->accent, w.accent, a);
+        w.border_w = lerp_u8(f->border_w, w.border_w, p->mix);
+        w.radius = lerp_u8(f->radius, w.radius, p->mix);
+        w.shadow = lerp_u8(f->shadow, w.shadow, p->mix);
+    }
+    return w;
+}
+
+int32_t cydui_paint_amount(const cydui_paint_info *p)
+{
+    if (p->mix == 0 || p->mix >= CYDUI_ANIM_ONE) {
+        return p->selected ? CYDUI_ANIM_ONE : 0;
+    }
+    return p->selected ? p->mix : CYDUI_ANIM_ONE - p->mix;
 }
 
 void cydui_paint_default(cydui_ui *ui, const cydui_theme *theme, const cydui_paint_info *info)
 {
-    const cydui_wstyle *w;
+    cydui_wstyle look;
+    const cydui_wstyle *w = &look;
 
     if (!ui || !theme || !info) {
         return;
     }
-    w = entry(theme, info->kind, info->state, info->selected);
+    look = cydui_paint_look(theme, info);
     if (w->shadow && info->rect.w > 0 && info->rect.h > 0) {
         paint_shadow(ui, info->rect, w->radius, w->shadow);
     }

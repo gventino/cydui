@@ -62,7 +62,18 @@ bool cydui_popup_begin(cydui_ui *ui, const char *label, bool *open, int w, int h
     ui->popup_saved_clip = ui->ctx.clip;
     cydui_reset_clip(&ui->ctx); /* not clipped by the container the application called it from */
     ui->popup_start = ui->ctx.cmd_len;
-    cydui_draw_rect(&ui->ctx, (cydui_rect){0, 0, be->width, be->height}, 0, DIM_ALPHA);
+    {
+        cydui_id fade = cydui_id_str(ui, label ? label : "");
+        int32_t dim = DIM_ALPHA;
+
+        if (st->anim_ms) { /* the dimming comes in over the first frames after the popup opens */
+            if (!ui->popup_prev) {
+                cydui__animate_reset(ui, fade);
+            }
+            dim = cydui_animate(ui, fade, 0, DIM_ALPHA, st->anim_ms, CYDUI_EASE_OUT_QUAD);
+        }
+        cydui_draw_rect(&ui->ctx, (cydui_rect){0, 0, be->width, be->height}, 0, (uint8_t)dim);
+    }
     memset(&pi, 0, sizeof(pi));
     pi.kind = CYDUI_WIDGET_POPUP;
     pi.state = CYDUI_STATE_NORMAL;

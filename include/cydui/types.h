@@ -33,7 +33,8 @@ enum {
     CYDUI_ERR_LAYOUT = 1u << 6,         /**< container/id nesting error: too deep, unbalanced, ... */
     CYDUI_ERR_TOO_MANY_WIDGETS = 1u << 7, /**< more than CYDUI_MAX_WIDGETS in a frame; extras ignored */
     CYDUI_ERR_THREAD = 1u << 8,         /**< UI called from a task other than the one that created it */
-    CYDUI_ERR_FRAME_BUDGET = 1u << 9    /**< the frame took longer than its time budget; the rest of its widgets were skipped */
+    CYDUI_ERR_FRAME_BUDGET = 1u << 9,   /**< the frame took longer than its time budget; the rest of its widgets were skipped */
+    CYDUI_ERR_TWEEN_LIMIT = 1u << 10    /**< more than CYDUI_MAX_TWEENS tweens running at once; the extra ones jumped to their target */
 };
 
 /** Intersection of two rectangles; an empty result has w == h == 0. */

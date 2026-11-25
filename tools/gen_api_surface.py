@@ -20,7 +20,7 @@ import tempfile
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 INC = os.path.join(ROOT, "include")
-HEADERS = ["types", "arena", "cmd", "font", "utf8", "text", "backend", "cydui", "theme", "ui"]
+HEADERS = ["types", "arena", "cmd", "font", "utf8", "text", "backend", "cydui", "anim", "theme", "ui"]
 PRIVATE_STRUCTS = {"cydui_ui", "cydui_region", "cydui_input", "cydui_ctx", "cydui_arena"}
 PRIVATE_NAMES = re.compile(r"(_$|^CYDUI_SCROLL_F_)")  # macro helpers and the flags of cydui_region
 GUARD = re.compile(r"^CYDUI_\w+_H$")

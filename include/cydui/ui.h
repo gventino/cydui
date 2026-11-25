@@ -13,6 +13,7 @@
  * It is NOT thread-safe: call it from one task only (CT-11).
  */
 
+#include "cydui/anim.h"
 #include "cydui/cydui.h"
 #include "cydui/theme.h"
 
@@ -29,6 +30,14 @@ extern "C" {
 /** Depth of push_id nesting. */
 #ifndef CYDUI_MAX_ID_DEPTH
 #define CYDUI_MAX_ID_DEPTH 8
+#endif
+/** Tweens that may run at the same time (CT-08); the extra ones jump to their target. */
+#ifndef CYDUI_MAX_TWEENS
+#define CYDUI_MAX_TWEENS 16
+#endif
+/** The longest tween in ms; a longer one is cut to this. */
+#ifndef CYDUI_ANIM_MAX_MS
+#define CYDUI_ANIM_MAX_MS 5000
 #endif
 /** Frames after which a widget's state is recycled if it was not seen. */
 #ifndef CYDUI_STATE_TTL
@@ -264,6 +273,7 @@ typedef struct cydui_ui {
     bool relayout;   /**< the layout changed shape: ask for another frame */
     uint32_t frame;
     uint16_t widgets;
+    uint8_t tweens_now; /**< tweens that are still moving in this frame */
     uint16_t tap_slop, long_press_ms, frame_budget_ms;
     uint32_t frame_start;
     uintptr_t (*thread_id)(void);
@@ -278,7 +288,8 @@ bool cydui_ui_begin(cydui_ui *ui, cydui_color clear);
 
 /**
  * Ends the frame: renders it and recycles old state. Returns true if another frame should be drawn
- * soon even without new input (layout still settling, a press in progress).
+ * soon even without new input (layout still settling, a press in progress, a tween moving). When it
+ * returns false the loop may sleep until the next event (CT-08).
  */
 bool cydui_ui_end(cydui_ui *ui);
 
@@ -288,6 +299,23 @@ void cydui_ui_clear_errors(cydui_ui *ui);
 
 /** Number of frames completed. */
 uint32_t cydui_ui_frame(const cydui_ui *ui);
+
+/* ---- time and animation ---- */
+
+/** The clock of the frame, in ms: what the backend's now_ms gave in cydui_ui_begin (0 without a clock). */
+uint32_t cydui_now(const cydui_ui *ui);
+
+/**
+ * A value that moves to its target (FR-53). `id` names the tween (any id: it is kept apart from the
+ * widget's own state); the first time it is asked for, it starts at `from`, and every time the target
+ * changes it goes there from wherever it is, in `duration_ms` along the curve `ease`. Returns the value
+ * for this frame, in the units of `from` and `target`. Ask for it every frame while it matters. With no
+ * clock in the backend, a duration of 0 or a full state table the value is the target at once. At most
+ * CYDUI_MAX_TWEENS move at the same time (CYDUI_ERR_TWEEN_LIMIT), and a tween nobody asks for is recycled
+ * with the other state. cydui_ui_end returns true while any tween moves.
+ */
+int32_t cydui_animate(cydui_ui *ui, cydui_id id, int32_t from, int32_t target, uint16_t duration_ms,
+                      cydui_ease ease);
 
 /* ---- ids ---- */
 

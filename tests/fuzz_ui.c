@@ -169,6 +169,7 @@ static void make_fuzz_theme(cydui_theme *t, uint32_t seed, bool big_font)
     t->style.pad_y = (uint8_t)(xorshift(&s) % 3 ? xorshift(&s) % 24 : xorshift(&s));
     t->style.spacing = (uint8_t)(xorshift(&s) % 3 ? xorshift(&s) % 16 : xorshift(&s));
     t->style.min_target = (uint8_t)(xorshift(&s) % 3 ? xorshift(&s) % 40 : xorshift(&s));
+    t->style.anim_ms = (uint16_t)(xorshift(&s) % 2 ? 0u : xorshift(&s) % 600u); /* widgets that change their look over time */
     for (k = 0; k < CYDUI_WIDGET_COUNT; k++) {
         for (sel = 0; sel < 2; sel++) {
             for (st = 0; st < CYDUI_STATE_COUNT; st++) {
@@ -263,7 +264,7 @@ static const char *make_text(reader *r, char *buf, size_t cap)
 
 /* ---- one operation ---- */
 
-enum { OP_COUNT = 60 };
+enum { OP_COUNT = 61 };
 enum { OP_DONE, OP_NEW_FRAME, OP_STOP }; /* what do_op says: nothing special, a frame began, the replay is over */
 
 /* Returns OP_STOP when the operation was a frame boundary and `replay` is on (the frame is over). In a
@@ -599,6 +600,28 @@ static int do_op(reader *r, vars *v, bool replay)
         }
         break;
     }
+    case 60: { /* a tween: everything about it comes from its name, so that two calls with one name agree */
+        static const int32_t ends[] = {INT32_MIN, INT32_MAX, 0, -1, 1, 255, 4096, 100000};
+        const char *name = vocab[u8(r) % 6u]; /* few names: tweens share the state table with the layout, and a table that is too small makes the layout fight for it */
+        const char *c;
+        uint32_t h = 2166136261u;
+        int32_t from, to, val;
+        uint16_t d;
+        cydui_ease e;
+
+        for (c = name; *c; c++) {
+            h = (h ^ (uint8_t)*c) * 16777619u;
+        }
+        from = (h & 1u) ? ends[(h >> 1) % 8u] : (int32_t)(h * 2654435761u);
+        to = (h & 0x10u) ? ends[(h >> 5) % 8u] : (int32_t)(h * 40503u);
+        d = (uint16_t)((h >> 8) % 5u == 0 ? 0u : ((h >> 11) & 0xFFu) * 8u); /* up to two seconds */
+        e = (cydui_ease)((h >> 19) % 12u); /* three of them unknown */
+        val = cydui_animate(&g_ui, cydui_id_str(&g_ui, name), from, to, d, e);
+        if ((d == 0 || (unsigned)e >= CYDUI_EASE_COUNT || !g_ui.in.has_clock) && val != to) {
+            abort(); /* with nothing to move it by, the value is the target at once */
+        }
+        break;
+    }
     default: { /* a whole frame of widgets of one kind, to reach the per-frame limit */
         uint8_t n = u8(r);
         for (i = 0; i < (n & 1 ? 700 : 40); i++) {
@@ -631,6 +654,7 @@ static uint64_t run(const uint8_t *data, size_t size, int rows, bool fancy)
     cydui_theme_default(&g_th_default, &cydui_sans_12);
     cydui_theme_init_clean(&g_th_clean);
     cydui_theme_init_clean_dark(&g_th_dark);
+    g_th_dark.style.anim_ms = 150; /* the one theme of the fuzz that animates its widgets */
     g_th_bad = g_th_default;
     g_th_bad.style.font = NULL;
     make_fuzz_theme(&g_th_fuzz, 1, false);
@@ -691,7 +715,11 @@ static uint64_t run(const uint8_t *data, size_t size, int rows, bool fancy)
          * that an entry evicted every frame does not count as a layout that never settles. */
         bool more = true;
 
-        cydui_mem_push_event(&g_mem, CYDUI_EVENT_UP, 0, 0);
+        /* the queue of the backend may be full of what the input threw at it: make room for the release */
+        for (k = 0; k < 64 && !cydui_mem_push_event(&g_mem, CYDUI_EVENT_UP, 0, 0); k++) {
+            cydui_ui_begin(&g_ui, 0);
+            cydui_ui_end(&g_ui);
+        }
         for (k = 0; k < SETTLE_FRAMES && more; k++) {
             reader again = frame_start;
             int n;
@@ -708,7 +736,7 @@ static uint64_t run(const uint8_t *data, size_t size, int rows, bool fancy)
             more = cydui_ui_end(&g_ui);
             check(&g_ui);
         }
-        if (more) {
+        if (more && !(cydui_ui_errors(&g_ui) & CYDUI_ERR_ID_COLLISION)) { /* two widgets with one id (an application error) can fight over their state for ever */
             abort(); /* a screen that never settles */
         }
     }
