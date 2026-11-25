@@ -48,6 +48,26 @@ static int isqrt_int(int v)
     return r;
 }
 
+gallery_accept_state gallery_acceptance(const gallery *g, int *max_px)
+{
+    int i, worst = 0;
+
+    for (i = 0; i < g->check_n && i < GALLERY_CHECKS; i++) {
+        worst = g->check_err[i] > worst ? g->check_err[i] : worst;
+    }
+    if (max_px) {
+        *max_px = worst;
+    }
+    if (g->check_n < GALLERY_CHECKS) {
+        return GALLERY_ACCEPT_TARGETS;
+    }
+    if (g->touch.lat_n < GALLERY_ACCEPT_TAPS) {
+        return GALLERY_ACCEPT_TAPS_LEFT;
+    }
+    return worst <= GALLERY_ACCEPT_MAX_PX && g->touch.lat_p95_us < GALLERY_ACCEPT_P95_US ? GALLERY_ACCEPT_PASS
+                                                                                         : GALLERY_ACCEPT_FAIL;
+}
+
 static void touch_page(cydui_ui *ui, gallery *g)
 {
     static const int tx[GALLERY_CHECKS] = {25, 75, 25, 75}; /* the targets, in percent of the area */
@@ -97,14 +117,32 @@ static void touch_page(cydui_ui *ui, gallery *g)
         int cx = area.x + area.w * tx[g->check_n] / 100, cy = area.y + area.h * ty[g->check_n] / 100;
         int dx = resp.x - cx, dy = resp.y - cy;
         g->check_err[g->check_n++] = isqrt_int(dx * dx + dy * dy);
-    } else if (resp.clicked) {
+    } else if (resp.clicked && !g->acceptance) {
         g->check_n = 0; /* a tap after the four: start over */
     }
     if (resp.pressed) { /* a cross under the finger, where the UI thinks it is */
         cydui_draw_line(&ui->ctx, (int16_t)(resp.x - 12), resp.y, (int16_t)(resp.x + 12), resp.y, 1, st->text, 255);
         cydui_draw_line(&ui->ctx, resp.x, (int16_t)(resp.y - 12), resp.x, (int16_t)(resp.y + 12), 1, st->text, 255);
     }
-    if (g->check_n >= GALLERY_CHECKS) {
+    if (g->acceptance) { /* what is left to do, at the bottom of the area */
+        int max_px;
+        gallery_accept_state as = gallery_acceptance(g, &max_px);
+        size_t n;
+        cydui_text_extent e;
+
+        if (as == GALLERY_ACCEPT_TARGETS) {
+            snprintf(text, sizeof(text), "toque os circulos: %d/%d", g->check_n, GALLERY_CHECKS);
+        } else if (as == GALLERY_ACCEPT_TAPS_LEFT) {
+            snprintf(text, sizeof(text), "erro max %d px. Toque mais %d vezes", max_px, GALLERY_ACCEPT_TAPS - g->touch.lat_n);
+        } else {
+            snprintf(text, sizeof(text), "%s: %d px, p95 %u ms", as == GALLERY_ACCEPT_PASS ? "PASSOU" : "FALHOU", max_px,
+                     g->touch.lat_p95_us / 1000u);
+        }
+        n = strlen(text);
+        e = cydui_text_size(st->font, text, n, 0);
+        cydui_draw_text_in(ui, area, area.x + (area.w - e.w) / 2, area.y + area.h - e.h - 6, text, n, st->text);
+    }
+    if (g->check_n >= GALLERY_CHECKS && !g->acceptance) {
         for (i = 0; i < GALLERY_CHECKS; i++) {
             sum += g->check_err[i];
             worst = g->check_err[i] > worst ? g->check_err[i] : worst;

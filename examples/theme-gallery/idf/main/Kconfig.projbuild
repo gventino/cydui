@@ -37,4 +37,11 @@ menu "theme-gallery"
         range 0 60
         default 10
 
+    config GALLERY_ACCEPTANCE
+        bool "Guided acceptance test: calibrate at boot, open on the touch page, tell what to do on screen"
+        default n
+        help
+            Skips the measurements at boot (the hashes are still printed), forces a calibration, and
+            prints one GALLERY_ACCEPT line when the four targets and the presses are done.
+
 endmenu

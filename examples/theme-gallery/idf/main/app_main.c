@@ -129,7 +129,7 @@ static void print_hashes(void)
 }
 #endif
 
-#if CONFIG_GALLERY_BENCH_SECONDS > 0
+#if CONFIG_GALLERY_BENCH_SECONDS > 0 && !CONFIG_GALLERY_ACCEPTANCE
 /* Frames as fast as they go for a few seconds. `page` 0 is the page of controls, 4 the animation; with
  * `all_strips` every frame is invalidated first (every strip is drawn and sent, the worst case). */
 static void bench(const char *name, int page, bool all_strips)
@@ -185,7 +185,7 @@ static void bench(const char *name, int page, bool all_strips)
 }
 #endif
 
-#if CONFIG_GALLERY_PROFILE
+#if CONFIG_GALLERY_PROFILE && !CONFIG_GALLERY_ACCEPTANCE
 /* ---- the cost of each kind of command on its own: one strip of 320 x 20, drawn 50 times ---- */
 
 static const uint8_t mask20[200] = { /* a 20 x 20 mask of 4 bits per pixel: a diagonal band */
@@ -249,7 +249,7 @@ static void profile_commands(void)
 }
 #endif
 
-#if CONFIG_GALLERY_MEMORY_REPORT
+#if CONFIG_GALLERY_MEMORY_REPORT && !CONFIG_GALLERY_ACCEPTANCE
 static void memory_report(void)
 {
     printf("GALLERY_MEMORY bytes: ui_storage=%u strips=%u dirty=%u gallery(3 themes)=%u cydui_ui=%u cydui_esp32=%u cydui_theme=%u cydui_state=%u\n",
@@ -261,7 +261,7 @@ static void memory_report(void)
 }
 #endif
 
-#if CONFIG_GALLERY_BUDGET_TEST
+#if CONFIG_GALLERY_BUDGET_TEST && !CONFIG_GALLERY_ACCEPTANCE
 /* CT-15: a frame with a budget of 1 ms that takes 3 ms before its widgets are called builds none of them. */
 static void budget_test(void)
 {
@@ -287,7 +287,7 @@ static void budget_test(void)
 }
 #endif
 
-#if CONFIG_GALLERY_IDLE_SECONDS > 0
+#if CONFIG_GALLERY_IDLE_SECONDS > 0 && !CONFIG_GALLERY_ACCEPTANCE
 /* NFR-04: nothing to draw and nobody touching: how much CPU does every task take? */
 static void idle_report(void)
 {
@@ -356,28 +356,31 @@ void app_main(void)
 #if CONFIG_GALLERY_PRINT_HASH
     print_hashes();
 #endif
-#if CONFIG_GALLERY_BENCH_SECONDS > 0
+#if CONFIG_GALLERY_BENCH_SECONDS > 0 && !CONFIG_GALLERY_ACCEPTANCE
     bench("full_redraw", 0, true);
     bench("animation_dirty_regions", 4, false);
     bench("animation_all_strips", 4, true);
 #endif
-#if CONFIG_GALLERY_PROFILE
+#if CONFIG_GALLERY_PROFILE && !CONFIG_GALLERY_ACCEPTANCE
     profile_commands();
 #endif
-#if CONFIG_GALLERY_MEMORY_REPORT
+#if CONFIG_GALLERY_MEMORY_REPORT && !CONFIG_GALLERY_ACCEPTANCE
     memory_report();
 #endif
-#if CONFIG_GALLERY_BUDGET_TEST
+#if CONFIG_GALLERY_BUDGET_TEST && !CONFIG_GALLERY_ACCEPTANCE
     budget_test();
 #endif
-#if CONFIG_GALLERY_IDLE_SECONDS > 0
+#if CONFIG_GALLERY_IDLE_SECONDS > 0 && !CONFIG_GALLERY_ACCEPTANCE
     idle_report();
 #endif
-    if (!start_ui(1, 0)) {
+    if (!start_ui(1, CONFIG_GALLERY_ACCEPTANCE ? 3 : 0)) {
         return;
     }
+#if CONFIG_GALLERY_ACCEPTANCE
+    g.acceptance = true; /* only here: the hashes above are of the pages as the PC draws them */
+#endif
     if (cydui_esp32_touch_status(&dev) == ESP_OK) {
-#if CONFIG_GALLERY_FORCE_CALIBRATION
+#if CONFIG_GALLERY_FORCE_CALIBRATION || CONFIG_GALLERY_ACCEPTANCE
         calibrate();
 #elif CONFIG_GALLERY_CALIBRATE_AT_BOOT
         if (!cydui_esp32_calibrated(&dev)) {
@@ -411,6 +414,28 @@ void app_main(void)
         } else if (g.check_n < GALLERY_CHECKS) {
             checked = false;
         }
+#if CONFIG_GALLERY_ACCEPTANCE
+        {
+            static bool reported;
+            int max_px;
+            gallery_accept_state as = gallery_acceptance(&g, &max_px);
+
+            if (as >= GALLERY_ACCEPT_PASS && !reported) {
+                printf("GALLERY_ACCEPT cal=%d targets=%d max_px=%d p95_ms=%.1f p50_ms=%.1f n=%d pass=%d spi=%dMHz rot=%d\n",
+                       cydui_esp32_calibrated(&dev), g.check_n, max_px, g.touch.lat_p95_us / 1000.0, g.touch.lat_p50_us / 1000.0,
+                       g.touch.lat_n, as == GALLERY_ACCEPT_PASS, CONFIG_CYDUI_ESP32_LCD_SPI_MHZ,
+#ifdef CONFIG_CYDUI_ESP32_LCD_ROTATION_180
+                       180
+#else
+                       0
+#endif
+                );
+                reported = true;
+            } else if (as < GALLERY_ACCEPT_PASS) {
+                reported = false;
+            }
+        }
+#endif
         now = esp_timer_get_time();
         if (now - last > 2000000) {
             cydui_lat_stats lat;

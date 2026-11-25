@@ -12,6 +12,9 @@
 #define GALLERY_TASKS 200
 #define GALLERY_PAGES 5 /* controls, a list, a custom widget, a touch test, an animation */
 #define GALLERY_CHECKS 4
+#define GALLERY_ACCEPT_TAPS 50       /* presses whose latency is needed for the acceptance */
+#define GALLERY_ACCEPT_MAX_PX 6      /* the largest error allowed on the four targets */
+#define GALLERY_ACCEPT_P95_US 50000u /* the 95th percentile of the latency allowed (NFR-02) */
 
 /** What the platform knows about the touch screen; it fills it before every frame (the PC has no raw numbers). */
 typedef struct {
@@ -36,7 +39,18 @@ typedef struct {
     bool calibrate_requested;      /* the "Calibrar" button: the platform runs its calibration and clears this */
     int check_n;                   /* touch test: targets tapped so far (GALLERY_CHECKS when done) */
     int check_err[GALLERY_CHECKS]; /* ... and how far from each target the tap was, in pixels */
+    bool acceptance;               /* the platform asks for the guided test: the taps after the four do not start over */
 } gallery;
+
+typedef enum {
+    GALLERY_ACCEPT_TARGETS, /* the four targets are not all tapped yet */
+    GALLERY_ACCEPT_TAPS_LEFT, /* ... and then GALLERY_ACCEPT_TAPS presses are needed to measure the latency */
+    GALLERY_ACCEPT_PASS,
+    GALLERY_ACCEPT_FAIL
+} gallery_accept_state;
+
+/** Where the guided test is, and the largest error of the targets so far (`max_px` may be NULL). */
+gallery_accept_state gallery_acceptance(const gallery *g, int *max_px);
 
 /** Builds the themes and sets the state of the first screen: `theme` (0..2) and page `tab` (0..2). */
 void gallery_init(gallery *g, int theme, int tab);
