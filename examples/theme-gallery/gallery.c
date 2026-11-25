@@ -158,6 +158,44 @@ static void touch_page(cydui_ui *ui, gallery *g)
 
 /* ---- the animation: two bars that move by themselves, so that only a couple of strips change per frame ---- */
 
+/* ---- text: a field, a password, a text area, and a confirmation before everything is cleared ---- */
+
+static void text_page(cydui_ui *ui, gallery *g)
+{
+    const cydui_rect avail = cydui_layout_avail(ui);
+    int view = cydui_keyboard_top(ui) - avail.y - 4; /* the window ends where the keyboard begins */
+    char text[64]; /* 3 numbers of up to 9 digits and the words: more than they will ever need */
+
+    view = view > avail.h ? avail.h : (view < 60 ? 60 : view);
+    cydui_scroll_begin(ui, "texto", (int16_t)view);
+    cydui_text_input(ui, "Nome", g->name, sizeof(g->name), 24, 0);
+    cydui_text_input(ui, "Senha", g->secret, sizeof(g->secret), 16, CYDUI_TEXT_PASSWORD);
+    cydui_text_area(ui, "Observacoes", g->notes, sizeof(g->notes), 0, 3, 0);
+    CYDUI_ROW(ui) {
+        cydui_set_cross_align(ui, CYDUI_PLACE_CENTER);
+        if (cydui_button(ui, "Limpar")) {
+            g->confirm_clear = true;
+        }
+        snprintf(text, sizeof(text), "%u + %u + %u letras", (unsigned)strlen(g->name), (unsigned)strlen(g->secret),
+                 (unsigned)strlen(g->notes));
+        cydui_label(ui, text);
+    }
+    cydui_scroll_end(ui);
+    if (cydui_popup_begin(ui, "Limpar tudo", &g->confirm_clear, 240, 110, CYDUI_POPUP_MODAL)) {
+        cydui_label(ui, "Apagar os tres textos?");
+        CYDUI_ROW(ui) {
+            if (cydui_button(ui, "Cancelar")) {
+                g->confirm_clear = false;
+            }
+            if (cydui_button(ui, "Apagar")) {
+                g->name[0] = g->secret[0] = g->notes[0] = '\0';
+                g->confirm_clear = false;
+            }
+        }
+        cydui_popup_end(ui);
+    }
+}
+
 static void anim_page(cydui_ui *ui, gallery *g)
 {
     int32_t a = (int32_t)((g->frame * 3u) % 101u), b = (int32_t)((g->frame * 7u) % 101u);
@@ -173,7 +211,7 @@ static void anim_page(cydui_ui *ui, gallery *g)
 void gallery_frame(cydui_ui *ui, gallery *app)
 {
     static const char *const names[3] = {"Wi-Fi", "Modo escuro", "Bloqueado"};
-    static const char *const tabs[GALLERY_PAGES] = {"Itens", "Lista", "Notas", "Toque", "Anim."};
+    static const char *const tabs[GALLERY_PAGES] = {"Itens", "Lista", "Notas", "Toque", "Anim.", "Texto"};
     char text[48];
     bool locked = true;
     int i;
@@ -186,6 +224,10 @@ void gallery_frame(cydui_ui *ui, gallery *app)
     }
     if (app->tab == 4) {
         anim_page(ui, app);
+        return;
+    }
+    if (app->tab == 5) {
+        text_page(ui, app);
         return;
     }
     if (app->tab == 1) {

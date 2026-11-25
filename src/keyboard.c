@@ -147,6 +147,11 @@ void cydui_keyboard_enable(cydui_ui *ui, bool on)
     ui->kb_off = !on;
 }
 
+int cydui__keyboard_top(const cydui_ui *ui)
+{
+    return ui->ctx.backend->height - KB_H;
+}
+
 bool cydui__keyboard_hit(const cydui_ui *ui, int x, int y)
 {
     cydui_rect r = kb_rect(ui->ctx.backend);

@@ -108,6 +108,8 @@ typedef struct {
     int sel[2];
     int rate[2];
     int32_t first, last;
+    char text[3][40]; /* what the text fields edit: arbitrary bytes at times, with no NUL */
+    bool popup_open[2];
 } vars;
 
 /* ---- painters for the themes built from the input ---- */
@@ -227,7 +229,7 @@ static void check(const cydui_ui *ui)
 {
     if (ui->depth > CYDUI_MAX_LAYOUT_DEPTH || ui->id_depth > CYDUI_MAX_ID_DEPTH ||
         ui->in.q_len > CYDUI_EVENT_QUEUE || ui->widgets > CYDUI_MAX_WIDGETS ||
-        ui->in.last_processed > CYDUI_EVENTS_PER_FRAME) {
+        ui->in.last_processed > CYDUI_EVENTS_PER_FRAME || ui->in.k_len > CYDUI_KEY_QUEUE) {
         abort(); /* a structural limit was broken */
     }
     check_cmds(&ui->ctx);
@@ -261,7 +263,7 @@ static const char *make_text(reader *r, char *buf, size_t cap)
 
 /* ---- one operation ---- */
 
-enum { OP_COUNT = 53 };
+enum { OP_COUNT = 60 };
 enum { OP_DONE, OP_NEW_FRAME, OP_STOP }; /* what do_op says: nothing special, a frame began, the replay is over */
 
 /* Returns OP_STOP when the operation was a frame boundary and `replay` is on (the frame is over). In a
@@ -517,6 +519,83 @@ static int do_op(reader *r, vars *v, bool replay)
             check(&g_ui);
             cydui_ui_begin(&g_ui, 0);
             return OP_NEW_FRAME;
+        }
+        break;
+    }
+    case 53: { /* a single line field: a buffer of any size up to the real one (or none), limits, password */
+        static const size_t caps[] = {0, 1, 2, 5, 40};
+        uint8_t b = u8(r);
+        size_t cap = caps[u8(r) % 5u];
+        unsigned fl = (u8(r) & 1u) ? CYDUI_TEXT_PASSWORD : 0u;
+        cydui_push_id_str(&g_ui, "T"); /* the ids of the fields are apart from the ones of the scroll areas (one entry, two owners) */
+        cydui_text_input(&g_ui, make_text(r, tmp, sizeof(tmp)), (b & 8u) ? NULL : v->text[b % 3u], cap, u8(r) % 6u, fl);
+        cydui_pop_id(&g_ui);
+        break;
+    }
+    case 54: { /* a text area */
+        static const size_t caps[] = {0, 1, 3, 12, 40};
+        uint8_t b = u8(r);
+        size_t cap = caps[u8(r) % 5u];
+        cydui_push_id_str(&g_ui, "T");
+        cydui_text_area(&g_ui, make_text(r, tmp, sizeof(tmp)), (b & 8u) ? NULL : v->text[b % 3u], cap, u8(r) % 6u,
+                        (int)(int8_t)u8(r), u8(r));
+        cydui_pop_id(&g_ui);
+        break;
+    }
+    case 55: { /* the application fills a buffer with bytes of its own, and no NUL */
+        uint8_t b = u8(r);
+        for (i = 0; i < 40; i++) {
+            v->text[b % 3u][i] = (char)u8(r);
+        }
+        break;
+    }
+    case 56: { /* a typed character: any code point, valid or not */
+        uint8_t k = u8(r);
+        uint32_t cp = k < 64 ? (uint32_t)u8(r) : k < 128 ? (uint32_t)u8(r) << 8 | u8(r)
+                      : k < 192 ? (uint32_t)u8(r) << 16 | (uint32_t)u8(r) << 8 | u8(r) : 0xFFFFFFFFu - (uint32_t)u8(r);
+        if (!replay) {
+            cydui_mem_push_key(&g_mem, CYDUI_EVENT_CHAR, cp);
+        }
+        break;
+    }
+    case 57: { /* an editing key, at times one that does not exist */
+        uint8_t k = u8(r);
+        if (!replay) {
+            cydui_mem_push_key(&g_mem, CYDUI_EVENT_KEY, k < 220 ? (uint32_t)(k % 12u) : (uint32_t)k << 24);
+        }
+        break;
+    }
+    case 58: { /* a popup, with or without its end, with content that needs the touch */
+        uint8_t b = u8(r);
+        static const int sizes[] = {-3, 0, 40, 120, 240, 100000};
+        int w = sizes[u8(r) % 6u], h = sizes[u8(r) % 6u];
+        if (cydui_popup_begin(&g_ui, make_text(r, tmp, sizeof(tmp)), &v->popup_open[b & 1u], w, h, (b & 2u) ? CYDUI_POPUP_MODAL : 0u)) {
+            cydui_button(&g_ui, "ok");
+            if (b & 4u) {
+                cydui_push_id_str(&g_ui, "T");
+                cydui_text_input(&g_ui, "p", v->text[b % 3u], 40, 0, 0);
+                cydui_pop_id(&g_ui);
+            }
+            if (!(b & 8u)) {
+                cydui_popup_end(&g_ui);
+            }
+        }
+        if (!replay) { /* what opens and closes it comes from outside, like the touch: in a replay nothing changes */
+            v->popup_open[b & 1u] = (b & 16u) != 0 ? !v->popup_open[b & 1u] : v->popup_open[b & 1u] || (b & 32u) != 0;
+        }
+        break;
+    }
+    case 59: { /* the focus, and the keyboard */
+        uint8_t b = u8(r);
+        if (b % 4u == 0) {
+            cydui_focus_set(&g_ui, make_text(r, tmp, sizeof(tmp)));
+        } else if (b % 4u == 1) {
+            cydui_focus_clear(&g_ui);
+        } else if (b % 4u == 2) {
+            cydui_keyboard_enable(&g_ui, (u8(r) & 1u) != 0);
+        } else {
+            (void)cydui_keyboard_top(&g_ui);
+            (void)cydui_has_focus(&g_ui);
         }
         break;
     }

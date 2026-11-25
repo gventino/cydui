@@ -294,6 +294,9 @@ unsigned cydui_text_input(cydui_ui *ui, const char *label, char *buf, size_t cap
                                                (int16_t)(r.h > 12 ? r.h - 12 : r.h)},
                         w->accent, 255);
     }
+    if (focused && !ui->kb_off && (resp.clicked || (result & CYDUI_TEXT_CHANGED))) {
+        cydui__scroll_reveal(ui, r, cydui__keyboard_top(ui) - 4); /* not under the keyboard that is coming up */
+    }
     return result;
 }
 
@@ -600,6 +603,9 @@ unsigned cydui_text_area(cydui_ui *ui, const char *label, char *buf, size_t cap,
             cydui_draw_rect(&ui->ctx, (cydui_rect){(int16_t)(inner.x + x), (int16_t)(inner.y + row * lh), CURSOR_W, (int16_t)lh},
                             w->accent, 255);
         }
+    }
+    if (focused && !ui->kb_off && (resp.clicked || (result & CYDUI_TEXT_CHANGED))) {
+        cydui__scroll_reveal(ui, r, cydui__keyboard_top(ui) - 4);
     }
     return result;
 }

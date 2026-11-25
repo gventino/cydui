@@ -2,7 +2,7 @@
  * theme-gallery: the widgets in every theme, with a switch at run time.
  *   theme-gallery                       window; the mouse is the touch screen
  *   theme-gallery --frames N            window, quits by itself after N frames
- *   theme-gallery --headless [--theme 0|1|2] [--tab 0..4] [--press X,Y [--release]] [--hash] [--png FILE]
+ *   theme-gallery --headless [--theme 0|1|2] [--tab 0..5] [--press X,Y [--release]] [--hash] [--png FILE]
  *                                       renders into memory (themes: 0 default, 1 clean, 2 clean_dark)
  */
 
@@ -21,7 +21,7 @@
 #define W 320
 #define H 240
 
-CYDUI_STORAGE(storage, W, H, 20, 192, 1024, 32);
+CYDUI_STORAGE(storage, W, H, 20, 320, 1536, 48); /* the keyboard on the screen needs about 120 commands */
 static cydui_color framebuffer[W * H];
 
 static int init_ui(cydui_ui *ui, const cydui_backend *be, const gallery *g)

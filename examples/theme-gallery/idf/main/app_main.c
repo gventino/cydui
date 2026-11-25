@@ -22,6 +22,11 @@
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 
+/* A Kconfig bool that is off is not defined at all: say 0, so that it can be used in an expression too. */
+#ifndef CONFIG_GALLERY_ACCEPTANCE
+#define CONFIG_GALLERY_ACCEPTANCE 0
+#endif
+
 #define ROWS 20 /* rows per strip: 12 strips; two buffers of 12.8 KB each */
 #define W 320
 #define H 240
@@ -29,7 +34,7 @@
 static const char *TAG = "gallery";
 
 /* All the memory of the UI: commands, text and state in one object, the strips apart (DMA, in internal RAM). */
-CYDUI_STORAGE(storage, W, H, 1, 192, 1024, 32);
+CYDUI_STORAGE(storage, W, H, 1, 320, 1536, 48); /* the keyboard on the screen needs about 120 commands */
 DMA_ATTR static cydui_color strips[2 * ROWS * W];
 static uint64_t dirty[(H + ROWS - 1) / ROWS];
 static cydui_esp32 dev;
@@ -38,6 +43,39 @@ static cydui_ui ui;
 
 static int64_t t_ui, t_end;
 static uint32_t n_frames;
+
+/* ---- events injected under the real touch, for the self-test of the keyboard ---- */
+
+#define INJ_MAX 64
+static cydui_backend real_be, inj_be;
+static cydui_event inj_q[INJ_MAX];
+static int inj_head, inj_len;
+
+static bool inj_poll(void *user, cydui_event *ev)
+{
+    (void)user;
+    if (inj_len > 0) {
+        *ev = inj_q[inj_head];
+        inj_head = (inj_head + 1) % INJ_MAX;
+        inj_len--;
+        return true;
+    }
+    return real_be.poll_event ? real_be.poll_event(real_be.user, ev) : false;
+}
+
+#if CONFIG_GALLERY_TEXT_TEST && !CONFIG_GALLERY_ACCEPTANCE
+static void inj_push(cydui_event_type type, int x, int y, uint32_t key)
+{
+    if (inj_len < INJ_MAX) {
+        cydui_event *e = &inj_q[(inj_head + inj_len++) % INJ_MAX];
+        memset(e, 0, sizeof(*e));
+        e->type = type;
+        e->x = (int16_t)x;
+        e->y = (int16_t)y;
+        e->key = key;
+    }
+}
+#endif
 
 static bool one_frame(void)
 {
@@ -86,7 +124,7 @@ static void calibrate(void)
 
 static bool start_ui(int theme, int tab)
 {
-    cydui_ui_config cfg = CYDUI_CONFIG(storage, cydui_esp32_backend(&dev), &g.themes[0]);
+    cydui_ui_config cfg = CYDUI_CONFIG(storage, &inj_be, &g.themes[0]);
 
     gallery_init(&g, theme, tab);
     cfg.theme = &g.themes[theme];
@@ -249,6 +287,73 @@ static void profile_commands(void)
 }
 #endif
 
+#if CONFIG_GALLERY_TEXT_TEST && !CONFIG_GALLERY_ACCEPTANCE
+/* The centers of the keys of the keyboard of the screen (docs/10): the same arithmetic as src/keyboard.c. */
+static int key_x(const int *weights, int n, int i)
+{
+    int total = 0, cum = 0, k, avail, x0, x1;
+
+    for (k = 0; k < n; k++) total += weights[k];
+    avail = W - 6 - (n - 1) * 3;
+    for (k = 0; k < i; k++) cum += weights[k];
+    x0 = 3 + cum * avail / total + i * 3;
+    cum += weights[i];
+    x1 = 3 + cum * avail / total + i * 3;
+    return (x0 + x1) / 2;
+}
+
+static void tap_at(int x, int y, int64_t *worst_us, uint32_t *frames, int64_t *sum_us)
+{
+    static const cydui_event_type seq[2] = {CYDUI_EVENT_DOWN, CYDUI_EVENT_UP};
+    int i, f;
+
+    for (i = 0; i < 2; i++) {
+        inj_push(seq[i], x, y, 0);
+        for (f = 0; f < (i == 0 ? 1 : 4); f++) { /* the press, and the release with the frames that carry the key to the field */
+            int64_t a = esp_timer_get_time(), b;
+
+            one_frame();
+            b = esp_timer_get_time() - a;
+            *worst_us = b > *worst_us ? b : *worst_us;
+            *sum_us += b;
+            (*frames)++;
+        }
+    }
+}
+
+static void text_selftest(void)
+{
+    static const int w10[10] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2}, w9[9] = {2, 2, 2, 2, 2, 2, 2, 2, 2};
+    static const int w_row2[9] = {3, 2, 2, 2, 2, 2, 2, 2, 3}, w_bottom[5] = {3, 3, 10, 4, 3};
+    const int row_y[4] = {97 + 3 + 16, 97 + 3 + 35 + 16, 97 + 3 + 70 + 16, 97 + 3 + 105 + 16};
+    int64_t worst = 0, sum = 0;
+    uint32_t frames = 0, strips0;
+    bool ok;
+
+    if (!start_ui(1, 5)) {
+        return;
+    }
+    memset(&inj_q, 0, sizeof(inj_q));
+    inj_head = inj_len = 0;
+    for (int i = 0; i < 6; i++) one_frame();
+    strips0 = cydui_esp32_flushes(&dev);
+    tap_at(30, 64, &worst, &frames, &sum);                              /* the name field: the focus, the keyboard */
+    tap_at(key_x(w_row2, 9, 0), row_y[2], &worst, &frames, &sum);       /* Shift */
+    tap_at(key_x(w10, 10, 8), row_y[0], &worst, &frames, &sum);         /* O */
+    tap_at(key_x(w9, 9, 8), row_y[1], &worst, &frames, &sum);           /* l */
+    tap_at(key_x(w9, 9, 0), row_y[1], &worst, &frames, &sum);           /* a */
+    tap_at(key_x(w_bottom, 5, 2), row_y[3], &worst, &frames, &sum);     /* space */
+    tap_at(key_x(w_bottom, 5, 0), row_y[3], &worst, &frames, &sum);     /* the page of numbers */
+    tap_at(key_x(w10, 10, 0), row_y[0], &worst, &frames, &sum);         /* 1 */
+    tap_at(key_x(w_bottom, 5, 3), row_y[3], &worst, &frames, &sum);     /* Ok: confirms and closes */
+    ok = strcmp(g.name, "Ola 1") == 0 && !cydui_has_focus(&ui);
+    printf("GALLERY_TEXT_TEST pass=%d name=\"%s\" focus_after=%d frames=%" PRIu32 " avg_frame_us=%" PRId64 " worst_frame_us=%" PRId64
+           " strips_per_frame=%.2f errors=0x%x\n",
+           ok, g.name, cydui_has_focus(&ui), frames, frames ? sum / frames : 0, worst,
+           frames ? (double)(cydui_esp32_flushes(&dev) - strips0) / frames : 0.0, (unsigned)cydui_ui_errors(&ui));
+}
+#endif
+
 #if CONFIG_GALLERY_MEMORY_REPORT && !CONFIG_GALLERY_ACCEPTANCE
 static void memory_report(void)
 {
@@ -346,6 +451,9 @@ void app_main(void)
         ESP_LOGE(TAG, "the display did not start: %s", esp_err_to_name(e));
         return;
     }
+    real_be = *cydui_esp32_backend(&dev); /* the UI reads the events through a layer that can inject some (the self-test) */
+    inj_be = real_be;
+    inj_be.poll_event = inj_poll;
     if (!start_ui(1, 0)) {
         return;
     }
@@ -363,6 +471,9 @@ void app_main(void)
 #endif
 #if CONFIG_GALLERY_PROFILE && !CONFIG_GALLERY_ACCEPTANCE
     profile_commands();
+#endif
+#if CONFIG_GALLERY_TEXT_TEST && !CONFIG_GALLERY_ACCEPTANCE
+    text_selftest();
 #endif
 #if CONFIG_GALLERY_MEMORY_REPORT && !CONFIG_GALLERY_ACCEPTANCE
     memory_report();

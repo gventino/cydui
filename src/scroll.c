@@ -224,6 +224,39 @@ void cydui_scroll_to(cydui_ui *ui, const char *label, int32_t y)
     }
 }
 
+void cydui__scroll_reveal(cydui_ui *ui, cydui_rect r, int limit)
+{
+    int d;
+
+    for (d = ui->depth; d >= 1; d--) {
+        const cydui_region *a = &ui->regions[d];
+        cydui_state *st;
+        int bottom = r.y + r.h, top_limit, shift = 0;
+
+        if (a->kind != CYDUI_LAYOUT_SCROLL || (a->scroll_flags & (CYDUI_SCROLL_F_LIST | CYDUI_SCROLL_F_INERT))) {
+            continue; /* a list is not a place for a field, and a nested area is a plain column */
+        }
+        top_limit = a->view_y;
+        if (bottom > limit) {
+            shift = bottom - limit; /* down: what is below the keyboard comes up */
+        }
+        if (r.y - shift < top_limit) {
+            shift = r.y - top_limit; /* never past the top of the field (a very tall one shows its top) */
+        }
+        if (shift == 0) {
+            return;
+        }
+        st = cydui_state_get(ui, a->wid, false);
+        if (st) {
+            int64_t off = (int64_t)st->a + (int64_t)shift * (1 << FRAC);
+            st->a = (int32_t)(off < 0 ? 0 : (off > (int64_t)OFFSET_CAP ? (int64_t)OFFSET_CAP : off));
+            st->b = 0;
+            ui->relayout = true;
+        }
+        return;
+    }
+}
+
 /* ---- virtual lists ---- */
 
 void cydui_list_begin(cydui_ui *ui, const char *id, int32_t count, int16_t item_h, int16_t view_h,

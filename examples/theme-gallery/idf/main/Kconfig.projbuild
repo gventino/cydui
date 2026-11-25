@@ -37,6 +37,13 @@ menu "theme-gallery"
         range 0 60
         default 10
 
+    config GALLERY_TEXT_TEST
+        bool "Type on the keyboard of the screen by injected touches and keys, and check what was typed"
+        default y
+        help
+            Prints one GALLERY_TEXT_TEST line: the text typed through the keys of the on-screen keyboard
+            (shift, a number page, the space, Ok), whether it is what it should be, and the time of the frames.
+
     config GALLERY_ACCEPTANCE
         bool "Guided acceptance test: calibrate at boot, open on the touch page, tell what to do on screen"
         default n

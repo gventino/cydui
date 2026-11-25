@@ -24,7 +24,12 @@ void cydui__end_kind(cydui_ui *ui, cydui_layout_kind kind);
 /** The keyboard on the screen: true if a press at (x, y) is on the keyboard shown in the previous frame; and the step
  * that handles and draws it at the end of a frame, returning how many events its keys produced (at most 8). */
 bool cydui__keyboard_hit(const cydui_ui *ui, int x, int y);
+int cydui__keyboard_top(const cydui_ui *ui); /* where it begins when it is shown */
 unsigned cydui__keyboard_run(cydui_ui *ui, cydui_event *out);
+
+/** Scrolls the innermost scroll area that holds the widget at `r` (screen coordinates, as drawn in this frame) so that its
+ * bottom is not below `limit` and its top is not above the area's window. Does nothing outside a scroll area. */
+void cydui__scroll_reveal(cydui_ui *ui, cydui_rect r, int limit);
 
 /** A popup's container: at the rectangle, and taking no room in its parent. */
 bool cydui__open_overlay(cydui_ui *ui, cydui_rect rect);

@@ -124,6 +124,44 @@ static void test_the_calibrate_button_asks_the_platform_and_the_other_pages_do_n
     TEST_ASSERT_FALSE(g.calibrate_requested);
 }
 
+static void type_text(const char *s)
+{
+    for (; *s; s++) rig_char(&rig, (uint32_t)(unsigned char)*s);
+    frame();
+}
+
+static void test_the_text_page_edits_three_texts_and_clears_them_after_a_confirmation(void)
+{
+    start(5);
+    settle();
+    tap(30, 64); /* the name field */
+    type_text("Ana");
+    rig_key(&rig, CYDUI_KEY_ENTER); /* confirmed: the keyboard goes away */
+    settle();
+    TEST_ASSERT_EQUAL_STRING("Ana", g.name);
+    TEST_ASSERT_FALSE(cydui_has_focus(&rig.ui));
+    tap(30, 104); /* the password */
+    type_text("segredo");
+    rig_key(&rig, CYDUI_KEY_ENTER);
+    settle();
+    TEST_ASSERT_EQUAL_STRING("segredo", g.secret);
+
+    tap(40, 215); /* Limpar: asks first */
+    TEST_ASSERT_TRUE(g.confirm_clear);
+    tap(80, 115); /* Cancelar */
+    TEST_ASSERT_FALSE(g.confirm_clear);
+    TEST_ASSERT_EQUAL_STRING("Ana", g.name);
+    settle(); /* what is under a popup reacts again one frame after it is gone */
+
+    tap(40, 215);
+    TEST_ASSERT_TRUE(g.confirm_clear);
+    tap(190, 115); /* Apagar */
+    TEST_ASSERT_FALSE(g.confirm_clear);
+    TEST_ASSERT_EQUAL_STRING("", g.name);
+    TEST_ASSERT_EQUAL_STRING("", g.secret);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
+}
+
 static void test_the_animation_moves_with_the_frames_and_the_pages_are_all_reachable(void)
 {
     uint64_t h1, h2;
@@ -151,6 +189,7 @@ int main(void)
     RUN_TEST(test_the_error_is_the_distance_in_pixels);
     RUN_TEST(test_the_guided_test_goes_from_targets_to_taps_to_a_verdict);
     RUN_TEST(test_the_calibrate_button_asks_the_platform_and_the_other_pages_do_not);
+    RUN_TEST(test_the_text_page_edits_three_texts_and_clears_them_after_a_confirmation);
     RUN_TEST(test_the_animation_moves_with_the_frames_and_the_pages_are_all_reachable);
     return UNITY_END();
 }

@@ -2,6 +2,9 @@
 
 #include <SDL.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "cydui/utf8.h"
 
 struct cydui_sdl {
     cydui_backend backend;
@@ -10,7 +13,27 @@ struct cydui_sdl {
     SDL_Texture *texture;
     int scale;
     bool pressed;
+    uint32_t typed[64]; /* characters of a text input event that wait to be handed out one by one */
+    int typed_n, typed_i;
 };
+
+static bool key_of(SDL_Keycode k, uint32_t *out)
+{
+    switch (k) {
+    case SDLK_BACKSPACE: *out = CYDUI_KEY_BACKSPACE; return true;
+    case SDLK_DELETE: *out = CYDUI_KEY_DELETE; return true;
+    case SDLK_LEFT: *out = CYDUI_KEY_LEFT; return true;
+    case SDLK_RIGHT: *out = CYDUI_KEY_RIGHT; return true;
+    case SDLK_UP: *out = CYDUI_KEY_UP; return true;
+    case SDLK_DOWN: *out = CYDUI_KEY_DOWN; return true;
+    case SDLK_HOME: *out = CYDUI_KEY_HOME; return true;
+    case SDLK_END: *out = CYDUI_KEY_END; return true;
+    case SDLK_RETURN:
+    case SDLK_KP_ENTER: *out = CYDUI_KEY_ENTER; return true;
+    case SDLK_ESCAPE: *out = CYDUI_KEY_ESCAPE; return true;
+    default: return false;
+    }
+}
 
 static void sdl_flush(void *user, const cydui_rect *area, const cydui_color *pixels)
 {
@@ -36,6 +59,12 @@ static bool sdl_poll(void *user, cydui_event *ev)
     cydui_sdl *s = (cydui_sdl *)user;
     SDL_Event e;
 
+    if (s->typed_i < s->typed_n) { /* the rest of a text input event */
+        memset(ev, 0, sizeof(*ev));
+        ev->type = CYDUI_EVENT_CHAR;
+        ev->key = s->typed[s->typed_i++];
+        return true;
+    }
     while (SDL_PollEvent(&e)) {
         switch (e.type) {
         case SDL_QUIT:
@@ -60,6 +89,32 @@ static bool sdl_poll(void *user, cydui_event *ev)
                 return true;
             }
             break;
+        case SDL_TEXTINPUT: { /* what the keyboard types, as UTF-8 */
+            size_t len = strlen(e.text.text), i = 0;
+
+            s->typed_n = s->typed_i = 0;
+            while (i < len && s->typed_n < (int)(sizeof(s->typed) / sizeof(s->typed[0]))) {
+                i += cydui_utf8_decode(e.text.text + i, len - i, &s->typed[s->typed_n++]);
+            }
+            if (s->typed_n > 0) {
+                memset(ev, 0, sizeof(*ev));
+                ev->type = CYDUI_EVENT_CHAR;
+                ev->key = s->typed[s->typed_i++];
+                return true;
+            }
+            break;
+        }
+        case SDL_KEYDOWN: { /* the editing keys, with the repeat of the system */
+            uint32_t key;
+
+            if (key_of(e.key.keysym.sym, &key)) {
+                memset(ev, 0, sizeof(*ev));
+                ev->type = CYDUI_EVENT_KEY;
+                ev->key = key;
+                return true;
+            }
+            break;
+        }
         case SDL_MOUSEMOTION:
             if (s->pressed) {
                 ev->type = CYDUI_EVENT_MOVE;
@@ -114,6 +169,7 @@ cydui_sdl *cydui_sdl_create(const char *title, int16_t width, int16_t height, in
     s->backend.poll_event = sdl_poll;
     s->backend.now_ms = sdl_now;
     s->backend.frame_end = sdl_frame_end;
+    SDL_StartTextInput(); /* the keyboard of the computer types into the text fields */
     return s;
 }
 

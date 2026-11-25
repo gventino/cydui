@@ -10,7 +10,7 @@
 
 #define GALLERY_THEMES 3
 #define GALLERY_TASKS 200
-#define GALLERY_PAGES 5 /* controls, a list, a custom widget, a touch test, an animation */
+#define GALLERY_PAGES 6 /* controls, a list, a custom widget, a touch test, an animation, text fields */
 #define GALLERY_CHECKS 4
 #define GALLERY_ACCEPT_TAPS 50       /* presses whose latency is needed for the acceptance */
 #define GALLERY_ACCEPT_MAX_PX 6      /* the largest error allowed on the four targets */
@@ -40,6 +40,8 @@ typedef struct {
     int check_n;                   /* touch test: targets tapped so far (GALLERY_CHECKS when done) */
     int check_err[GALLERY_CHECKS]; /* ... and how far from each target the tap was, in pixels */
     bool acceptance;               /* the platform asks for the guided test: the taps after the four do not start over */
+    char name[32], secret[24], notes[160]; /* the text page */
+    bool confirm_clear;            /* ... and the confirmation of the button that clears them */
 } gallery;
 
 typedef enum {

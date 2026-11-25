@@ -310,6 +310,81 @@ static void test_a_field_with_a_limit_refuses_what_the_keys_type(void)
     TEST_ASSERT_EQUAL_STRING("qw", buf);
 }
 
+/* A scroll area with the field in the lower part of its window, where the keyboard is going to be. */
+static int filler_h = 150;
+
+static void scroll_frame(bool filler)
+{
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_scroll_begin(&rig.ui, "s", 200);
+    if (filler) {
+        cydui_next_height(&rig.ui, filler_h);
+        cydui_next_disabled(&rig.ui);
+        cydui_button(&rig.ui, "Filler");
+    }
+    cydui_text_input(&rig.ui, "Msg", buf, cap, 0, 0);
+    cydui_next_height(&rig.ui, 300);
+    cydui_next_disabled(&rig.ui);
+    cydui_button(&rig.ui, "Below");
+    cydui_scroll_end(&rig.ui);
+    cydui_ui_end(&rig.ui);
+}
+
+static int scroll_offset(void)
+{
+    cydui_state *st = cydui_state_get(&rig.ui, cydui_id_str(&rig.ui, "s"), false);
+
+    return st ? (int)(st->a >> 8) : -1;
+}
+
+static void test_a_field_under_where_the_keyboard_goes_is_scrolled_into_view(void)
+{
+    int i;
+
+    start();
+    for (i = 0; i < 3; i++) scroll_frame(true);
+    TEST_ASSERT_EQUAL_INT(0, scroll_offset());
+    rig_down(&rig, 15, 180); /* the field: y 166 to 198 in the window */
+    scroll_frame(true);
+    rig_up(&rig, 15, 180);
+    for (i = 0; i < 4; i++) scroll_frame(true);
+    TEST_ASSERT_TRUE(cydui_has_focus(&rig.ui));
+    TEST_ASSERT_EQUAL_INT(105, scroll_offset()); /* its bottom (198) goes up to 4 px above the keyboard (97 - 4 = 93) */
+    rig_char(&rig, 'q');
+    for (i = 0; i < 4; i++) scroll_frame(true);
+    TEST_ASSERT_EQUAL_INT(105, scroll_offset()); /* typing does not move it again */
+    TEST_ASSERT_EQUAL_STRING("q", buf);
+}
+
+static void test_a_field_just_under_the_limit_is_scrolled_by_the_little_it_needs(void)
+{
+    int i;
+
+    start();
+    filler_h = 55; /* the field is at y 71 to 103: ten pixels too low */
+    for (i = 0; i < 3; i++) scroll_frame(true);
+    rig_down(&rig, 15, 90);
+    scroll_frame(true);
+    rig_up(&rig, 15, 90);
+    for (i = 0; i < 4; i++) scroll_frame(true);
+    filler_h = 150;
+    TEST_ASSERT_EQUAL_INT(10, scroll_offset());
+}
+
+static void test_a_field_that_is_already_above_the_keyboard_does_not_scroll(void)
+{
+    int i;
+
+    start();
+    for (i = 0; i < 3; i++) scroll_frame(false);
+    rig_down(&rig, 15, 24);
+    scroll_frame(false);
+    rig_up(&rig, 15, 24);
+    for (i = 0; i < 4; i++) scroll_frame(false);
+    TEST_ASSERT_TRUE(cydui_has_focus(&rig.ui));
+    TEST_ASSERT_EQUAL_INT(0, scroll_offset());
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -326,5 +401,8 @@ int main(void)
     RUN_TEST(test_the_application_can_turn_it_off);
     RUN_TEST(test_it_works_over_a_modal_popup);
     RUN_TEST(test_a_field_with_a_limit_refuses_what_the_keys_type);
+    RUN_TEST(test_a_field_under_where_the_keyboard_goes_is_scrolled_into_view);
+    RUN_TEST(test_a_field_just_under_the_limit_is_scrolled_by_the_little_it_needs);
+    RUN_TEST(test_a_field_that_is_already_above_the_keyboard_does_not_scroll);
     return UNITY_END();
 }
