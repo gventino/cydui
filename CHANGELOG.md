@@ -2,6 +2,10 @@
 
 Versions are tagged per iteration. Until 1.0 a new minor version may change the API; every change is listed under "API changes" (see `docs/11-api.md`).
 
+## Unreleased
+
+- Every text the user can see is in English: the gallery, the examples, the calibration screen of the ESP32 backend, the tests and the goldens, and the pictures of the README. Accented letters remain only as UTF-8 test data (Café, naïve, Zoë, Ångström, €). The board self-test types "Hi 1".
+
 ## 0.7.0 — iteration 7: a faster renderer, animation, post-effects and the `retro` and `cyberpunk` themes
 
 ### Added

@@ -111,7 +111,7 @@ static void touch_page(cydui_ui *ui, gallery *g)
         }
     }
     if (g->touch.known && g->touch.lat_n > 0) { /* only where there is something to measure: the PC page is unchanged */
-        snprintf(text, sizeof(text), "latencia p95 %u ms, mediana %u ms, n=%d", g->touch.lat_p95_us / 1000u,
+        snprintf(text, sizeof(text), "latency p95 %u ms, median %u ms, n=%d", g->touch.lat_p95_us / 1000u,
                  g->touch.lat_p50_us / 1000u, g->touch.lat_n);
         cydui_draw_text_in(ui, area, area.x + 8, area.y + 6, text, strlen(text), st->text_muted);
     }
@@ -133,7 +133,7 @@ static void touch_page(cydui_ui *ui, gallery *g)
         cydui_text_extent e;
 
         if (as == GALLERY_ACCEPT_TARGETS) {
-            snprintf(text, sizeof(text), "toque os circulos: %d/%d", g->check_n, GALLERY_CHECKS);
+            snprintf(text, sizeof(text), "tap the circles: %d/%d", g->check_n, GALLERY_CHECKS);
         } else if (as == GALLERY_ACCEPT_TAPS_LEFT) {
             snprintf(text, sizeof(text), "max error %d px. Tap %d more times", max_px, GALLERY_ACCEPT_TAPS - g->touch.lat_n);
         } else {
@@ -149,7 +149,7 @@ static void touch_page(cydui_ui *ui, gallery *g)
             sum += g->check_err[i];
             worst = g->check_err[i] > worst ? g->check_err[i] : worst;
         }
-        snprintf(text, sizeof(text), "erro medio %d px, maximo %d px", sum / GALLERY_CHECKS, worst);
+        snprintf(text, sizeof(text), "mean error %d px, max %d px", sum / GALLERY_CHECKS, worst);
         {
             size_t n = strlen(text);
             cydui_text_extent e = cydui_text_size(st->font, text, n, 0);
@@ -178,7 +178,7 @@ static void text_page(cydui_ui *ui, gallery *g)
         if (cydui_button(ui, "Clear")) {
             g->confirm_clear = true;
         }
-        snprintf(text, sizeof(text), "%u + %u + %u letras", (unsigned)strlen(g->name), (unsigned)strlen(g->secret),
+        snprintf(text, sizeof(text), "%u + %u + %u letters", (unsigned)strlen(g->name), (unsigned)strlen(g->secret),
                  (unsigned)strlen(g->notes));
         cydui_label(ui, text);
     }
