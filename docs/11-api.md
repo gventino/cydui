@@ -1,4 +1,4 @@
-# 11 — The Public API (frozen at 0.4.0)
+# 11 — The Public API (frozen at 0.4.0, additions in 0.5.0)
 
 This is the contract of `include/cydui/*.h`. It is enforced by `tests/test_api_surface.c`: every function below is bound there to a pointer of its exact type, every enumerator and constant has its value, and every field of the stable structs has its type. A change to that file is an API change, and the rules of the last section apply.
 
@@ -38,6 +38,7 @@ The comments in the headers are the reference for each function (arguments, limi
 | `cydui_ui_begin`, `cydui_ui_end` | Start and end a frame. `end` renders it in strips and returns true when another frame is wanted soon (a layout still settling, a press, something coasting). |
 | `cydui_ui_errors`, `cydui_ui_clear_errors`, `cydui_ui_frame` | The `CYDUI_ERR_*` flags raised so far; the frame counter. |
 | `cydui_begin_frame`, `cydui_end_frame`, `cydui_errors`, `cydui_clear_errors`, `cydui_cmd_count`, `cydui_strip_height` | The same at the level of the drawing context, for an application without the UI layer. |
+| `cydui_invalidate` (0.5.0) | Makes the next frame send every strip again. With `cydui_config.dirty_mem` the core sends only the strips whose commands changed since the previous frame; with `strip_buffers = 2` it alternates two strip buffers so the backend can send one while the next is drawn (`backend.h` has the contract). Both are optional and off by default. |
 
 ### Drawing primitives (all clipped, all integer)
 `cydui_draw_rect`, `cydui_draw_rrect`, `cydui_draw_rrect_outline`, `cydui_draw_line`, `cydui_draw_bitmap` (RGB565 or 4-bit mask), `cydui_draw_gradient`, `cydui_draw_text`, `cydui_set_clip`, `cydui_reset_clip`, and `cydui_raster_strip` (what a backend calls). Colors: `cydui_blend`, `cydui_color_unpack`, `CYDUI_RGB`. Geometry: `cydui_rect_intersect`, `cydui_rect_empty`.
@@ -91,6 +92,7 @@ Structs the application fills or reads: `cydui_config`, `cydui_ui_config`, `cydu
 | `CYDUI_ERR_LAYOUT` | 64 | nesting error: too deep, unbalanced, misplaced |
 | `CYDUI_ERR_TOO_MANY_WIDGETS` | 128 | more than `CYDUI_MAX_WIDGETS` in a frame |
 | `CYDUI_ERR_THREAD` | 256 | called from another task than the one that created the UI |
+| `CYDUI_ERR_FRAME_BUDGET` | 512 | (0.5.0) the frame passed `frame_budget_ms`; the widgets still to be called were skipped |
 
 Interaction flags: `CYDUI_SENSE_CLICK` 1, `CYDUI_SENSE_DRAG` 2, `CYDUI_DISABLED` 4, `CYDUI_CAPTURE` 8. Widget kinds and states (`cydui_widget_kind`, `cydui_widget_state`) have the order in `theme.h`; new kinds are only added at the end.
 

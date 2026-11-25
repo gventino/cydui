@@ -105,6 +105,7 @@ uint32_t cydui_ui_init(cydui_ui *ui, const cydui_ui_config *cfg)
 
     ui->tap_slop = cfg->tap_slop > 0 ? (uint16_t)cfg->tap_slop : 10u;
     ui->long_press_ms = cfg->long_press_ms ? cfg->long_press_ms : 500u;
+    ui->frame_budget_ms = cfg->frame_budget_ms;
     ui->thread_id = cfg->thread_id;
     ui->thread = cfg->thread_id ? cfg->thread_id() : 0;
     return 0;
@@ -317,6 +318,7 @@ bool cydui_ui_begin(cydui_ui *ui, cydui_color clear)
     cydui__check_thread(ui);
     ui->in.has_clock = be->now_ms != NULL;
     ui->in.now = ui->in.has_clock ? be->now_ms(be->user) : 0;
+    ui->frame_start = ui->in.now;
     poll_backend(ui);
     process_events(ui);
     cydui_begin_frame(&ui->ctx, clear);

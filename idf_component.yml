@@ -1,4 +1,4 @@
-version: "0.0.0"
+version: "0.5.0"
 description: Immediate-mode UI library for small embedded displays (ESP32 / CYD).
 license: MIT
 dependencies:

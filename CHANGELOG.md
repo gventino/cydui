@@ -2,6 +2,12 @@
 
 Versions are tagged per iteration. Until 1.0 a new minor version may change the API; every change is listed under "API changes" (see `docs/11-api.md`).
 
+## 0.5.0 — iteration 5 (in progress): the ESP32 backend
+
+### Added
+- `cydui_config.strip_buffers` (2 = two strip buffers used in turn, so a backend can send a strip while the next one is drawn; the contract is in `backend.h`), `cydui_config.dirty_mem` and `cydui_invalidate` (dirty regions: a strip whose commands did not change is neither drawn nor sent), `cydui_ui_config.frame_budget_ms` and `CYDUI_ERR_FRAME_BUDGET` (a frame that takes too long skips the widgets that are left).
+- Version macros are no longer frozen by value in `tests/test_api_surface.c` (only that they exist).
+
 ## 0.4.0 — iteration 4: themes, composite widgets, scrolling; the API is frozen
 
 ### API changes

@@ -18,8 +18,10 @@
  *   - that a screen of any structure settles: with the touch released and the clock running, the
  *     frame the UI asks for next is not asked for forever (no layout that chases itself, no coast
  *     that does not end);
- *   - that the whole session, run twice with different strip heights, gives the identical screen and
- *     the identical values in the widgets: nothing may depend on how the frame is cut into strips.
+ *   - that the whole session, run with different strip heights, gives the identical screen and the
+ *     identical values in the widgets: nothing may depend on how the frame is cut into strips. The third
+ *     run also uses two strip buffers and dirty regions (strips that did not change are not drawn again),
+ *     so a wrong hash of a command, or a strip skipped by mistake, shows as a different screen.
  */
 
 #include <stdint.h>
@@ -98,6 +100,7 @@ static cydui_color g_strip[W * H];
 static char g_text[512];
 static cydui_state g_state[STATE_BIG]; /* a few entries at times: the table is full and evicting all the time */
 static uint32_t g_idset[64];
+static uint64_t g_dirty[64]; /* the dirty regions: one entry per strip */
 
 typedef struct {
     bool vals[4];
@@ -530,7 +533,7 @@ static int do_op(reader *r, vars *v, bool replay)
     return OP_DONE;
 }
 
-static uint64_t run(const uint8_t *data, size_t size, int rows)
+static uint64_t run(const uint8_t *data, size_t size, int rows, bool fancy)
 {
     reader r, frame_start;
     vars v;
@@ -560,7 +563,10 @@ static uint64_t run(const uint8_t *data, size_t size, int rows)
     cfg.core.backend = &g_mem.backend;
     cfg.core.cmd_mem = g_cmds;
     cfg.core.strip_mem = g_strip;
-    cfg.core.strip_mem_size = (size_t)rows * W * sizeof(cydui_color);
+    cfg.core.strip_mem_size = (size_t)rows * W * sizeof(cydui_color) * (fancy ? 2u : 1u);
+    cfg.core.strip_buffers = fancy ? 2 : 1;
+    cfg.core.dirty_mem = fancy ? (void *)g_dirty : NULL;
+    cfg.core.dirty_mem_size = fancy ? sizeof(g_dirty) : 0;
     cfg.core.text_mem = g_text;
     cfg.core.text_mem_size = sizeof(g_text);
     cfg.state_mem = g_state;
@@ -574,6 +580,7 @@ static uint64_t run(const uint8_t *data, size_t size, int rows)
     has_clock = (k & 4) == 0;
     cfg.state_mem_size = (size_t)(big_state ? STATE_BIG : state_entries) * sizeof(cydui_state);
     cfg.theme = &g_th_default;
+    cfg.frame_budget_ms = (uint16_t)((k >> 3) % 4u == 2 ? 5u : (k >> 3) % 4u == 3 ? 40u : 0u); /* a time budget, now and then */
     if (!has_clock) {
         g_mem.backend.now_ms = NULL;
     }
@@ -650,10 +657,11 @@ static uint64_t run(const uint8_t *data, size_t size, int rows)
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    uint64_t a = run(data, size, 8);
-    uint64_t b = run(data, size, 3);
+    uint64_t a = run(data, size, 8, false);
+    uint64_t b = run(data, size, 3, false);
+    uint64_t c = run(data, size, 5, true);
 
-    if (a != b) {
+    if (a != b || a != c) {
         abort(); /* the screen depended on the strip height, or on something other than the input */
     }
     return 0;

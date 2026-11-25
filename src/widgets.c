@@ -22,6 +22,13 @@ bool cydui_widget_begin(cydui_ui *ui)
         ui->ctx.errors |= CYDUI_ERR_TOO_MANY_WIDGETS;
         return false;
     }
+    if (ui->frame_budget_ms && ui->in.has_clock) {
+        const cydui_backend *be = ui->ctx.backend;
+        if ((uint32_t)(be->now_ms(be->user) - ui->frame_start) > ui->frame_budget_ms) {
+            ui->ctx.errors |= CYDUI_ERR_FRAME_BUDGET;
+            return false;
+        }
+    }
     ui->widgets++;
     return true;
 }

@@ -17,9 +17,9 @@ extern "C" {
  * is announced); a new PATCH never does.
  */
 #define CYDUI_VERSION_MAJOR 0
-#define CYDUI_VERSION_MINOR 4
+#define CYDUI_VERSION_MINOR 5
 #define CYDUI_VERSION_PATCH 0
-#define CYDUI_VERSION_STRING "0.4.0"
+#define CYDUI_VERSION_STRING "0.5.0"
 
 /** Returns the library version as a static "MAJOR.MINOR.PATCH" string (CYDUI_VERSION_STRING). */
 const char *cydui_version(void);
@@ -33,6 +33,20 @@ typedef struct {
     size_t strip_mem_size;
     void *text_mem;     /**< optional: copies of this frame's strings; without it text is dropped */
     size_t text_mem_size;
+    /**
+     * How many strip buffers the memory above holds: 0 or 1 (one strip, as always) or 2 (two equal
+     * strips that the core uses in turn, so that the backend can send one while the next is drawn;
+     * see flush_strip in backend.h). Anything else is CYDUI_ERR_BAD_ARG.
+     */
+    uint8_t strip_buffers;
+    /**
+     * Optional: memory for the dirty regions, one uint64_t per strip (ceil(height / strip height)
+     * of them). With it, a strip whose commands are the same as in the previous frame is neither
+     * rendered nor sent. Too small: CYDUI_ERR_NO_MEMORY. The bitmap data that a command points at
+     * must not change in place (change the pointer instead): only the pointer is compared.
+     */
+    void *dirty_mem;
+    size_t dirty_mem_size;
 } cydui_config;
 
 /** Library state. Fields are private; use the functions below. */
@@ -42,6 +56,11 @@ typedef struct {
     uint32_t cmd_cap, cmd_len;
     cydui_color *strip;
     int16_t strip_h;
+    size_t strip_pixels;       /**< pixels in one strip buffer */
+    uint8_t strip_buffers, strip_next;
+    uint64_t *dirty;           /**< NULL: every strip is sent every frame */
+    uint32_t dirty_cap;
+    bool dirty_primed;
     cydui_arena text_arena;
     cydui_rect clip;
     cydui_color clear;
@@ -54,8 +73,14 @@ uint32_t cydui_init(cydui_ctx *ctx, const cydui_config *cfg);
 /** Starts a frame: empties the command list, resets the clip and sets the background color. */
 void cydui_begin_frame(cydui_ctx *ctx, cydui_color clear);
 
-/** Rasterizes the frame strip by strip and hands each strip to the backend. */
+/**
+ * Rasterizes the frame strip by strip and hands each strip to the backend (only the strips that
+ * changed since the previous frame, when dirty regions are on).
+ */
 void cydui_end_frame(cydui_ctx *ctx);
+
+/** Makes the next frame send every strip again (after the panel was reset, say). Harmless otherwise. */
+void cydui_invalidate(cydui_ctx *ctx);
 
 /** Accumulated CYDUI_ERR_* flags since the last cydui_clear_errors(). */
 uint32_t cydui_errors(const cydui_ctx *ctx);

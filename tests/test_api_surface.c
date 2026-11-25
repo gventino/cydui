@@ -81,6 +81,7 @@ SURFACE(bool, cydui_id_eq, (cydui_id a, cydui_id b))
 SURFACE(cydui_id, cydui_id_str, (const cydui_ui *ui, const char *label))
 SURFACE(uint32_t, cydui_init, (cydui_ctx *ctx, const cydui_config *cfg))
 SURFACE(cydui_response, cydui_interact, (cydui_ui *ui, cydui_id id, cydui_rect r, unsigned flags))
+SURFACE(void, cydui_invalidate, (cydui_ctx *ctx))
 SURFACE(void, cydui_label, (cydui_ui *ui, const char *text))
 SURFACE(size_t, cydui_label_len, (const char *label))
 SURFACE(void, cydui_label_wrapped, (cydui_ui *ui, const char *text))
@@ -161,6 +162,7 @@ CT_ASSERT(CYDUI_DISABLED, (long long)(CYDUI_DISABLED) == 4LL);
 CT_ASSERT(CYDUI_ERR_BAD_ARG, (long long)(CYDUI_ERR_BAD_ARG) == 2LL);
 CT_ASSERT(CYDUI_ERR_BAD_BITMAP, (long long)(CYDUI_ERR_BAD_BITMAP) == 8LL);
 CT_ASSERT(CYDUI_ERR_CMD_OVERFLOW, (long long)(CYDUI_ERR_CMD_OVERFLOW) == 1LL);
+CT_ASSERT(CYDUI_ERR_FRAME_BUDGET, (long long)(CYDUI_ERR_FRAME_BUDGET) == 512LL);
 CT_ASSERT(CYDUI_ERR_ID_COLLISION, (long long)(CYDUI_ERR_ID_COLLISION) == 32LL);
 CT_ASSERT(CYDUI_ERR_LAYOUT, (long long)(CYDUI_ERR_LAYOUT) == 64LL);
 CT_ASSERT(CYDUI_ERR_NO_MEMORY, (long long)(CYDUI_ERR_NO_MEMORY) == 4LL);
@@ -214,9 +216,6 @@ CT_ASSERT(CYDUI_NTS, (long long)(CYDUI_NTS) == -1LL);
 CT_ASSERT(CYDUI_REPLACEMENT_CHAR, (long long)(CYDUI_REPLACEMENT_CHAR) == 65533LL);
 CT_ASSERT(CYDUI_SLIDER_KNOB, (long long)(CYDUI_SLIDER_KNOB) == 20LL);
 CT_ASSERT(CYDUI_SLIDER_TRACK, (long long)(CYDUI_SLIDER_TRACK) == 6LL);
-CT_ASSERT(CYDUI_VERSION_MAJOR, (long long)(CYDUI_VERSION_MAJOR) == 0LL);
-CT_ASSERT(CYDUI_VERSION_MINOR, (long long)(CYDUI_VERSION_MINOR) == 4LL);
-CT_ASSERT(CYDUI_VERSION_PATCH, (long long)(CYDUI_VERSION_PATCH) == 0LL);
 
 /* ---- tunable macros: the name is stable, the default may change ---- */
 
@@ -261,6 +260,15 @@ CT_ASSERT(CYDUI_VERSION_PATCH, (long long)(CYDUI_VERSION_PATCH) == 0LL);
 #endif
 #ifndef CYDUI_STATE_TTL
 #error "CYDUI_STATE_TTL is part of the API"
+#endif
+#ifndef CYDUI_VERSION_MAJOR
+#error "CYDUI_VERSION_MAJOR is part of the API"
+#endif
+#ifndef CYDUI_VERSION_MINOR
+#error "CYDUI_VERSION_MINOR is part of the API"
+#endif
+#ifndef CYDUI_VERSION_PATCH
+#error "CYDUI_VERSION_PATCH is part of the API"
 #endif
 
 /* ---- function-like macros ---- */
@@ -330,6 +338,9 @@ static void structs_have_their_fields(void)
         { size_t *p = &v.strip_mem_size; (void)p; }
         { void * *p = &v.text_mem; (void)p; }
         { size_t *p = &v.text_mem_size; (void)p; }
+        { uint8_t *p = &v.strip_buffers; (void)p; }
+        { void * *p = &v.dirty_mem; (void)p; }
+        { size_t *p = &v.dirty_mem_size; (void)p; }
     }
     {
         cydui_event v;
@@ -482,6 +493,7 @@ static void structs_have_their_fields(void)
         { int16_t *p = &v.tap_slop; (void)p; }
         { uint16_t *p = &v.long_press_ms; (void)p; }
         (void)sizeof(v.thread_id);
+        { uint16_t *p = &v.frame_budget_ms; (void)p; }
     }
     {
         cydui_wstyle v;
@@ -555,6 +567,7 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_id_str);
     TEST_ASSERT_NOT_NULL(surface_cydui_init);
     TEST_ASSERT_NOT_NULL(surface_cydui_interact);
+    TEST_ASSERT_NOT_NULL(surface_cydui_invalidate);
     TEST_ASSERT_NOT_NULL(surface_cydui_label);
     TEST_ASSERT_NOT_NULL(surface_cydui_label_len);
     TEST_ASSERT_NOT_NULL(surface_cydui_label_wrapped);

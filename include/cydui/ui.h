@@ -209,6 +209,13 @@ typedef struct {
     int16_t tap_slop;        /**< pointer travel in pixels that still counts as a tap; 0 = 10 */
     uint16_t long_press_ms;  /**< hold time of a long press; 0 = 500 */
     uintptr_t (*thread_id)(void); /**< optional: identifies the calling task (CT-11) */
+    /**
+     * Optional time budget of a frame in ms (0 = none; needs a clock in the backend). Once a frame
+     * has taken longer since cydui_ui_begin, the widgets that are still to be called do nothing and
+     * CYDUI_ERR_FRAME_BUDGET is raised (CT-15): a screen that is too heavy slows down instead of
+     * starving the rest of the firmware.
+     */
+    uint16_t frame_budget_ms;
 } cydui_ui_config;
 
 /**
@@ -236,7 +243,8 @@ typedef struct cydui_ui {
     bool relayout;   /**< the layout changed shape: ask for another frame */
     uint32_t frame;
     uint16_t widgets;
-    uint16_t tap_slop, long_press_ms;
+    uint16_t tap_slop, long_press_ms, frame_budget_ms;
+    uint32_t frame_start;
     uintptr_t (*thread_id)(void);
     uintptr_t thread;
 } cydui_ui;

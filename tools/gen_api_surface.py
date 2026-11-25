@@ -169,6 +169,9 @@ def main():
     consts = sorted(set(c for c in consts if not PRIVATE_NAMES.search(c)))
     tunables = sorted(set(t for t in tunables if not PRIVATE_NAMES.search(t)))
     fmacros = [m for m in fmacros if not PRIVATE_NAMES.search(m)]
+    # the version changes with every release: only that the macros exist is part of the contract
+    tunables = sorted(set(tunables) | {c for c in consts if c.startswith("CYDUI_VERSION_")})
+    consts = [c for c in consts if not c.startswith("CYDUI_VERSION_")]
     stable = {k: v for k, v in structs.items() if k not in PRIVATE_STRUCTS}
 
     simple = re.compile(r"^(u?int(8|16|32)_t|bool|cydui_color)$")

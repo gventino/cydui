@@ -12,13 +12,19 @@ uint32_t cydui_init(cydui_ctx *ctx, const cydui_config *cfg)
 {
     cydui_arena cmd_arena, strip_arena;
     size_t row_bytes;
-    size_t rows;
+    size_t rows, nbuf;
 
     ctx->backend = NULL;
     ctx->cmds = NULL;
     ctx->strip = NULL;
     ctx->cmd_cap = ctx->cmd_len = 0;
     ctx->strip_h = 0;
+    ctx->strip_pixels = 0;
+    ctx->strip_buffers = 1;
+    ctx->strip_next = 0;
+    ctx->dirty = NULL;
+    ctx->dirty_cap = 0;
+    ctx->dirty_primed = false;
     ctx->errors = 0;
     cydui_arena_init(&ctx->text_arena, NULL, 0);
 
@@ -30,8 +36,12 @@ uint32_t cydui_init(cydui_ctx *ctx, const cydui_config *cfg)
     cydui_arena_init(&cmd_arena, cfg->cmd_mem, cfg->cmd_mem_size);
     cydui_arena_init(&strip_arena, cfg->strip_mem, cfg->strip_mem_size);
 
+    if (cfg->strip_buffers > 2) {
+        return CYDUI_ERR_BAD_ARG;
+    }
+    nbuf = cfg->strip_buffers == 2 ? 2u : 1u;
     row_bytes = (size_t)cfg->backend->width * sizeof(cydui_color);
-    rows = cfg->strip_mem_size / row_bytes;
+    rows = cfg->strip_mem_size / (row_bytes * nbuf);
     if (rows > (size_t)cfg->backend->height) {
         rows = (size_t)cfg->backend->height;
     }
@@ -39,10 +49,22 @@ uint32_t cydui_init(cydui_ctx *ctx, const cydui_config *cfg)
         return CYDUI_ERR_NO_MEMORY;
     }
 
-    ctx->strip = (cydui_color *)cydui_arena_alloc(&strip_arena, rows * row_bytes,
+    ctx->strip = (cydui_color *)cydui_arena_alloc(&strip_arena, rows * row_bytes * nbuf,
                                                   sizeof(cydui_color));
     if (!ctx->strip) {
         return CYDUI_ERR_NO_MEMORY;
+    }
+    ctx->strip_pixels = rows * (size_t)cfg->backend->width;
+    ctx->strip_buffers = (uint8_t)nbuf;
+
+    if (cfg->dirty_mem) {
+        size_t strips = (cfg->backend->height + rows - 1u) / rows;
+        if (cfg->dirty_mem_size / sizeof(uint64_t) < strips ||
+            ((uintptr_t)cfg->dirty_mem & (sizeof(uint64_t) - 1u)) != 0) {
+            return CYDUI_ERR_NO_MEMORY;
+        }
+        ctx->dirty = (uint64_t *)cfg->dirty_mem;
+        ctx->dirty_cap = (uint32_t)strips;
     }
 
     /* Use as many whole commands as fit; alignment padding may cost one slot. */
@@ -75,24 +97,127 @@ void cydui_begin_frame(cydui_ctx *ctx, cydui_color clear)
     ctx->clear = clear;
 }
 
+/* ---- dirty regions: a 64-bit FNV-1a over what can change the pixels of a strip ---- */
+
+#define FNV_BASIS 14695981039346656037ull
+#define FNV_PRIME 1099511628211ull
+
+static uint64_t fnv(uint64_t h, uint32_t v)
+{
+    int i;
+    for (i = 0; i < 4; i++) { /* byte by byte, so that the result does not depend on the host */
+        h = (h ^ ((v >> (8 * i)) & 0xFFu)) * FNV_PRIME;
+    }
+    return h;
+}
+
+static uint64_t fnv_rect(uint64_t h, cydui_rect r)
+{
+    h = fnv(h, (uint32_t)(uint16_t)r.x | ((uint32_t)(uint16_t)r.y << 16));
+    return fnv(h, (uint32_t)(uint16_t)r.w | ((uint32_t)(uint16_t)r.h << 16));
+}
+
+static uint64_t fnv_ptr(uint64_t h, const void *p)
+{
+    uint64_t v = (uint64_t)(uintptr_t)p;
+    return fnv(fnv(h, (uint32_t)v), (uint32_t)(v >> 32));
+}
+
+/* Does the command draw anything in the rows [y, y + h)? A command only draws inside its clip, and,
+ * text apart, inside its rectangle too (text ink may fall outside the box of its line). */
+static bool touches(const cydui_cmd *c, int y, int h)
+{
+    cydui_rect box = c->clip;
+
+    if (c->type != CYDUI_CMD_TEXT) {
+        box = cydui_rect_intersect(c->rect, c->clip);
+    }
+    return box.w > 0 && box.h > 0 && box.y < y + h && box.y + box.h > y;
+}
+
+static uint64_t strip_hash(const cydui_ctx *ctx, int y, int h)
+{
+    uint64_t hash = fnv(FNV_BASIS, ctx->clear);
+    uint32_t k, i;
+
+    for (k = 0; k < ctx->cmd_len; k++) {
+        const cydui_cmd *c = &ctx->cmds[k];
+
+        if (!touches(c, y, h)) {
+            continue;
+        }
+        hash = fnv(hash, (uint32_t)c->type | ((uint32_t)c->alpha << 8));
+        hash = fnv_rect(fnv_rect(hash, c->rect), c->clip);
+        switch ((cydui_cmd_type)c->type) {
+        case CYDUI_CMD_RECT:
+            hash = fnv(hash, c->u.rect.color);
+            break;
+        case CYDUI_CMD_RRECT:
+            hash = fnv(hash, (uint32_t)c->u.rrect.color | ((uint32_t)c->u.rrect.radius << 16) |
+                                 ((uint32_t)c->u.rrect.thickness << 24));
+            break;
+        case CYDUI_CMD_LINE:
+            hash = fnv(hash, (uint32_t)(uint16_t)c->u.line.x0 | ((uint32_t)(uint16_t)c->u.line.y0 << 16));
+            hash = fnv(hash, (uint32_t)(uint16_t)c->u.line.x1 | ((uint32_t)(uint16_t)c->u.line.y1 << 16));
+            hash = fnv(hash, (uint32_t)c->u.line.color | ((uint32_t)c->u.line.thickness << 16));
+            break;
+        case CYDUI_CMD_BITMAP:
+            hash = fnv_ptr(hash, c->u.bitmap.data);
+            hash = fnv(hash, (uint32_t)c->u.bitmap.tint | ((uint32_t)c->u.bitmap.format << 16));
+            break;
+        case CYDUI_CMD_GRADIENT:
+            hash = fnv(hash, (uint32_t)c->u.gradient.c0 | ((uint32_t)c->u.gradient.c1 << 16));
+            hash = fnv(hash, c->u.gradient.vertical);
+            break;
+        case CYDUI_CMD_TEXT:
+            hash = fnv_ptr(hash, c->u.text.font);
+            hash = fnv(hash, (uint32_t)c->u.text.len | ((uint32_t)(uint16_t)c->u.text.wrap << 16));
+            hash = fnv(hash, (uint32_t)c->u.text.color | ((uint32_t)c->u.text.align << 16));
+            for (i = 0; i < c->u.text.len; i++) { /* the string itself: the arena is reused every frame */
+                hash = (hash ^ (uint8_t)c->u.text.str[i]) * FNV_PRIME;
+            }
+            break;
+        }
+    }
+    return hash;
+}
+
+void cydui_invalidate(cydui_ctx *ctx)
+{
+    ctx->dirty_primed = false;
+}
+
 void cydui_end_frame(cydui_ctx *ctx)
 {
     const cydui_backend *be = ctx->backend;
     int16_t y;
+    uint32_t idx = 0;
 
-    for (y = 0; y < be->height; y = (int16_t)(y + ctx->strip_h)) {
+    for (y = 0; y < be->height; y = (int16_t)(y + ctx->strip_h), idx++) {
         int16_t h = ctx->strip_h;
         cydui_rect area;
+        cydui_color *buf;
         if (h > be->height - y) {
             h = (int16_t)(be->height - y);
         }
-        cydui_raster_strip(ctx->cmds, ctx->cmd_len, ctx->strip, be->width, y, h, ctx->clear);
+        if (ctx->dirty) {
+            uint64_t hash = strip_hash(ctx, y, h);
+            bool same = ctx->dirty_primed && ctx->dirty[idx] == hash;
+            ctx->dirty[idx] = hash;
+            if (same) {
+                continue; /* the panel still shows exactly this */
+            }
+        }
+        buf = ctx->strip + (size_t)ctx->strip_next * ctx->strip_pixels;
+        ctx->strip_next = (uint8_t)((ctx->strip_next + 1u) % ctx->strip_buffers);
+        cydui_raster_strip(ctx->cmds, ctx->cmd_len, buf, be->width, y, h, ctx->clear);
         area.x = 0;
         area.y = y;
         area.w = be->width;
         area.h = h;
-        be->flush_strip(be->user, &area, ctx->strip);
+        be->flush_strip(be->user, &area, buf);
     }
+    ctx->dirty_primed = ctx->dirty != NULL;
     if (be->frame_end) {
         be->frame_end(be->user);
     }

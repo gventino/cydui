@@ -28,7 +28,14 @@ typedef struct {
     void *user;
     int16_t width, height;
 
-    /** Receives a rendered area: area->w * area->h pixels, row-major, stride area->w. */
+    /**
+     * Receives a rendered area: area->w * area->h pixels, row-major, stride area->w. With
+     * strip_buffers = 2 (cydui_config) the call may return BEFORE the area has been sent, as long as
+     * the pixels stay untouched until the next call: the core draws the following strip into the
+     * other buffer, and calls flush_strip (or frame_end) only after the previous one is safe to
+     * reuse, which is why this function must not return before the transfer of the PREVIOUS call is
+     * complete. With one buffer the pixels are only valid until this function returns.
+     */
     void (*flush_strip)(void *user, const cydui_rect *area, const cydui_color *pixels);
 
     /** Returns true and fills `ev` if an event is pending. May be NULL. */
@@ -37,7 +44,8 @@ typedef struct {
     /** Monotonic milliseconds. May be NULL (animations are not used before It7). */
     uint32_t (*now_ms)(void *user);
 
-    /** Called after the last strip of a frame (e.g. present the window). May be NULL. */
+    /** Called after the last strip of a frame (e.g. present the window); every transfer must be
+     *  complete when it returns. May be NULL. */
     void (*frame_end)(void *user);
 } cydui_backend;
 
