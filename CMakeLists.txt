@@ -63,14 +63,14 @@ set_target_properties(cydui_mem PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON 
 target_compile_options(cydui_mem PRIVATE ${CYDUI_STRICT_FLAGS})
 
 # Bundled bitmap fonts (SIL OFL, see fonts/LICENSE-OFL.txt). Optional and kept out of the core.
-add_library(cydui_fonts STATIC fonts/cydui_sans_12.c fonts/cydui_sans_16.c fonts/cydui_sans_24.c)
+add_library(cydui_fonts STATIC fonts/cydui_sans_12.c fonts/cydui_sans_16.c fonts/cydui_sans_24.c fonts/cydui_mono_16.c)
 target_include_directories(cydui_fonts PUBLIC fonts)
 target_link_libraries(cydui_fonts PUBLIC cydui)
 set_target_properties(cydui_fonts PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(cydui_fonts PRIVATE ${CYDUI_STRICT_FLAGS})
 
 # The shipped themes (they need the bundled fonts). Optional, like the fonts.
-add_library(cydui_themes STATIC themes/clean.c)
+add_library(cydui_themes STATIC themes/clean.c themes/retro.c)
 target_include_directories(cydui_themes PUBLIC themes)
 target_link_libraries(cydui_themes PUBLIC cydui cydui_fonts)
 set_target_properties(cydui_themes PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)

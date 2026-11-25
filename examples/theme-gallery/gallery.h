@@ -8,7 +8,7 @@
 
 #include "cydui/ui.h"
 
-#define GALLERY_THEMES 3
+#define GALLERY_THEMES 4
 #define GALLERY_TASKS 200
 #define GALLERY_PAGES 6 /* controls, a list, a custom widget, a touch test, an animation, text fields */
 #define GALLERY_CHECKS 4
@@ -27,7 +27,7 @@ typedef struct {
 } gallery_touch;
 
 typedef struct {
-    cydui_theme themes[GALLERY_THEMES]; /* default, clean, clean_dark */
+    cydui_theme themes[GALLERY_THEMES]; /* default, clean, clean_dark, retro */
     int want_theme;                      /* the theme a button asked for */
     int tab;
     bool done[3], wifi, dark, notify;
@@ -54,7 +54,7 @@ typedef enum {
 /** Where the guided test is, and the largest error of the targets so far (`max_px` may be NULL). */
 gallery_accept_state gallery_acceptance(const gallery *g, int *max_px);
 
-/** Builds the themes and sets the state of the first screen: `theme` (0..2) and page `tab` (0..2). */
+/** Builds the themes and sets the state of the first screen: `theme` (0..GALLERY_THEMES - 1) and page `tab` (0..GALLERY_PAGES - 1). */
 void gallery_init(gallery *g, int theme, int tab);
 
 /** The widgets of one frame, between cydui_ui_begin and cydui_ui_end. */

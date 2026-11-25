@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "cydui/font.h"
+#include "cydui_mono_16.h"
 #include "cydui_sans_12.h"
 #include "cydui_sans_16.h"
 #include "cydui_sans_24.h"
@@ -21,6 +22,7 @@ static const entry fonts[] = {
     {"cydui_sans_12", &cydui_sans_12, 14},
     {"cydui_sans_16", &cydui_sans_16, 18},
     {"cydui_sans_24", &cydui_sans_24, 28},
+    {"cydui_mono_16", &cydui_mono_16, 18},
 };
 
 #define N_FONTS (sizeof(fonts) / sizeof(fonts[0]))
@@ -102,7 +104,11 @@ static void test_metrics_are_sane(void)
         TEST_ASSERT_TRUE(space->advance > 0);
         TEST_ASSERT_NOT_NULL(cydui_font_glyph_data(f, a));
         TEST_ASSERT_TRUE(a->top > 0 && a->top <= f->ascent + 1); /* sits on the baseline */
-        TEST_ASSERT_TRUE(i_->advance < w->advance);              /* proportional font */
+        if (f == &cydui_mono_16) {
+            TEST_ASSERT_EQUAL_UINT8(i_->advance, w->advance);    /* monospaced font */
+        } else {
+            TEST_ASSERT_TRUE(i_->advance < w->advance);          /* proportional font */
+        }
     }
     /* sizes are ordered */
     TEST_ASSERT_TRUE(cydui_sans_12.line_height < cydui_sans_16.line_height);

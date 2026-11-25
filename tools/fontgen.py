@@ -29,6 +29,7 @@ HINTING = {
     "light": freetype.FT_LOAD_TARGET_LIGHT,
     "normal": freetype.FT_LOAD_TARGET_NORMAL,
     "none": freetype.FT_LOAD_NO_HINTING,
+    "mono": freetype.FT_LOAD_TARGET_MONO,  # one bit per pixel: crisp, no antialiasing (a bitmap look)
 }
 
 
@@ -86,7 +87,7 @@ def to_nibble(v):
 
 
 def render_glyph(face, cp, flags):
-    face.load_char(chr(cp), flags | freetype.FT_LOAD_RENDER)
+    face.load_char(chr(cp), flags | freetype.FT_LOAD_RENDER)  # TARGET_MONO renders a 1-bit bitmap
     slot = face.glyph
     bm = slot.bitmap
     w, h = bm.width, bm.rows
@@ -99,10 +100,15 @@ def render_glyph(face, cp, flags):
         raise ValueError(f"U+{cp:04X}: bitmap {w}x{h} too large")
     if not (-128 <= slot.bitmap_left <= 127 and -128 <= slot.bitmap_top <= 127):
         raise ValueError(f"U+{cp:04X}: bearing out of range")
-    if bm.pixel_mode != freetype.FT_PIXEL_MODE_GRAY:
-        raise ValueError(f"U+{cp:04X}: unexpected pixel mode {bm.pixel_mode}")
     buf = bm.buffer
-    rows = [[to_nibble(buf[y * bm.pitch + x]) for x in range(w)] for y in range(h)]
+    if bm.pixel_mode == freetype.FT_PIXEL_MODE_MONO:  # most significant bit first
+        rows = [[15 if buf[y * bm.pitch + x // 8] & (0x80 >> (x % 8)) else 0 for x in range(w)] for y in range(h)]
+    elif bm.pixel_mode == freetype.FT_PIXEL_MODE_GRAY:
+        rows = [[to_nibble(buf[y * bm.pitch + x]) for x in range(w)] for y in range(h)]
+    else:
+        raise ValueError(f"U+{cp:04X}: unexpected pixel mode {bm.pixel_mode}")
+    if not any(any(r) for r in rows):  # a blank bitmap (a space in a 1-bit rendering) is just an advance
+        return Glyph(cp, 0, 0, 0, 0, advance, [])
     return Glyph(cp, w, h, slot.bitmap_left, slot.bitmap_top, advance, rows)
 
 

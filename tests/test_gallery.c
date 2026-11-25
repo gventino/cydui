@@ -182,6 +182,29 @@ static void test_the_animation_moves_with_the_frames_and_the_pages_are_all_reach
     }
 }
 
+/* The firmware keeps 320 commands (examples/theme-gallery/idf): every page of every theme, the keyboard too, must fit. */
+static void test_every_page_of_every_theme_fits_in_the_commands_of_the_firmware(void)
+{
+    int t, p;
+    for (t = 0; t < GALLERY_THEMES; t++) {
+        for (p = 0; p < GALLERY_PAGES; p++) {
+            TEST_ASSERT_EQUAL_UINT32(0, rig_init(&rig));
+            gallery_init(&g, t, p);
+            TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&rig.ui, &g.themes[t]));
+            settle();
+            TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
+            TEST_ASSERT_TRUE_MESSAGE(cydui_cmd_count(&rig.ui.ctx) <= 320, g.themes[t].name);
+            if (p == 5) { /* the text page with the keyboard open */
+                tap(160, 64);
+                settle();
+                TEST_ASSERT_TRUE(cydui_has_focus(&rig.ui));
+                TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
+                TEST_ASSERT_TRUE_MESSAGE(cydui_cmd_count(&rig.ui.ctx) <= 320, g.themes[t].name);
+            }
+        }
+    }
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -191,5 +214,6 @@ int main(void)
     RUN_TEST(test_the_calibrate_button_asks_the_platform_and_the_other_pages_do_not);
     RUN_TEST(test_the_text_page_edits_three_texts_and_clears_them_after_a_confirmation);
     RUN_TEST(test_the_animation_moves_with_the_frames_and_the_pages_are_all_reachable);
+    RUN_TEST(test_every_page_of_every_theme_fits_in_the_commands_of_the_firmware);
     return UNITY_END();
 }

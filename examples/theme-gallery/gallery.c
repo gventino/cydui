@@ -6,7 +6,7 @@
 #include "gallery.h"
 #include "rating.h"
 
-static const char *const theme_names[GALLERY_THEMES] = {"Padrao", "Claro", "Escuro"};
+static const char *const theme_names[GALLERY_THEMES] = {"Base", "Claro", "Noite", "Retro"};
 
 void gallery_init(gallery *g, int theme, int tab)
 {
@@ -15,6 +15,7 @@ void gallery_init(gallery *g, int theme, int tab)
     g->themes[0].name = "default";
     cydui_theme_init_clean(&g->themes[1]);
     cydui_theme_init_clean_dark(&g->themes[2]);
+    cydui_theme_init_retro(&g->themes[3]);
     g->want_theme = theme < 0 ? 0 : (theme >= GALLERY_THEMES ? GALLERY_THEMES - 1 : theme);
     g->tab = tab < 0 ? 0 : (tab >= GALLERY_PAGES ? GALLERY_PAGES - 1 : tab);
     g->stars[0] = 3;
@@ -214,7 +215,6 @@ void gallery_frame(cydui_ui *ui, gallery *app)
     static const char *const tabs[GALLERY_PAGES] = {"Itens", "Lista", "Notas", "Toque", "Anim.", "Texto"};
     char text[48];
     bool locked = true;
-    int i;
 
     app->frame++;
     cydui_tabs(ui, tabs, GALLERY_PAGES, &app->tab);
@@ -243,15 +243,7 @@ void gallery_frame(cydui_ui *ui, gallery *app)
         }
         return;
     }
-    CYDUI_ROW(ui) {
-        for (i = 0; i < GALLERY_THEMES; i++) {
-            cydui_push_id_int(ui, i);
-            if (cydui_button(ui, theme_names[i])) {
-                app->want_theme = i;
-            }
-            cydui_pop_id(ui);
-        }
-    }
+    cydui_tabs(ui, theme_names, GALLERY_THEMES, &app->want_theme); /* the theme in use, and a tap picks another */
     CYDUI_ROW(ui) {
         cydui_next_width(ui, 150);
         CYDUI_COLUMN(ui) {

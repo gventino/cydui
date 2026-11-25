@@ -7,7 +7,9 @@ idf_component_register(
          ${CYDUI_ROOT}/examples/theme-gallery/gallery.c
          ${CYDUI_ROOT}/examples/theme-gallery/rating.c
          ${CYDUI_ROOT}/themes/clean.c
+         ${CYDUI_ROOT}/themes/retro.c
          ${CYDUI_ROOT}/fonts/cydui_sans_16.c
+         ${CYDUI_ROOT}/fonts/cydui_mono_16.c
     INCLUDE_DIRS . ${CYDUI_ROOT}/examples/theme-gallery ${CYDUI_ROOT}/themes ${CYDUI_ROOT}/fonts
     REQUIRES ${CYDUI_COMPONENT} nvs_flash esp_timer esp_system
 )

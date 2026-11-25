@@ -357,8 +357,8 @@ static void text_selftest(void)
 #if CONFIG_GALLERY_MEMORY_REPORT && !CONFIG_GALLERY_ACCEPTANCE
 static void memory_report(void)
 {
-    printf("GALLERY_MEMORY bytes: ui_storage=%u strips=%u dirty=%u gallery(3 themes)=%u cydui_ui=%u cydui_esp32=%u cydui_theme=%u cydui_state=%u\n",
-           (unsigned)sizeof(storage), (unsigned)sizeof(strips), (unsigned)sizeof(dirty), (unsigned)sizeof(g), (unsigned)sizeof(ui),
+    printf("GALLERY_MEMORY bytes: ui_storage=%u strips=%u dirty=%u gallery(%d themes)=%u cydui_ui=%u cydui_esp32=%u cydui_theme=%u cydui_state=%u\n",
+           (unsigned)sizeof(storage), (unsigned)sizeof(strips), (unsigned)sizeof(dirty), GALLERY_THEMES, (unsigned)sizeof(g), (unsigned)sizeof(ui),
            (unsigned)sizeof(dev), (unsigned)sizeof(cydui_theme), (unsigned)sizeof(cydui_state));
     printf("GALLERY_MEMORY heap: internal_free=%u largest_block=%u minimum_ever=%u\n",
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
