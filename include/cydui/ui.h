@@ -529,6 +529,16 @@ bool cydui_tabs(cydui_ui *ui, const char *const *labels, int count, int *selecte
  */
 unsigned cydui_text_input(cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, unsigned flags);
 
+/**
+ * A text area: several lines of text that wrap at the width of the area, edited in `buf` like cydui_text_input.
+ * `rows` is how many lines show at once (1 to 16), the area is as wide as the room it has and as tall as the rows
+ * need; the text scrolls by lines to keep the cursor in view. A tap puts the cursor on the line and the character
+ * it is nearest to. Enter inserts a newline (there is nothing to confirm: the application closes the field), Up
+ * and Down move between the wrapped lines, Home and End go to the start and the end of the line as it is shown.
+ * `flags` is reserved (0). Returns CYDUI_TEXT_CHANGED when the text changed.
+ */
+unsigned cydui_text_area(cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, int rows, unsigned flags);
+
 /** Gives the focus to the field with this label (in the current id scope), or to nothing if `label` is NULL. */
 void cydui_focus_set(cydui_ui *ui, const char *label);
 

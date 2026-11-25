@@ -100,6 +100,33 @@ static void draw_bullets(cydui_ui *ui, cydui_rect box, int x, int y, size_t coun
     }
 }
 
+/* The refusal of a key outlines the field for a moment: s->c is "active", s->d the deadline (ms, or frames with no
+ * clock). Returns whether the outline is on in this frame, and asks for another frame while it is. */
+static bool attention_step(cydui_ui *ui, cydui_state *s, bool full)
+{
+    const cydui_input *in = &ui->in;
+    bool on = false;
+
+    if (full) {
+        s->c = 1;
+        s->d = in->has_clock ? (int32_t)(in->now + ATTENTION_MS) : ATTENTION_FRAMES;
+    }
+    if (s->c) {
+        if (in->has_clock) {
+            on = (int32_t)((uint32_t)s->d - in->now) > 0;
+        } else {
+            on = s->d > 0;
+            s->d -= on ? 1 : 0;
+        }
+        if (on) {
+            ui->relayout = true; /* another frame, to see it end */
+        } else {
+            s->c = 0;
+        }
+    }
+    return on;
+}
+
 unsigned cydui_text_input(cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, unsigned flags)
 {
     cydui_mods m = cydui_take_mods(ui);
@@ -115,7 +142,7 @@ unsigned cydui_text_input(cydui_ui *ui, const char *label, char *buf, size_t cap
     measure ms;
     size_t hint_n, len, cur, i, first = 0, start = 0;
     int h, total, cursor_x, scroll, x0 = 0, ty;
-    bool disabled, focused, attention = false, full = false;
+    bool disabled, focused, attention, full = false;
     unsigned result = 0;
 
     if (!cydui_widget_begin(ui)) {
@@ -208,24 +235,7 @@ unsigned cydui_text_input(cydui_ui *ui, const char *label, char *buf, size_t cap
         len = cydui_textedit_len(buf, cap);
     }
 
-    /* the refusal of a key outlines the field for a moment: s->c is "active", s->d the deadline (ms or frames) */
-    if (full) {
-        s->c = 1;
-        s->d = in->has_clock ? (int32_t)(in->now + ATTENTION_MS) : ATTENTION_FRAMES;
-    }
-    if (s->c) {
-        if (in->has_clock) {
-            attention = (int32_t)((uint32_t)s->d - in->now) > 0;
-        } else {
-            attention = s->d > 0;
-            s->d -= attention ? 1 : 0;
-        }
-        if (attention) {
-            ui->relayout = true; /* another frame, to see it end */
-        } else {
-            s->c = 0;
-        }
-    }
+    attention = attention_step(ui, s, full);
 
     /* where the cursor is, and what part of the text shows */
     cursor_x = x_of(&ms, buf, len, cur, &total);
@@ -283,6 +293,313 @@ unsigned cydui_text_input(cydui_ui *ui, const char *label, char *buf, size_t cap
         cydui_draw_rect(&ui->ctx, (cydui_rect){(int16_t)(inner.x + cursor_x - scroll), (int16_t)(r.y + 6), CURSOR_W,
                                                (int16_t)(r.h > 12 ? r.h - 12 : r.h)},
                         w->accent, 255);
+    }
+    return result;
+}
+
+/* ---- the text area ---- */
+
+#define AREA_PAD_Y 6
+#define AREA_MAX_ROWS 16
+
+/* One line as it is shown. [start, next) is what belongs to it for the cursor: the bytes up to the start of the next
+ * line (the newline, or the spaces a wrap skipped, are the end of this one). */
+typedef struct {
+    size_t start, end, next;
+    int width;
+} vline;
+
+typedef struct {
+    const cydui_font *font;
+    const char *buf;
+    size_t len, pos;
+    int wrap;
+    bool tail_done;
+} liter;
+
+static void liter_init(liter *l, const cydui_font *font, const char *buf, size_t len, int wrap)
+{
+    l->font = font;
+    l->buf = buf;
+    l->len = len;
+    l->wrap = wrap;
+    l->pos = 0;
+    l->tail_done = false;
+}
+
+/* Lines of the whole text, however long: each one is found in a window of at most CYDUI_MAX_STR bytes that starts
+ * where it does. After a final newline, and for an empty text, there is one more, empty line, where the cursor can be. */
+static bool liter_next(liter *l, vline *out)
+{
+    cydui_text_iter it;
+    cydui_text_line ln;
+    bool truncated;
+    size_t n;
+
+    if (l->pos >= l->len) {
+        if (l->tail_done || !(l->len == 0 || l->buf[l->len - 1] == '\n')) {
+            return false;
+        }
+        l->tail_done = true;
+        out->start = out->end = l->len;
+        out->next = l->len + 1u;
+        out->width = 0;
+        return true;
+    }
+    n = cydui_text_clip_len(l->buf + l->pos, l->len - l->pos, &truncated);
+    cydui_text_iter_init(&it, l->font, l->buf + l->pos, n, (int16_t)l->wrap);
+    if (!cydui_text_next_line(&it, &ln)) { /* cannot happen: there is a byte; but never loop */
+        l->pos = l->len;
+        return false;
+    }
+    out->start = l->pos + ln.start;
+    out->end = l->pos + ln.end;
+    out->width = ln.width;
+    l->pos += it.pos;
+    out->next = l->pos;
+    if (l->pos >= l->len && !(l->buf[l->len - 1] == '\n')) {
+        out->next = l->len + 1u; /* the last line owns the end of the text */
+    }
+    return true;
+}
+
+typedef struct {
+    size_t total;      /* lines, counting the empty one at the end */
+    size_t cursor_line;
+} scan_t;
+
+static void scan(const measure *m, const char *buf, size_t len, int wrap, size_t cur, scan_t *out)
+{
+    liter l;
+    vline v;
+    size_t i = 0;
+
+    out->total = 0;
+    out->cursor_line = 0;
+    liter_init(&l, m->font, buf, len, wrap);
+    while (liter_next(&l, &v)) {
+        if (cur >= v.start && cur < v.next) {
+            out->cursor_line = i;
+        }
+        i++;
+    }
+    out->total = i;
+}
+
+static bool line_at(const measure *m, const char *buf, size_t len, int wrap, size_t idx, vline *out)
+{
+    liter l;
+    size_t i = 0;
+
+    liter_init(&l, m->font, buf, len, wrap);
+    while (liter_next(&l, out)) {
+        if (i++ == idx) {
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned cydui_text_area(cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, int rows, unsigned flags)
+{
+    cydui_mods m = cydui_take_mods(ui);
+    const cydui_style *st = &ui->theme->style;
+    cydui_input *in = &ui->in;
+    cydui_state own, *s;
+    cydui_id id;
+    cydui_response resp;
+    cydui_rect r, inner;
+    cydui_paint_info pi;
+    const cydui_wstyle *w;
+    measure ms;
+    scan_t sc;
+    vline v;
+    size_t hint_n, len, cur, i;
+    int lh, wrap, top, row, cx = 0;
+    bool disabled, focused, attention, full = false;
+    unsigned result = 0;
+
+    (void)flags;
+    if (!cydui_widget_begin(ui)) {
+        return 0;
+    }
+    label = label ? label : "";
+    id = cydui_id_str(ui, label);
+    cydui_id_claim(ui, id);
+    hint_n = cydui_label_len(label);
+    rows = rows < 1 ? 1 : (rows > AREA_MAX_ROWS ? AREA_MAX_ROWS : rows);
+    ms.font = st->font;
+    ms.password = false;
+    ms.bullet_w = 0;
+    lh = st->font->line_height ? st->font->line_height : 1;
+    r = cydui_alloc(ui, &m, cydui_layout_avail(ui).w, rows * lh + 2 * AREA_PAD_Y);
+    inner.x = (int16_t)(r.x + FIELD_PAD);
+    inner.y = (int16_t)(r.y + AREA_PAD_Y);
+    inner.w = (int16_t)(r.w > 2 * FIELD_PAD ? r.w - 2 * FIELD_PAD : 0);
+    inner.h = (int16_t)(rows * lh);
+    wrap = inner.w > CURSOR_W ? inner.w - CURSOR_W : 1;
+
+    disabled = m.disabled || !buf || cap == 0;
+    s = cydui_state_get(ui, id, true);
+    if (!s) {
+        memset(&own, 0, sizeof(own));
+        s = &own;
+    }
+    cur = s->a < 0 ? 0 : (size_t)s->a;
+    top = s->b < 0 ? 0 : s->b;
+    if (buf && cap > 0) {
+        cydui_textedit_normalize(buf, cap, &cur);
+        len = cydui_textedit_len(buf, cap);
+    } else {
+        cur = 0;
+        len = 0;
+    }
+
+    resp = cydui_interact(ui, id, r, CYDUI_SENSE_CLICK | (disabled ? CYDUI_DISABLED : 0u));
+    if (resp.pressed) {
+        ui->focus_claimed = true;
+    }
+    if (resp.clicked) {
+        size_t idx = (size_t)top + (size_t)((resp.y > inner.y ? resp.y - inner.y : 0) / lh);
+
+        ui->focus = id;
+        scan(&ms, buf, len, wrap, cur, &sc);
+        if (idx >= sc.total) {
+            idx = sc.total ? sc.total - 1u : 0;
+        }
+        if (line_at(&ms, buf, len, wrap, idx, &v)) {
+            cur = v.start + at_of(&ms, buf + v.start, v.end - v.start, resp.x - inner.x);
+        }
+    }
+    focused = !disabled && cydui_id_eq(ui->focus, id);
+    if (focused) {
+        ui->focus_seen = true;
+        for (i = 0; i < in->k_len; i++) {
+            const cydui_event *ev = &in->keys[i];
+            unsigned res = 0;
+            bool stop = false;
+
+            if (ev->type == CYDUI_EVENT_CHAR) {
+                res = cydui_textedit_insert(buf, cap, &cur, ev->key, CYDUI_EDIT_MULTILINE, max_chars);
+            } else {
+                switch ((cydui_key)ev->key) {
+                case CYDUI_KEY_ENTER: res = cydui_textedit_insert(buf, cap, &cur, '\n', CYDUI_EDIT_MULTILINE, max_chars); break;
+                case CYDUI_KEY_BACKSPACE: res = cydui_textedit_backspace(buf, cap, &cur); break;
+                case CYDUI_KEY_DELETE: res = cydui_textedit_delete(buf, cap, &cur); break;
+                case CYDUI_KEY_LEFT: res = cydui_textedit_move(buf, cap, &cur, CYDUI_MOVE_LEFT, 0); break;
+                case CYDUI_KEY_RIGHT: res = cydui_textedit_move(buf, cap, &cur, CYDUI_MOVE_RIGHT, 0); break;
+                case CYDUI_KEY_HOME:
+                case CYDUI_KEY_END:
+                    len = cydui_textedit_len(buf, cap);
+                    scan(&ms, buf, len, wrap, cur, &sc);
+                    if (line_at(&ms, buf, len, wrap, sc.cursor_line, &v)) {
+                        cur = ev->key == CYDUI_KEY_HOME ? v.start : v.end;
+                    }
+                    break;
+                case CYDUI_KEY_UP:
+                case CYDUI_KEY_DOWN: {
+                    int x;
+                    size_t to;
+
+                    len = cydui_textedit_len(buf, cap);
+                    scan(&ms, buf, len, wrap, cur, &sc);
+                    if (!line_at(&ms, buf, len, wrap, sc.cursor_line, &v)) {
+                        break;
+                    }
+                    x = x_of(&ms, buf + v.start, cur - v.start, cur - v.start, NULL);
+                    to = ev->key == CYDUI_KEY_UP ? sc.cursor_line - 1u : sc.cursor_line + 1u;
+                    if ((ev->key == CYDUI_KEY_UP && sc.cursor_line == 0) || to >= sc.total) {
+                        break;
+                    }
+                    if (line_at(&ms, buf, len, wrap, to, &v)) {
+                        cur = v.start + at_of(&ms, buf + v.start, v.end - v.start, x);
+                    }
+                    break;
+                }
+                case CYDUI_KEY_ESCAPE:
+                    stop = true;
+                    break;
+                default:
+                    break;
+                }
+            }
+            if (res & CYDUI_EDIT_TEXT) {
+                result |= CYDUI_TEXT_CHANGED;
+            }
+            if (res & CYDUI_EDIT_FULL) {
+                full = true;
+            }
+            if (stop) {
+                memset(&ui->focus, 0, sizeof(ui->focus));
+                focused = false;
+                break;
+            }
+        }
+        in->k_len = 0;
+    }
+    len = (buf && cap > 0) ? cydui_textedit_len(buf, cap) : 0;
+    attention = attention_step(ui, s, full);
+
+    /* keep the cursor line in view */
+    scan(&ms, buf ? buf : "", len, wrap, cur, &sc);
+    if ((size_t)top > sc.cursor_line) {
+        top = (int)sc.cursor_line;
+    }
+    if (sc.cursor_line >= (size_t)top + (size_t)rows) {
+        top = (int)(sc.cursor_line - (size_t)rows + 1u);
+    }
+    if (sc.total <= (size_t)rows) {
+        top = 0;
+    } else if ((size_t)top > sc.total - (size_t)rows) {
+        top = (int)(sc.total - (size_t)rows);
+    }
+    s->a = (int32_t)cur;
+    s->b = top;
+
+    memset(&pi, 0, sizeof(pi));
+    pi.kind = CYDUI_WIDGET_TEXT_INPUT;
+    pi.state = disabled ? CYDUI_STATE_DISABLED : (focused ? CYDUI_STATE_FOCUSED : CYDUI_STATE_NORMAL);
+    pi.selected = attention;
+    pi.rect = r;
+    cydui_paint(ui, &pi);
+    w = cydui_wstyle_of(ui, CYDUI_WIDGET_TEXT_INPUT, pi.state, attention);
+
+    if (len == 0) {
+        if (hint_n) {
+            cydui_draw_text_in(ui, inner, inner.x, inner.y, label, hint_n, st->text_muted);
+        }
+    } else {
+        liter l;
+        size_t idx = 0;
+
+        liter_init(&l, st->font, buf, len, wrap);
+        while (liter_next(&l, &v)) {
+            row = (int)idx - top;
+            if (row >= rows) {
+                break;
+            }
+            if (row >= 0 && v.end > v.start) {
+                size_t n = v.end - v.start;
+                cydui_draw_text_in(ui, inner, inner.x, (int)inner.y + row * lh, buf + v.start, n > CYDUI_MAX_STR ? CYDUI_MAX_STR : n,
+                                   w->text);
+            }
+            if (idx == sc.cursor_line) {
+                cx = x_of(&ms, buf + v.start, cur > v.start ? cur - v.start : 0, cur > v.start ? cur - v.start : 0, NULL);
+            }
+            idx++;
+        }
+    }
+    if (focused) {
+        int x = cx > inner.w - CURSOR_W ? inner.w - CURSOR_W : cx;
+
+        row = (int)sc.cursor_line - top;
+        if (len == 0) {
+            x = 0;
+        }
+        if (row >= 0 && row < rows) {
+            cydui_draw_rect(&ui->ctx, (cydui_rect){(int16_t)(inner.x + x), (int16_t)(inner.y + row * lh), CURSOR_W, (int16_t)lh},
+                            w->accent, 255);
+        }
     }
     return result;
 }

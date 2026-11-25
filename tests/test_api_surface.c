@@ -141,6 +141,7 @@ SURFACE(uint32_t, cydui_ui_errors, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_frame, (const cydui_ui *ui))
 SURFACE(uint32_t, cydui_ui_init, (cydui_ui *ui, const cydui_ui_config *cfg))
 SURFACE(unsigned, cydui_text_input, (cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, unsigned flags))
+SURFACE(unsigned, cydui_text_area, (cydui_ui *ui, const char *label, char *buf, size_t cap, size_t max_chars, int rows, unsigned flags))
 SURFACE(void, cydui_focus_set, (cydui_ui *ui, const char *label))
 SURFACE(void, cydui_focus_clear, (cydui_ui *ui))
 SURFACE(bool, cydui_has_focus, (const cydui_ui *ui))
@@ -667,6 +668,7 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_frame);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_init);
     TEST_ASSERT_NOT_NULL(surface_cydui_text_input);
+    TEST_ASSERT_NOT_NULL(surface_cydui_text_area);
     TEST_ASSERT_NOT_NULL(surface_cydui_focus_set);
     TEST_ASSERT_NOT_NULL(surface_cydui_focus_clear);
     TEST_ASSERT_NOT_NULL(surface_cydui_has_focus);

@@ -564,6 +564,35 @@ static void test_clean_text_refused(void) { text_golden("clean_text_refused", fa
 static void test_clean_dark_text(void) { text_golden("clean_dark_text", true, false); }
 static void test_clean_dark_text_refused(void) { text_golden("clean_dark_text_refused", true, true); }
 
+/* A text area with a wrapped paragraph and a newline, the cursor in the second row. */
+static void textarea_golden(const char *name, bool dark)
+{
+    static char notes[200];
+    cydui_theme *th = dark ? &th_dark : &th_light;
+    int i, y;
+
+    strcpy(notes, "Comprar pao, leite e cafe\nLigar para o medico amanha cedo e marcar a consulta da semana que vem");
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    cydui_theme_init_clean(&th_light);
+    cydui_theme_init_clean_dark(&th_dark);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
+    y = 8 + 6 + th->style.font->line_height * 3 / 2; /* the middle of the second row */
+    for (i = 0; i < 6; i++) {
+        cydui_ui_begin(&ui_rig.ui, th->style.bg);
+        cydui_text_area(&ui_rig.ui, "Notas", notes, sizeof(notes), 0, 4, 0);
+        cydui_text_area(&ui_rig.ui, "Escreva aqui##vazio", notes + 199, 1, 0, 2, 0); /* no room: shows its hint, disabled */
+        cydui_ui_end(&ui_rig.ui);
+        if (i == 1) {
+            rig_down(&ui_rig, 150, y);
+            rig_up(&ui_rig, 150, y);
+        }
+    }
+    golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+static void test_clean_textarea(void) { textarea_golden("clean_textarea", false); }
+static void test_clean_dark_textarea(void) { textarea_golden("clean_dark_textarea", true); }
+
 static void scroll_golden(const char *name, bool list, int32_t y)
 {
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
@@ -701,6 +730,8 @@ int main(void)
     RUN_TEST(test_clean_text_refused);
     RUN_TEST(test_clean_dark_text);
     RUN_TEST(test_clean_dark_text_refused);
+    RUN_TEST(test_clean_textarea);
+    RUN_TEST(test_clean_dark_textarea);
     RUN_TEST(test_clean_rating);
     RUN_TEST(test_goldens_do_not_depend_on_strip_height);
     return UNITY_END();
