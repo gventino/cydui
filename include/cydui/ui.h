@@ -71,6 +71,7 @@ typedef struct {
     uint16_t c;
 } cydui_id;
 
+/** Do two ids name the same widget? Both the hash and the check value must match. */
 static inline bool cydui_id_eq(cydui_id a, cydui_id b)
 {
     return a.h == b.h && a.c == b.c;
