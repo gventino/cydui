@@ -2,5 +2,5 @@
 
 const char *cydui_version(void)
 {
-    return "0.0.0";
+    return CYDUI_VERSION_STRING;
 }

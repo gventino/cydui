@@ -12,7 +12,16 @@
 extern "C" {
 #endif
 
-/** Returns the library version as a static "MAJOR.MINOR.PATCH" string. */
+/**
+ * The version of the library. Until 1.0 a new MINOR may change the API (docs/11-api.md says how that
+ * is announced); a new PATCH never does.
+ */
+#define CYDUI_VERSION_MAJOR 0
+#define CYDUI_VERSION_MINOR 4
+#define CYDUI_VERSION_PATCH 0
+#define CYDUI_VERSION_STRING "0.4.0"
+
+/** Returns the library version as a static "MAJOR.MINOR.PATCH" string (CYDUI_VERSION_STRING). */
 const char *cydui_version(void);
 
 /** Everything cydui_init needs; all memory is provided by the caller. */

@@ -98,7 +98,10 @@ typedef struct {
     bool disabled; /**< the widget does not react and is drawn dimmed */
 } cydui_mods;
 
-/** One open container: where it starts, how much room it has, and where its next child goes. */
+/**
+ * One open container: where it starts, how much room it has, and where its next child goes.
+ * PRIVATE: it is declared here only because cydui_ui holds an array of them. Not part of the API.
+ */
 typedef struct {
     uint8_t kind;
     int16_t x0, y0;        /**< top-left corner */
@@ -163,7 +166,10 @@ typedef struct {
                             in the frame of the release); 0 for every other widget */
 } cydui_response;
 
-/** Pointer state and the events waiting for the next frame. Read it, do not write it. */
+/**
+ * Pointer state and the events waiting for the next frame.
+ * PRIVATE: the application learns what the touch did from cydui_response, not from here. Not part of the API.
+ */
 typedef struct {
     cydui_event queue[CYDUI_EVENT_QUEUE];
     uint8_t q_len;
@@ -205,7 +211,13 @@ typedef struct {
     uintptr_t (*thread_id)(void); /**< optional: identifies the calling task (CT-11) */
 } cydui_ui_config;
 
+/**
+ * The state of one UI. The application provides the storage (see CYDUI_STORAGE), hands the pointer to the
+ * functions of this header and to nothing else: THE FIELDS ARE PRIVATE and may change in any version
+ * (docs/11-api.md). Only the size of the struct is something the application depends on, through sizeof.
+ */
 typedef struct cydui_ui {
+    /* ---- private from here ---- */
     cydui_ctx ctx;
     const cydui_theme *theme;
     cydui_state *state;
