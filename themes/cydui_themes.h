@@ -22,6 +22,13 @@ void cydui_theme_init_clean_dark(cydui_theme *t);
  */
 void cydui_theme_init_retro(cydui_theme *t);
 
+/**
+ * "cyberpunk": a near black page, neon cyan and magenta, glowing controls, and a post-effect with
+ * scanlines, a short glitch every few seconds and a sweep that draws the screen when the theme comes in
+ * (it needs a clock in the backend; cydui_set_effects_level turns it down). 16 px body font.
+ */
+void cydui_theme_init_cyberpunk(cydui_theme *t);
+
 #ifdef __cplusplus
 }
 #endif

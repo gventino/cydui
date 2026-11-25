@@ -519,12 +519,33 @@ static void test_clean_card(void)
     golden_check_mem("clean_card", &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
 }
 
+/* Which theme a golden of the text, popup and keyboard pages shows: 0 clean, 1 clean_dark, 2 retro, 3 cyberpunk. The
+ * cyberpunk one follows the clock, so its frames are 150 ms apart (the sweep of its entrance is over after the third). */
+static cydui_theme th_retro, th_cyber;
+static unsigned golden_ms;
+
+static cydui_theme *pick_theme(int which)
+{
+    cydui_theme_init_clean(&th_light);
+    cydui_theme_init_clean_dark(&th_dark);
+    cydui_theme_init_retro(&th_retro);
+    cydui_theme_init_cyberpunk(&th_cyber);
+    golden_ms = which == 3 ? 150u : 0u;
+    return which == 3 ? &th_cyber : (which == 2 ? &th_retro : (which == 1 ? &th_dark : &th_light));
+}
+
+static void golden_end(void)
+{
+    cydui_ui_end(&ui_rig.ui);
+    rig_advance(&ui_rig, golden_ms);
+}
+
 /* The text fields in a theme: a hint, a text, a password, a disabled one and, with the focus, the last one (a limit of
  * three characters, and with `refuse` a fourth typed one that was turned down). */
-static void text_golden(const char *name, bool dark, bool refuse)
+static void text_golden(const char *name, int which, bool refuse)
 {
     static char a[32], b[32], c[32], d[32], e[32];
-    cydui_theme *th = dark ? &th_dark : &th_light;
+    cydui_theme *th = pick_theme(which);
     int i;
 
     memset(a, 0, sizeof(a));
@@ -533,8 +554,6 @@ static void text_golden(const char *name, bool dark, bool refuse)
     strcpy(c, "segredo");
     strcpy(d, "Nao editavel");
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
-    cydui_theme_init_clean(&th_light);
-    cydui_theme_init_clean_dark(&th_dark);
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
     cydui_keyboard_enable(&ui_rig.ui, false); /* the fields alone: the keyboard has its own goldens */
     for (i = 0; i < 6; i++) {
@@ -545,7 +564,7 @@ static void text_golden(const char *name, bool dark, bool refuse)
         cydui_next_disabled(&ui_rig.ui);
         cydui_text_input(&ui_rig.ui, "##d", d, sizeof(d), 0, 0);
         cydui_text_input(&ui_rig.ui, "##e", e, sizeof(e), 3, 0);
-        cydui_ui_end(&ui_rig.ui);
+        golden_end();
         if (i == 1) { /* tap the last field: it has the focus from the frame after the release */
             rig_down(&ui_rig, 15, 180);
             rig_up(&ui_rig, 15, 180);
@@ -566,16 +585,14 @@ static void test_clean_dark_text(void) { text_golden("clean_dark_text", true, fa
 static void test_clean_dark_text_refused(void) { text_golden("clean_dark_text_refused", true, true); }
 
 /* A text area with a wrapped paragraph and a newline, the cursor in the second row. */
-static void textarea_golden(const char *name, bool dark)
+static void textarea_golden(const char *name, int which)
 {
     static char notes[200];
-    cydui_theme *th = dark ? &th_dark : &th_light;
+    cydui_theme *th = pick_theme(which);
     int i, y;
 
     strcpy(notes, "Comprar pao, leite e cafe\nLigar para o medico amanha cedo e marcar a consulta da semana que vem");
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
-    cydui_theme_init_clean(&th_light);
-    cydui_theme_init_clean_dark(&th_dark);
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
     cydui_keyboard_enable(&ui_rig.ui, false);
     y = 8 + 6 + th->style.font->line_height * 3 / 2; /* the middle of the second row */
@@ -583,7 +600,7 @@ static void textarea_golden(const char *name, bool dark)
         cydui_ui_begin(&ui_rig.ui, th->style.bg);
         cydui_text_area(&ui_rig.ui, "Notas", notes, sizeof(notes), 0, 4, 0);
         cydui_text_area(&ui_rig.ui, "Escreva aqui##vazio", notes + 199, 1, 0, 2, 0); /* no room: shows its hint, disabled */
-        cydui_ui_end(&ui_rig.ui);
+        golden_end();
         if (i == 1) {
             rig_down(&ui_rig, 150, y);
             rig_up(&ui_rig, 150, y);
@@ -596,17 +613,15 @@ static void test_clean_textarea(void) { textarea_golden("clean_textarea", false)
 static void test_clean_dark_textarea(void) { textarea_golden("clean_dark_textarea", true); }
 
 /* A confirmation over a page: the dimming, the panel with its shadow and the content in a column. */
-static void popup_scene(bool dark)
+static void popup_scene(int which)
 {
-    cydui_theme *th = dark ? &th_dark : &th_light;
+    cydui_theme *th = pick_theme(which);
     bool open = true;
     int32_t v = 60;
     bool on = true;
     int i;
 
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
-    cydui_theme_init_clean(&th_light);
-    cydui_theme_init_clean_dark(&th_dark);
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
     for (i = 0; i < 4; i++) {
         cydui_ui_begin(&ui_rig.ui, th->style.bg);
@@ -622,13 +637,13 @@ static void popup_scene(bool dark)
             }
             cydui_popup_end(&ui_rig.ui);
         }
-        cydui_ui_end(&ui_rig.ui);
+        golden_end();
     }
 }
 
-static void popup_golden(const char *name, bool dark)
+static void popup_golden(const char *name, int which)
 {
-    popup_scene(dark);
+    popup_scene(which);
     golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
 }
 
@@ -654,16 +669,14 @@ static void test_clean_popup(void) { popup_golden("clean_popup", false); }
 static void test_clean_dark_popup(void) { popup_golden("clean_dark_popup", true); }
 
 /* The keyboard under a field that has the focus: `taps` are screen points to tap first (to change page, Shift...). */
-static void keyboard_golden(const char *name, bool dark, const int (*taps)[2], int n_taps)
+static void keyboard_golden(const char *name, int which, const int (*taps)[2], int n_taps)
 {
     static char text[40];
-    cydui_theme *th = dark ? &th_dark : &th_light;
+    cydui_theme *th = pick_theme(which);
     int i, t;
 
     strcpy(text, "Ola, mundo");
     TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
-    cydui_theme_init_clean(&th_light);
-    cydui_theme_init_clean_dark(&th_dark);
     TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
     for (t = -1; t < n_taps; t++) {
         if (t >= 0) {
@@ -675,7 +688,7 @@ static void keyboard_golden(const char *name, bool dark, const int (*taps)[2], i
             cydui_ui_begin(&ui_rig.ui, th->style.bg);
             cydui_text_input(&ui_rig.ui, "Mensagem", text, sizeof(text), 0, 0);
             cydui_label(&ui_rig.ui, "Teclado na tela");
-            cydui_ui_end(&ui_rig.ui);
+            golden_end();
             if (i == 0) {
                 if (t >= 0) rig_up(&ui_rig, taps[t][0], taps[t][1]);
                 else rig_up(&ui_rig, 15, 20);
@@ -685,7 +698,7 @@ static void keyboard_golden(const char *name, bool dark, const int (*taps)[2], i
             cydui_ui_begin(&ui_rig.ui, th->style.bg);
             cydui_text_input(&ui_rig.ui, "Mensagem", text, sizeof(text), 0, 0);
             cydui_label(&ui_rig.ui, "Teclado na tela");
-            cydui_ui_end(&ui_rig.ui);
+            golden_end();
         }
     }
     golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
@@ -715,6 +728,74 @@ static void test_clean_dark_keyboard_accents(void)
     static const int taps[][2] = {{65, 221}};
     keyboard_golden("clean_dark_keyboard_accents", true, taps, 1);
 }
+
+/* One widget in every state, in retro or cyberpunk, in the left half of the screen (a theme with a post-effect changes the
+ * whole screen, so the other half stays empty). Three frames: the theme is put in use, noticed, and then seen after the
+ * sweep of its entrance. */
+static void matrix_single(const char *name, cydui_widget_kind kind, int which)
+{
+    cydui_theme *th = pick_theme(which);
+    int f;
+
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    for (f = 0; f < 3; f++) {
+        cydui_ui_begin(&ui_rig.ui, th->style.bg);
+        matrix_half(&ui_rig, th, 0, kind);
+        cydui_ui_end(&ui_rig.ui);
+        rig_advance(&ui_rig, f == 0 ? 100 : 500);
+    }
+    golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+#define SINGLE_TESTS(prefix, which)                                                                      \
+    static void test_##prefix##_button(void) { matrix_single(#prefix "_button", CYDUI_WIDGET_BUTTON, which); }     \
+    static void test_##prefix##_checkbox(void) { matrix_single(#prefix "_checkbox", CYDUI_WIDGET_CHECKBOX, which); } \
+    static void test_##prefix##_toggle(void) { matrix_single(#prefix "_toggle", CYDUI_WIDGET_TOGGLE, which); }     \
+    static void test_##prefix##_panel(void) { matrix_single(#prefix "_panel", CYDUI_WIDGET_PANEL, which); }       \
+    static void test_##prefix##_slider(void) { matrix_single(#prefix "_slider", CYDUI_WIDGET_SLIDER, which); }     \
+    static void test_##prefix##_progress(void) { matrix_single(#prefix "_progress", CYDUI_WIDGET_PROGRESS, which); } \
+    static void test_##prefix##_tabs(void) { matrix_single(#prefix "_tabs", CYDUI_WIDGET_TAB, which); }
+SINGLE_TESTS(retro, 2)
+SINGLE_TESTS(cyber, 3)
+
+static void test_retro_text(void) { text_golden("retro_text", 2, false); }
+static void test_retro_popup(void) { popup_golden("retro_popup", 2); }
+static void test_retro_keyboard(void) { keyboard_golden("retro_keyboard", 2, NULL, 0); }
+static void test_cyber_text(void) { text_golden("cyber_text", 3, false); }
+static void test_cyber_text_refused(void) { text_golden("cyber_text_refused", 3, true); }
+static void test_cyber_popup(void) { popup_golden("cyber_popup", 3); }
+static void test_cyber_keyboard(void) { keyboard_golden("cyber_keyboard", 3, NULL, 0); }
+
+/* The effects of cyberpunk at chosen moments: a page, the theme put in use and noticed at 0 ms, then a last frame at `ms`. */
+static void cyber_fx_golden(const char *name, uint32_t ms, unsigned level)
+{
+    static bool on = true, off = false;
+    cydui_theme *th = pick_theme(3);
+    int f;
+
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&ui_rig));
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&ui_rig.ui, th));
+    cydui_set_effects_level(&ui_rig.ui, level);
+    for (f = 0; f < 3; f++) {
+        if (f == 2) {
+            ui_rig.mem.now = ms;
+        }
+        cydui_ui_begin(&ui_rig.ui, th->style.bg);
+        cydui_label(&ui_rig.ui, "Cyberpunk");
+        cydui_checkbox(&ui_rig.ui, "Wi-Fi", &on);
+        cydui_checkbox(&ui_rig.ui, "Modo escuro", &off);
+        cydui_toggle(&ui_rig.ui, "Avisos", &on);
+        cydui_button(&ui_rig.ui, "Salvar");
+        cydui_ui_end(&ui_rig.ui);
+    }
+    golden_check_mem(name, &ui_rig.mem, cydui_ui_errors(&ui_rig.ui));
+}
+
+static void test_cyber_effects_settled(void) { cyber_fx_golden("cyber_fx_settled", 5000, CYDUI_FX_FULL); }
+static void test_cyber_effects_glitch(void) { cyber_fx_golden("cyber_fx_glitch", 4810, CYDUI_FX_FULL); }
+static void test_cyber_effects_entrance(void) { cyber_fx_golden("cyber_fx_entrance", 150, CYDUI_FX_FULL); }
+static void test_cyber_effects_low(void) { cyber_fx_golden("cyber_fx_low", 4810, CYDUI_FX_LOW); }
+static void test_cyber_effects_none(void) { cyber_fx_golden("cyber_fx_none", 4810, CYDUI_FX_NONE); }
 
 static void scroll_golden(const char *name, bool list, int32_t y)
 {
@@ -857,6 +938,32 @@ int main(void)
     RUN_TEST(test_clean_dark_textarea);
     RUN_TEST(test_clean_popup);
     RUN_TEST(test_the_shadow_of_a_popup_has_no_tint);
+    RUN_TEST(test_retro_button);
+    RUN_TEST(test_retro_checkbox);
+    RUN_TEST(test_retro_toggle);
+    RUN_TEST(test_retro_panel);
+    RUN_TEST(test_retro_slider);
+    RUN_TEST(test_retro_progress);
+    RUN_TEST(test_retro_tabs);
+    RUN_TEST(test_cyber_button);
+    RUN_TEST(test_cyber_checkbox);
+    RUN_TEST(test_cyber_toggle);
+    RUN_TEST(test_cyber_panel);
+    RUN_TEST(test_cyber_slider);
+    RUN_TEST(test_cyber_progress);
+    RUN_TEST(test_cyber_tabs);
+    RUN_TEST(test_retro_text);
+    RUN_TEST(test_retro_popup);
+    RUN_TEST(test_retro_keyboard);
+    RUN_TEST(test_cyber_text);
+    RUN_TEST(test_cyber_text_refused);
+    RUN_TEST(test_cyber_popup);
+    RUN_TEST(test_cyber_keyboard);
+    RUN_TEST(test_cyber_effects_settled);
+    RUN_TEST(test_cyber_effects_glitch);
+    RUN_TEST(test_cyber_effects_entrance);
+    RUN_TEST(test_cyber_effects_low);
+    RUN_TEST(test_cyber_effects_none);
     RUN_TEST(test_clean_dark_popup);
     RUN_TEST(test_clean_keyboard);
     RUN_TEST(test_clean_dark_keyboard);

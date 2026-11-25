@@ -92,6 +92,7 @@ uint32_t cydui_ui_init(cydui_ui *ui, const cydui_ui_config *cfg)
     }
     ui->theme = cfg->theme;
     ui->fx_level = CYDUI_FX_DEFAULT;
+    ui->theme_fresh = true;
     cydui__install_post_effect(ui);
 
     cydui_arena_init(&a, cfg->state_mem, cfg->state_mem_size);
@@ -107,6 +108,9 @@ uint32_t cydui_ui_init(cydui_ui *ui, const cydui_ui_config *cfg)
             if (!ui->state) {
                 ui->state_cap = 0;
             }
+        }
+        if (ui->state) { /* memory that was used before (a second init over the same storage) must not hand old state to the new ui */
+            memset(ui->state, 0, ui->state_cap * sizeof(cydui_state));
         }
     }
 
@@ -353,6 +357,10 @@ bool cydui_ui_begin(cydui_ui *ui, cydui_color clear)
     cydui_begin_frame(&ui->ctx, clear);
     ui->widgets = 0;
     ui->tweens_now = 0;
+    if (ui->theme_fresh) {
+        ui->theme_since = ui->in.now;
+        ui->theme_fresh = false;
+    }
     ui->id_depth = 0;
     cydui__layout_begin_frame(ui);
     if (ui->idset_cap) {

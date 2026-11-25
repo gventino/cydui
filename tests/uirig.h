@@ -22,10 +22,15 @@ typedef struct {
     char text[4096];
     cydui_state state[64];
     uint32_t idset[1024];
+    size_t state_entries; /* how many of `state` the UI is given */
+    uint16_t long_press_ms;
 } uirig;
 
 /** Starts a rig with the 12 px bundled font. Returns 0 or a CYDUI_ERR_* flag. */
 uint32_t rig_init(uirig *r);
+
+/** Starts the UI again over the same memory (what the application had in it stays: that is the point). */
+uint32_t rig_restart(uirig *r);
 
 /** Same, with a state table of `state_entries` entries (to test a full table). */
 uint32_t rig_init_with(uirig *r, size_t state_entries, uint16_t long_press_ms);

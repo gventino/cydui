@@ -275,6 +275,8 @@ typedef struct cydui_ui {
     uint16_t widgets;
     uint8_t tweens_now; /**< tweens that are still moving in this frame */
     uint8_t fx_level;   /**< cydui_set_effects_level */
+    uint32_t theme_since; /**< the clock when the theme in use was put in use (stamped in the next frame) */
+    bool theme_fresh;     /**< ... and it has not been stamped yet */
     uint16_t tap_slop, long_press_ms, frame_budget_ms;
     uint32_t frame_start;
     uintptr_t (*thread_id)(void);
@@ -302,6 +304,12 @@ void cydui_ui_clear_errors(cydui_ui *ui);
 uint32_t cydui_ui_frame(const cydui_ui *ui);
 
 /* ---- time and animation ---- */
+
+/**
+ * Milliseconds since the theme in use was put in use (cydui_ui_init or cydui_set_theme with another theme),
+ * counted from the first frame it was used in; 0 without a clock. For a theme that plays something when it comes in.
+ */
+uint32_t cydui_theme_age(const cydui_ui *ui);
 
 /** Levels of the effects of a theme (R-02): what it may spend on looking good. */
 #define CYDUI_FX_NONE 0 /**< no post-effect and no extra painting */

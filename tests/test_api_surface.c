@@ -145,6 +145,7 @@ SURFACE(int32_t, cydui_animate, (cydui_ui *ui, cydui_id id, int32_t from, int32_
 SURFACE(int32_t, cydui_ease_apply, (cydui_ease e, int32_t t))
 SURFACE(int32_t, cydui_lerp, (int32_t a, int32_t b, int32_t k))
 SURFACE(uint32_t, cydui_now, (const cydui_ui *ui))
+SURFACE(uint32_t, cydui_theme_age, (const cydui_ui *ui))
 SURFACE(cydui_wstyle, cydui_paint_look, (const cydui_theme *theme, const cydui_paint_info *info))
 SURFACE(int32_t, cydui_paint_amount, (const cydui_paint_info *info))
 SURFACE(void, cydui_set_post_effect, (cydui_ctx *ctx, const cydui_post_effect *fx))
@@ -727,6 +728,7 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_ease_apply);
     TEST_ASSERT_NOT_NULL(surface_cydui_lerp);
     TEST_ASSERT_NOT_NULL(surface_cydui_now);
+    TEST_ASSERT_NOT_NULL(surface_cydui_theme_age);
     TEST_ASSERT_NOT_NULL(surface_cydui_paint_look);
     TEST_ASSERT_NOT_NULL(surface_cydui_paint_amount);
     TEST_ASSERT_NOT_NULL(surface_cydui_text_input);

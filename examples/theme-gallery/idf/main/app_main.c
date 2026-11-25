@@ -51,6 +51,16 @@ static cydui_backend real_be, inj_be;
 static cydui_event inj_q[INJ_MAX];
 static int inj_head, inj_len;
 
+/* The clock of the UI: the real one, except while the hashes are taken at times of their own (the effects of a theme follow it). */
+static bool virt_clock;
+static uint32_t virt_now;
+
+static uint32_t inj_now(void *user)
+{
+    (void)user;
+    return virt_clock ? virt_now : real_be.now_ms(real_be.user);
+}
+
 static bool inj_poll(void *user, cydui_event *ev)
 {
     (void)user;
@@ -143,26 +153,50 @@ static bool start_ui(int theme, int tab)
 }
 
 #if CONFIG_GALLERY_PRINT_HASH
-/* The same states as `theme-gallery --headless --theme T --tab P --hash` on the PC: a new UI, six frames,
- * and the hash of what the sixth one sends (all the strips: it is invalidated first). */
+/* The same states as `theme-gallery --headless --theme T --tab P [--at MS] --hash` on the PC: a new UI, six frames 16 ms
+ * apart (the last one at `at_ms` when that is not negative), and the hash of what the sixth one sends (all the strips: it
+ * is invalidated first). The clock is a made-up one, so that the effects that follow it are the PC's. */
+static void hash_of(int t, int p, long at_ms)
+{
+    int f;
+
+    virt_clock = true;
+    virt_now = 0;
+    if (!start_ui(t, p)) {
+        virt_clock = false;
+        return;
+    }
+    for (f = 0; f < 5; f++) {
+        one_frame();
+        virt_now += 16;
+    }
+    if (at_ms >= 0) {
+        virt_now = (uint32_t)at_ms;
+    }
+    cydui_invalidate(&ui.ctx);
+    cydui_esp32_hash_enable(&dev, true);
+    one_frame();
+    cydui_esp32_hash_enable(&dev, false);
+    virt_clock = false;
+    if (at_ms >= 0) {
+        printf("GALLERY_HASH theme=%d tab=%d at=%ld %016" PRIx64 "\n", t, p, at_ms, cydui_esp32_hash(&dev));
+    } else {
+        printf("GALLERY_HASH theme=%d tab=%d %016" PRIx64 "\n", t, p, cydui_esp32_hash(&dev));
+    }
+}
+
 static void print_hashes(void)
 {
-    int t, p, f;
+    int t, p;
 
     for (t = 0; t < GALLERY_THEMES; t++) {
         for (p = 0; p < GALLERY_PAGES; p++) {
-            if (!start_ui(t, p)) {
-                return;
-            }
-            for (f = 0; f < 5; f++) {
-                one_frame();
-            }
-            cydui_invalidate(&ui.ctx);
-            cydui_esp32_hash_enable(&dev, true);
-            one_frame();
-            cydui_esp32_hash_enable(&dev, false);
-            printf("GALLERY_HASH theme=%d tab=%d %016" PRIx64 "\n", t, p, cydui_esp32_hash(&dev));
+            hash_of(t, p, -1);
         }
+    }
+    for (p = 0; p < GALLERY_PAGES; p++) { /* the theme with effects: when they are settled, and in the middle of a glitch */
+        hash_of(GALLERY_THEMES - 1, p, 5000);
+        hash_of(GALLERY_THEMES - 1, p, 4810);
     }
 }
 #endif
@@ -170,13 +204,13 @@ static void print_hashes(void)
 #if CONFIG_GALLERY_BENCH_SECONDS > 0 && !CONFIG_GALLERY_ACCEPTANCE
 /* Frames as fast as they go for a few seconds. `page` 0 is the page of controls, 4 the animation; with
  * `all_strips` every frame is invalidated first (every strip is drawn and sent, the worst case). */
-static void bench(const char *name, int page, bool all_strips)
+static void bench(const char *name, int theme, int page, bool all_strips)
 {
     int64_t start, now;
     uint32_t frames = 0, flushes0;
     int i;
 
-    if (!start_ui(1, page)) {
+    if (!start_ui(theme, page)) {
         return;
     }
     for (i = 0; i < 6; i++) {
@@ -219,6 +253,16 @@ static void bench(const char *name, int page, bool all_strips)
         t2 = esp_timer_get_time();
         printf("GALLERY_BENCH %s parts: draw_only_us_per_frame=%" PRId64 " send_only_us_per_frame=%" PRId64 "\n", name,
                (t1 - t0) / 20, (t2 - t1) / 20);
+        if (ui.ctx.post.apply) { /* the post-effect of the theme alone, over the whole screen */
+            t0 = esp_timer_get_time();
+            for (k = 0; k < 20; k++) {
+                for (y = 0; y < H; y += ROWS) {
+                    ui.ctx.post.apply(ui.ctx.post.user, strips, W, (int16_t)y, ROWS);
+                }
+            }
+            t1 = esp_timer_get_time();
+            printf("GALLERY_BENCH %s effect_only_us_per_frame=%" PRId64 "\n", name, (t1 - t0) / 20);
+        }
     }
 }
 #endif
@@ -454,6 +498,7 @@ void app_main(void)
     real_be = *cydui_esp32_backend(&dev); /* the UI reads the events through a layer that can inject some (the self-test) */
     inj_be = real_be;
     inj_be.poll_event = inj_poll;
+    inj_be.now_ms = inj_now;
     if (!start_ui(1, 0)) {
         return;
     }
@@ -465,9 +510,13 @@ void app_main(void)
     print_hashes();
 #endif
 #if CONFIG_GALLERY_BENCH_SECONDS > 0 && !CONFIG_GALLERY_ACCEPTANCE
-    bench("full_redraw", 0, true);
-    bench("animation_dirty_regions", 4, false);
-    bench("animation_all_strips", 4, true);
+    bench("full_redraw", 1, 0, true);
+    bench("animation_dirty_regions", 1, 4, false);
+    bench("animation_all_strips", 1, 4, true);
+    bench("retro_full_redraw", 3, 0, true);
+    bench("cyberpunk_full_redraw", 4, 0, true);
+    bench("cyberpunk_animation_dirty_regions", 4, 4, false);
+    bench("cyberpunk_animation_all_strips", 4, 4, true);
 #endif
 #if CONFIG_GALLERY_PROFILE && !CONFIG_GALLERY_ACCEPTANCE
     profile_commands();

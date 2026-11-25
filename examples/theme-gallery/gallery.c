@@ -6,7 +6,7 @@
 #include "gallery.h"
 #include "rating.h"
 
-static const char *const theme_names[GALLERY_THEMES] = {"Base", "Claro", "Noite", "Retro"};
+static const char *const theme_names[GALLERY_THEMES] = {"Base", "Claro", "Noite", "Retro", "Cyber"};
 
 void gallery_init(gallery *g, int theme, int tab)
 {
@@ -16,6 +16,7 @@ void gallery_init(gallery *g, int theme, int tab)
     cydui_theme_init_clean(&g->themes[1]);
     cydui_theme_init_clean_dark(&g->themes[2]);
     cydui_theme_init_retro(&g->themes[3]);
+    cydui_theme_init_cyberpunk(&g->themes[4]);
     g->want_theme = theme < 0 ? 0 : (theme >= GALLERY_THEMES ? GALLERY_THEMES - 1 : theme);
     g->tab = tab < 0 ? 0 : (tab >= GALLERY_PAGES ? GALLERY_PAGES - 1 : tab);
     g->stars[0] = 3;

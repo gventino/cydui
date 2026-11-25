@@ -93,7 +93,7 @@ static int32_t ext32(reader *r)
  */
 static cydui_mem g_mem;
 static cydui_ui g_ui;
-static cydui_theme g_th_default, g_th_clean, g_th_dark, g_th_fuzz, g_th_bad;
+static cydui_theme g_th_default, g_th_clean, g_th_dark, g_th_fuzz, g_th_bad, g_th_retro, g_th_cyber;
 static cydui_color g_fb[W * H];
 static cydui_cmd g_cmds[96];
 static cydui_color g_strip[W * H];
@@ -516,14 +516,15 @@ static int do_op(reader *r, vars *v, bool replay)
         }
         break;
     }
-    case 50: { /* switch themes: four good ones and two bad ones */
-        uint8_t which = u8(r) % 7u;
+    case 50: { /* switch themes: six good ones and two bad ones */
+        uint8_t which = u8(r) % 9u;
         uint32_t seed = (uint32_t)u8(r) | ((uint32_t)u8(r) << 8) | ((uint32_t)u8(r) << 16) | ((uint32_t)u8(r) << 24);
         bool big_font = (u8(r) & 1u) != 0;
 
         if (!replay) {
             const cydui_theme *want = which == 0 ? &g_th_default : which == 1 ? &g_th_clean : which == 2 ? &g_th_dark
-                                      : which == 3 ? NULL : which == 4 ? &g_th_bad : &g_th_fuzz;
+                                      : which == 3 ? NULL : which == 4 ? &g_th_bad : which == 5 ? &g_th_retro
+                                      : which == 6 ? &g_th_cyber : &g_th_fuzz;
             const cydui_theme *was = g_ui.theme;
             uint32_t used = states_used(), rc;
 
@@ -692,6 +693,8 @@ static uint64_t run(const uint8_t *data, size_t size, int rows, bool fancy)
     cydui_theme_init_clean_dark(&g_th_dark);
     g_th_dark.style.anim_ms = 150; /* the one theme of the fuzz that animates its widgets */
     g_th_clean.post = &g_fx;
+    cydui_theme_init_retro(&g_th_retro);
+    cydui_theme_init_cyberpunk(&g_th_cyber);
     g_th_bad = g_th_default;
     g_th_bad.style.font = NULL;
     make_fuzz_theme(&g_th_fuzz, 1, false);

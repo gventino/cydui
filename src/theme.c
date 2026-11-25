@@ -483,6 +483,9 @@ uint32_t cydui_set_theme(cydui_ui *ui, const cydui_theme *t)
         ui->ctx.errors |= CYDUI_ERR_BAD_ARG;
         return CYDUI_ERR_BAD_ARG; /* the theme in use stays */
     }
+    if (t != ui->theme) { /* the same theme again (edited in place, say) is not a new entrance */
+        ui->theme_fresh = true;
+    }
     ui->theme = t;
     cydui__install_post_effect(ui);
     ui->relayout = true; /* fonts and metrics may have changed the size of everything */

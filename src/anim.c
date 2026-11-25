@@ -165,6 +165,11 @@ unsigned cydui_effects_level(const cydui_ui *ui)
     return ui->fx_level;
 }
 
+uint32_t cydui_theme_age(const cydui_ui *ui)
+{
+    return ui->in.has_clock && !ui->theme_fresh ? ui->in.now - ui->theme_since : 0;
+}
+
 uint32_t cydui_now(const cydui_ui *ui)
 {
     return ui->in.now;

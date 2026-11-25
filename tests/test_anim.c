@@ -275,6 +275,23 @@ void test_the_tweens_that_run_together_are_limited(void)
     TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
 }
 
+void test_a_new_ui_over_old_memory_does_not_inherit_the_state_of_the_old_one(void)
+{
+    cydui_id id;
+    int32_t v;
+    start();
+    frame_tween();
+    rig_advance(&rig, 60);
+    frame_tween(); /* a tween halfway to 1000 */
+    TEST_ASSERT_TRUE(value > 0 && value < 1000);
+    TEST_ASSERT_EQUAL_UINT32(0, rig_restart(&rig)); /* the same memory again, full of what the first ui left in it */
+    cydui_ui_begin(&rig.ui, 0);
+    id = cydui_id_str(&rig.ui, "t");
+    v = cydui_animate(&rig.ui, id, 0, 1000, 100, CYDUI_EASE_LINEAR);
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_INT32(0, v); /* it starts at `from`: nobody was moving it */
+}
+
 void test_tweens_that_nobody_asks_for_are_recycled_and_nothing_grows(void)
 {
     int frame;
@@ -289,6 +306,31 @@ void test_tweens_that_nobody_asks_for_are_recycled_and_nothing_grows(void)
     }
     TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
     TEST_ASSERT_FALSE(rig_empty_frame(&rig)); /* and nothing is left moving */
+}
+
+void test_the_age_of_a_theme_counts_from_the_first_frame_it_is_used(void)
+{
+    cydui_theme other;
+    TEST_ASSERT_EQUAL_UINT32(0, rig_init(&rig));
+    other = rig.theme;
+    rig.mem.now = 5000;
+    cydui_ui_begin(&rig.ui, 0);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_theme_age(&rig.ui)); /* the first frame of the theme */
+    cydui_ui_end(&rig.ui);
+    rig_advance(&rig, 250);
+    cydui_ui_begin(&rig.ui, 0);
+    TEST_ASSERT_EQUAL_UINT32(250, cydui_theme_age(&rig.ui));
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&rig.ui, &other)); /* a new theme starts again, from the next frame */
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_theme_age(&rig.ui));
+    cydui_ui_end(&rig.ui);
+    rig_advance(&rig, 70);
+    cydui_ui_begin(&rig.ui, 0);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_theme_age(&rig.ui));
+    cydui_ui_end(&rig.ui);
+    rig_advance(&rig, 70);
+    cydui_ui_begin(&rig.ui, 0);
+    TEST_ASSERT_EQUAL_UINT32(70, cydui_theme_age(&rig.ui));
+    cydui_ui_end(&rig.ui);
 }
 
 /* ---- widgets over the duration of the theme ---- */
@@ -571,7 +613,9 @@ int main(void)
     RUN_TEST(test_the_clock_wrapping_or_going_back_does_not_break_a_tween);
     RUN_TEST(test_the_elastic_curve_stays_in_a_sane_range_and_lands_on_the_target);
     RUN_TEST(test_the_tweens_that_run_together_are_limited);
+    RUN_TEST(test_a_new_ui_over_old_memory_does_not_inherit_the_state_of_the_old_one);
     RUN_TEST(test_tweens_that_nobody_asks_for_are_recycled_and_nothing_grows);
+    RUN_TEST(test_the_age_of_a_theme_counts_from_the_first_frame_it_is_used);
     RUN_TEST(test_a_switch_slides_over_the_duration_and_lands_on_the_plain_look);
     RUN_TEST(test_a_theme_without_a_duration_changes_at_once);
     RUN_TEST(test_a_tab_changes_its_look_over_the_duration);

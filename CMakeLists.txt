@@ -70,7 +70,7 @@ set_target_properties(cydui_fonts PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED O
 target_compile_options(cydui_fonts PRIVATE ${CYDUI_STRICT_FLAGS})
 
 # The shipped themes (they need the bundled fonts). Optional, like the fonts.
-add_library(cydui_themes STATIC themes/clean.c themes/retro.c)
+add_library(cydui_themes STATIC themes/clean.c themes/cyberpunk.c themes/retro.c)
 target_include_directories(cydui_themes PUBLIC themes)
 target_link_libraries(cydui_themes PUBLIC cydui cydui_fonts)
 set_target_properties(cydui_themes PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)

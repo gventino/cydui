@@ -2,8 +2,8 @@
  * theme-gallery: the widgets in every theme, with a switch at run time.
  *   theme-gallery                       window; the mouse is the touch screen
  *   theme-gallery --frames N            window, quits by itself after N frames
- *   theme-gallery --headless [--theme 0..3] [--tab 0..5] [--press X,Y [--release]] [--hash] [--png FILE]
- *                                       renders into memory (themes: 0 default, 1 clean, 2 clean_dark, 3 retro)
+ *   theme-gallery --headless [--theme 0..4] [--tab 0..5] [--press X,Y [--release]] [--at MS] [--hash] [--png FILE]
+ *                                       renders into memory (themes: 0 default, 1 clean, 2 clean_dark, 3 retro, 4 cyberpunk)
  */
 
 #include <inttypes.h>
@@ -41,7 +41,7 @@ static void one_frame(cydui_ui *ui, gallery *g)
     gallery_apply(ui, g);
 }
 
-static int run_headless(int theme, int tab, int px, int py, bool press, bool release, bool print_hash, const char *png)
+static int run_headless(int theme, int tab, int px, int py, bool press, bool release, bool print_hash, const char *png, long at_ms)
 {
     cydui_mem mem;
     cydui_ui ui;
@@ -59,6 +59,9 @@ static int run_headless(int theme, int tab, int px, int py, bool press, bool rel
         }
         if (press && release && frame == 4) {
             cydui_mem_push_event(&mem, CYDUI_EVENT_UP, (int16_t)px, (int16_t)py);
+        }
+        if (frame == 5 && at_ms >= 0) {
+            mem.now = (uint32_t)at_ms; /* the last frame at this time since the first one (for the effects that follow the clock) */
         }
         one_frame(&ui, &g);
         mem.now += 16;
@@ -111,6 +114,7 @@ int main(int argc, char **argv)
     const char *png = NULL;
     long frames = -1;
     int theme = 1, tab = 0, px = 0, py = 0, i;
+    long at_ms = -1;
 
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--headless")) {
@@ -129,16 +133,18 @@ int main(int argc, char **argv)
         } else if (!strcmp(argv[i], "--tab") && i + 1 < argc) {
             tab = atoi(argv[++i]);
             tab = tab < 0 ? 0 : (tab >= GALLERY_PAGES ? GALLERY_PAGES - 1 : tab);
+        } else if (!strcmp(argv[i], "--at") && i + 1 < argc) {
+            at_ms = atol(argv[++i]);
         } else if (!strcmp(argv[i], "--press") && i + 1 < argc) {
             press = sscanf(argv[++i], "%d,%d", &px, &py) == 2;
         } else {
-            fprintf(stderr, "usage: %s [--headless [--theme N] [--tab N] [--press X,Y [--release]] [--hash] [--png FILE]] "
+            fprintf(stderr, "usage: %s [--headless [--theme N] [--tab N] [--press X,Y [--release]] [--at MS] [--hash] [--png FILE]] "
                             "[--frames N]\n", argv[0]);
             return 2;
         }
     }
     if (headless) {
-        return run_headless(theme, tab, px, py, press, release, print_hash, png);
+        return run_headless(theme, tab, px, py, press, release, print_hash, png, at_ms);
     }
 #ifdef CYDUI_HAVE_SDL
     return run_window(frames);

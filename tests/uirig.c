@@ -4,13 +4,9 @@
 
 #include "cydui_sans_12.h"
 
-uint32_t rig_init_with(uirig *r, size_t state_entries, uint16_t long_press_ms)
+uint32_t rig_restart(uirig *r)
 {
     cydui_ui_config cfg;
-
-    memset(r, 0, sizeof(*r));
-    cydui_mem_init(&r->mem, r->fb, RIG_W, RIG_H);
-    cydui_theme_default(&r->theme, &cydui_sans_12);
 
     memset(&cfg, 0, sizeof(cfg));
     cfg.core.backend = &r->mem.backend;
@@ -21,12 +17,22 @@ uint32_t rig_init_with(uirig *r, size_t state_entries, uint16_t long_press_ms)
     cfg.core.text_mem = r->text;
     cfg.core.text_mem_size = sizeof(r->text);
     cfg.state_mem = r->state;
-    cfg.state_mem_size = state_entries * sizeof(cydui_state);
+    cfg.state_mem_size = r->state_entries * sizeof(cydui_state);
     cfg.idset_mem = r->idset;
     cfg.idset_mem_size = sizeof(r->idset);
     cfg.theme = &r->theme;
-    cfg.long_press_ms = long_press_ms;
+    cfg.long_press_ms = r->long_press_ms;
     return cydui_ui_init(&r->ui, &cfg);
+}
+
+uint32_t rig_init_with(uirig *r, size_t state_entries, uint16_t long_press_ms)
+{
+    memset(r, 0, sizeof(*r));
+    cydui_mem_init(&r->mem, r->fb, RIG_W, RIG_H);
+    cydui_theme_default(&r->theme, &cydui_sans_12);
+    r->long_press_ms = long_press_ms;
+    r->state_entries = state_entries;
+    return rig_restart(r);
 }
 
 uint32_t rig_init(uirig *r)

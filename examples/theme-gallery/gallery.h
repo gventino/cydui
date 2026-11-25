@@ -8,7 +8,7 @@
 
 #include "cydui/ui.h"
 
-#define GALLERY_THEMES 4
+#define GALLERY_THEMES 5
 #define GALLERY_TASKS 200
 #define GALLERY_PAGES 6 /* controls, a list, a custom widget, a touch test, an animation, text fields */
 #define GALLERY_CHECKS 4
@@ -27,7 +27,7 @@ typedef struct {
 } gallery_touch;
 
 typedef struct {
-    cydui_theme themes[GALLERY_THEMES]; /* default, clean, clean_dark, retro */
+    cydui_theme themes[GALLERY_THEMES]; /* default, clean, clean_dark, retro, cyberpunk */
     int want_theme;                      /* the theme a button asked for */
     int tab;
     bool done[3], wifi, dark, notify;
