@@ -78,6 +78,8 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 - **Acceptance:** clean local checks (sanitizers + short fuzz); `06` checklist with all "Lib"-owned CT-xx ✔; README describes residual risks R-20..22.
 - **Covers:** NFR-22, 23, 42, 50; all library CTs.
 
+- **Result:** done. Coverage 97.5 % (gcov), every public function documented (`tools/check_docs.py`), two new fuzz harnesses (touch filter and calibration, easings) and 30-minute campaigns of six harnesses (one finding, a harness oracle), the rasterizer compared with its plain reference in every run, a STRIDE review against the code (`05`, with findings), four new abuse cases, the guide (`12`), `SECURITY.md`, `CONTRIBUTING.md`, the "Security and limits" section of the README and the release candidate number `1.0.0-rc.1`. **Deviations:** (1) the slow input of the fuzzer turned out not to be a library problem and the rasterizer got no time budget (it would make the picture depend on the speed of the machine); the worst frame is measured and documented; (2) no work on the board beyond the usual hashes and self-test (the user's decision); the items still not verified on the hardware are listed in the CHANGELOG; (3) no separate example for writing a theme: the guide's code is compiled and run, and `retro` and `cyberpunk` are the worked examples.
+
 ## Post-0.1 (separate repo)
 - `cyd-todo`: todo/calendar app + lightweight backend in the homelab, applying CT-16..22 (TLS, response limits, secrets, privacy).
 

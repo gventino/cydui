@@ -244,6 +244,22 @@ static uint32_t states_used(void)
     return n;
 }
 
+/* A same-frame id collision (two widgets, one id: an application error) is only reported while the table that detects
+ * them has room for every id of the frame, and two widgets that share an id can fight over their state for ever. So a
+ * screen that never settles is a finding only when such a collision could not have been missed. */
+static bool idset_has_room(void)
+{
+    uint32_t i, used = 0;
+
+    if (!g_ui.idset_cap) {
+        return false;
+    }
+    for (i = 0; i < g_ui.idset_cap; i++) {
+        used += g_ui.idset[i] != 0;
+    }
+    return used < g_ui.idset_cap;
+}
+
 static void check_cmds(const cydui_ctx *c)
 {
     uint32_t i;
@@ -776,7 +792,7 @@ static uint64_t run(const uint8_t *data, size_t size, int rows, bool fancy)
             more = cydui_ui_end(&g_ui);
             check(&g_ui);
         }
-        if (more && !(cydui_ui_errors(&g_ui) & CYDUI_ERR_ID_COLLISION)) { /* two widgets with one id (an application error) can fight over their state for ever */
+        if (more && !(cydui_ui_errors(&g_ui) & CYDUI_ERR_ID_COLLISION) && idset_has_room()) { /* two widgets with one id (an application error) can fight over their state for ever */
             abort(); /* a screen that never settles */
         }
     }

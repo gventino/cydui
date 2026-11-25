@@ -1,10 +1,26 @@
 # Changelog
 
-Versions are tagged per iteration. Until 1.0 a new minor version may change the API; every change is listed under "API changes" (see `docs/11-api.md`).
+Versions are tagged per iteration. The API has been frozen since 0.4.0 (see `docs/11-api.md`); every change is listed under "API changes".
 
-## Unreleased
+## 1.0.0-rc.1 — iteration 8: hardening and the release candidate
 
+The API is the one of 0.7.0; this release is checks, fuzzing, documentation and the pre-release number.
+
+### Added
+- `docs/12-guide.md`, a practical guide (memory budget, writing a theme, a painter, a post-effect, a widget and a backend, animation, text fields); `SECURITY.md`, `CONTRIBUTING.md`; "Security and limits" in the README.
+- `tools/check_docs.py` (every public function has a documentation comment: 133 of 133).
+- `tests/test_raster_equiv.c` and `tests/ref_raster.c`: the rasterizer against its plain reference on 20 000 random strips and the corner cases of rounded rectangles in every run.
+- Two libFuzzer harnesses: `fuzz_touch` (the touch filter for any readings and configuration, the calibration fit, a stored blob, the latency ring) and `fuzz_anim` (the easings and the interpolation), with seeds; the three that existed run longer in the local script.
+- `docs/05` has a review of the threat model against the code (what the implementation does for each threat, with the test that shows it, and the findings), `docs/04` four new abuse cases (typed text from any source, a frame that costs too much, trusted plug-ins, a popup or focus nothing dismisses), `docs/06` the missing controls.
+
+### Changed
+- The version is 1.0.0-rc.1 (`CYDUI_VERSION_MAJOR/MINOR/PATCH` 1.0.0 and the string with the suffix); `idf_component.yml` was left at 0.5.0 and now follows it.
+- The comment of `backend.h` about `now_ms` said that animation was not used yet.
+- Measured: the tests cover 97.5 % of the 3690 lines of `src/` and `themes/` (NFR-23 asks 80 %); no log of the library prints user text (CT-20).
 - Every text the user can see is in English: the gallery, the examples, the calibration screen of the ESP32 backend, the tests and the goldens, and the pictures of the README. Accented letters remain only as UTF-8 test data (Café, naïve, Zoë, Ångström, €). The board self-test types "Hi 1".
+
+### Not verified on the hardware (unchanged since 0.6.0 and 0.7.0)
+Typing with real fingers on the keyboard of the screen, how the glow, the scanlines and the glitch of `cyberpunk` look on the real panel, the 80 MHz clock by eye, rotation 180, the touch with a bare finger, a disconnected touch controller (NFR-60).
 
 ## 0.7.0 — iteration 7: a faster renderer, animation, post-effects and the `retro` and `cyberpunk` themes
 

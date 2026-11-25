@@ -2,7 +2,7 @@
 
 Immediate-mode UI library in C for small embedded displays, targeting the ESP32 "Cheap Yellow Display" (ESP32-2432S028R: ILI9341 320x240 + XPT2046 touch). egui-style API, strip-based rendering (no full framebuffer), swappable themes from clean/modern to retro to cyberpunk.
 
-**Status:** version **0.7.0**, iteration 7: drawing core, strip rasterizer (fast: a full frame draws in 11.5 ms on the ESP32), in-memory, SDL and ESP32 backends, UTF-8 text with bitmap fonts, an immediate-mode UI (ids, state, touch, layout, widgets, scroll areas, lists, text fields, popups and a keyboard on the screen), themes switchable at run time (`clean` light and dark, `retro`, `cyberpunk`), tweens and a per-strip post-effect hook, and an API for widgets of your own. **The public API has been frozen since 0.4.0** (additions only): see [`docs/11-api.md`](docs/11-api.md). See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md); the [changelog](CHANGELOG.md) lists what changed.
+**Status:** release candidate **1.0.0-rc.1**. The core is stable since 0.4.0 and fuzzed (see "Security and limits" below); `v1.0.0` comes after a real application, `cyd-todo`, has been written on it. What is in: the drawing core and a fast strip rasterizer (a full frame draws in 11.5 ms on the ESP32), in-memory, SDL and ESP32 backends, UTF-8 text with bitmap fonts, an immediate-mode UI (ids, state, touch, layout, widgets, scroll areas, lists, text fields, popups and a keyboard on the screen), themes switchable at run time (`clean` light and dark, `retro`, `cyberpunk`), tweens and a per-strip post-effect hook, and an API for widgets of your own. See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md); the [changelog](CHANGELOG.md) lists what changed.
 
 ![The theme gallery](docs/img/gallery-clean.png) ![in the dark theme](docs/img/gallery-clean-dark.png) ![a list of 200 tasks](docs/img/gallery-list.png) ![a custom widget](docs/img/gallery-stars.png) ![the retro theme](docs/img/gallery-retro.png) ![the cyberpunk theme](docs/img/gallery-cyberpunk.png)
 
@@ -23,6 +23,10 @@ while (cydui_ui_begin(&ui, theme.style.bg)) {
     cydui_ui_end(&ui);
 }
 ```
+
+## Guide
+
+[`docs/12-guide.md`](docs/12-guide.md) is the short practical guide: memory budgeting, writing a theme, a painter, a post-effect, a widget and a backend, animation, text fields. [`docs/11-api.md`](docs/11-api.md) is the contract and the headers are the reference.
 
 ## Text input
 
@@ -51,6 +55,18 @@ cydui_set_effects_level(&ui, CYDUI_FX_LOW); /* ... and be turned down when the f
 ```
 
 The widgets of a theme with `style.anim_ms` > 0 change their look over that time (buttons, check boxes, switches, tabs). Everything follows the clock of the backend, so a test with a made-up clock sees the same frame as the board: the gallery prints 42 hashes (30 pages in five themes, 12 at the times of the effects of `cyberpunk`) that are the same on the PC and on the ESP32. `cydui_ui_end` returns true while something moves; when it returns false the application may sleep. A full 320 x 240 redraw is bound by the SPI at 40 MHz (about 26 frames per second); animations that change a few strips run at 90 to 100, and at 80 MHz a full redraw of `cyberpunk` is 35 fps.
+
+## Security and limits
+
+The library is meant for a device on a home network that other people can touch, and it is written so that **hostile data cannot corrupt memory or hang the screen**; what it cannot do for you is listed here. The threat model is in [`docs/05`](docs/05-threat-model-stride.md), the controls and what tests each in [`docs/06`](docs/06-controls-and-risks.md).
+
+- **Fixed memory, hard limits.** Nothing is allocated and the core has no mutable globals. Every arena has the size you gave at init and **drops** what does not fit (raising a `CYDUI_ERR_*` flag), never writing outside it. Limits you can raise at build time: `CYDUI_MAX_STR` (256 bytes per drawn string), `CYDUI_MAX_WIDGETS` (512 per frame), `CYDUI_MAX_ID_DEPTH`, `CYDUI_MAX_LAYOUT_DEPTH`, `CYDUI_MAX_TWEENS` (16) and `CYDUI_ANIM_MAX_MS` (5 s), `CYDUI_KEY_QUEUE` (32), the event queue (32).
+- **Input is validated.** Text is strict UTF-8 (overlong forms, surrogates, truncated sequences become one replacement character); control characters and bidirectional marks are drawn as a box; a text field never cuts a character, never exceeds your buffer or its character limit, and accepts a newline only in a text area; touch coordinates are clamped to the screen and a calibration that is not finite, degenerate or inaccurate is refused. Bitmaps and fonts are checked against their declared sizes. A password field draws bullets only.
+- **Tested hard.** The test suite covers 97 % of the lines of the core; the library, text editing, UTF-8 decoding, touch filter and calibration, easings and the whole UI layer (random widgets, touches, keys, themes, popups, clocks) are fuzzed with libFuzzer under AddressSanitizer and UBSan; the rasterizer is compared pixel by pixel with a plain reference. The ESP32 firmware is built with the strong stack protector, heap poisoning and `-Wformat-security`.
+- **What you must still do.** The library is **not thread-safe**: call it from one task (a debug build reports a call from another). **Code you give it is trusted**: a post-effect, a painter, a backend and a custom widget run inside the library with pointers into its memory. A modal popup stays until your code closes it. A password lives in your buffer, which the library does not wipe. A hostile *application* can still make one frame expensive (hundreds of full-screen commands take seconds on the ESP32 — widgets draw small rectangles, so it takes a bug, not an input); the task watchdog is fed every strip.
+- **Residual risks (R-20 to R-22).** Someone with physical access to a board without secure boot and flash encryption can read the flash (Wi-Fi credentials, tokens) and reflash the device: enable them in a release build if that matters to you (CT-18, CT-19; the library does not touch secrets). Letters that look alike (Cyrillic and Latin) can still be used to forge a text; only control characters and bidi marks are filtered, and the bundled fonts cover Latin-1 only, which already narrows it. The ESP-IDF Wi-Fi and TLS stacks are out of scope: keep ESP-IDF updated.
+
+To report a vulnerability see [`SECURITY.md`](SECURITY.md).
 
 ## Building and running (PC)
 

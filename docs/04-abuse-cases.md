@@ -29,6 +29,10 @@ Abuse = what a hostile agent (or a gross mistake) can attempt against the librar
 | AB-16 | Malformed font/theme (corrupt glyph table, null paint pointer). | Theme/font | Crash during rasterization. |
 | AB-17 | Bitmap with declared dimensions larger than the actual data. | Bitmap raster | Out-of-buffer read. |
 | AB-18 | Wrong Kconfig for the backend (bad pins) → electrical short or output on a strapping pin. | Hardware | Physical damage/unstable boot. |
+| AB-19 | (Added in It8, for text input) A source of typed characters and keys (the keyboard on the screen, the SDL keyboard, an application that forwards text from a phone) sends floods, control characters, bidi marks, invalid code points or `\n` into a one-line field. | Key queue, text field | Overflow, forged text, a field that grows without a limit. |
+| AB-20 | (It8) A frame that costs far more than a normal one: hundreds of full-screen translucent or rounded commands (a bug, not a remote input: widgets draw small rectangles). | Rasterizer | The UI loop stalls for seconds; other tasks starve. |
+| AB-21 | (It8) Code the library runs on behalf of the application misbehaves: a post-effect, a painter, a backend, a custom widget (a write past its strip, a loop). | Plug-ins | Memory corruption or a hang inside the "library". |
+| AB-22 | (It8) A modal popup, a focus or the keyboard that nothing can dismiss (the application never clears `open`, or calls `cydui_focus_set` every frame). | Popup, focus | The screen stays blocked or typing goes to a field the user did not choose. |
 
 ## "Handled case" criterion
-Each AB must have, in `06-controls-and-risks.md`, at least one control and, for library-level ones (AB-01, 02, 04–08, 15–17), a **test** (unit or fuzz) that exercises it.
+Each AB must have, in `06-controls-and-risks.md`, at least one control and, for library-level ones (AB-01, 02, 04–08, 15–17, 19), a **test** (unit or fuzz) that exercises it.

@@ -48,7 +48,9 @@ Type: **P** preventive, **D** detective, **C** corrective/safe degradation. Owne
 | CT-14 | done: the Kconfig rejects pins that are not usable (`pins.h`, tested) | `backends/esp32/pins.h`, `tests/test_pins.c` |
 | CT-15 | done: the task watchdog is subscribed and fed every frame; the frame budget was proved on the board | `backends/esp32/cydui_esp32.c` |
 | CT-08 | It7 | `tests/test_anim.c`: the cap of 16 tweens, the cut of the duration, a clock that wraps or goes back, no tween replaces other state, states recycled (3000 frames, no growth); on the board 1500 frames over all the pages of `cyberpunk` keep 14 state entries and 2 tweens at most, and the loop settles (`GALLERY_TWEENS`); idle 0.05 % CPU, no strip sent |
-| CT-16..22 | owned by the app | |
+| CT-20 | done: the library prints nothing (`src/` and `themes/` have no log or `printf`); the ESP32 backend logs only fixed messages and error names (`esp_err_to_name`), never a string of the UI or of the user (grep audit of It8) | `backends/esp32/*.c` |
+| CT-21 | the library gives what the application needs (`cydui_set_effects_level`, the backlight control of the backend); the timeout and the privacy mode are the application's | |
+| CT-16..19, 21, 22 | owned by the app (CT-22 gets its building block in CT-22 above) | |
 
 ## 2. Threat → control traceability
 | Abuse | Controls |
@@ -71,6 +73,10 @@ Type: **P** preventive, **D** detective, **C** corrective/safe degradation. Owne
 | AB-16 | CT-09 |
 | AB-17 | CT-10, 12 |
 | AB-18 | CT-14 |
+| AB-19 | CT-02, 04, 05, 12 |
+| AB-20 | CT-01, 15 (and the measure in `09`) |
+| AB-21 | CT-09, 11; trust documented in the README |
+| AB-22 | CT-22; the rules in `10` (Escape, modal, one frame of inertness) |
 
 ## 3. Risk register
 Probability (P) and impact (I): 1–3. Score = P×I. Residual after controls.

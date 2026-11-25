@@ -757,7 +757,9 @@ static void test_the_version_agrees_with_itself(void)
 {
     char buf[32];
     snprintf(buf, sizeof(buf), "%d.%d.%d", CYDUI_VERSION_MAJOR, CYDUI_VERSION_MINOR, CYDUI_VERSION_PATCH);
-    TEST_ASSERT_EQUAL_STRING(CYDUI_VERSION_STRING, buf);
+    /* the string is the numbers, and for a release candidate a "-suffix" after them */
+    TEST_ASSERT_EQUAL_INT(0, strncmp(CYDUI_VERSION_STRING, buf, strlen(buf)));
+    TEST_ASSERT_TRUE(CYDUI_VERSION_STRING[strlen(buf)] == '\0' || CYDUI_VERSION_STRING[strlen(buf)] == '-');
     TEST_ASSERT_EQUAL_STRING(CYDUI_VERSION_STRING, cydui_version());
 }
 

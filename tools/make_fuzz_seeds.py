@@ -173,4 +173,35 @@ def main():
     write("ui_value_widgets.bin", s)
 
 
+def touch_seeds():
+    """fuzz_touch: selector 0 = filter, 1 = calibration, 2 = latency."""
+    import struct
+
+    def burst(irq, n, x, y, z, wobble=2):
+        b = bytes([(irq & 1) | ((n + 1) << 1) | (wobble << 4) & 0x70])
+        return b + struct.pack("<HHH", x, y, z) + bytes(range(1, 16))
+
+    # a press, a drag past the move threshold, a jump that is not believed, and a release
+    s = bytes([0, 0]) + b"".join([burst(1, 5, 1800, 2000, 1500)] * 3 + [burst(1, 5, 1900, 2000, 1500)] * 2 +
+                                  [burst(1, 5, 3400, 600, 1500)] + [burst(1, 5, 1900, 2000, 1500)] * 2 +
+                                  [burst(0, 0, 0, 0, 0)] * 4)
+    write("touch_filter_press_drag.bin", s)
+    # a degenerate configuration: zero ticks, z_off above z_on, huge spread allowed
+    s = bytes([0, 1]) + struct.pack("<HHBBHHH", 100, 900, 0, 0, 0, 65535, 0) + b"".join([burst(1, 9, 500, 500, 500)] * 4 + [burst(0, 0, 0, 0, 0)] * 2)
+    write("touch_filter_degenerate.bin", s)
+
+    def f(v):  # the f32 reader: mode 2 = a plausible number, value = (u16 - 2048)
+        return bytes([2]) + struct.pack("<H", int(v) + 2048)
+
+    pts = [(400, 400, 20, 20), (3600, 400, 300, 20), (400, 3600, 20, 220), (3600, 3600, 300, 220), (2000, 2000, 160, 120)]
+    s = bytes([1, 6]) + f(12) + bytes([200, 200]) + b"".join(f(a) + f(b) + f(c) + f(d) for a, b, c, d in pts) + bytes(range(60))
+    write("touch_cal_five_points.bin", s)
+    s = bytes([1, 4]) + f(12) + bytes([200, 200]) + b"".join(bytes([0, 0, 0, 0, 0]) for _ in range(16)) + bytes(80)  # one point repeated
+    write("touch_cal_degenerate.bin", s)
+    write("touch_latency.bin", bytes([2]) + b"".join(struct.pack("<HB", (i * 977) & 0xFFFF, i) for i in range(200)))
+    write("anim_ends.bin", bytes([7]) + struct.pack("<iiii", 2048, -2147483648, 2147483647, 4096))
+    write("anim_elastic.bin", bytes([8]) + struct.pack("<iiii", 1500, 0, 100, -4096))
+
+
 main()
+touch_seeds()

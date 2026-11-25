@@ -63,7 +63,7 @@ typedef struct {
     /** Returns true and fills `ev` if an event is pending. May be NULL. */
     bool (*poll_event)(void *user, cydui_event *ev);
 
-    /** Monotonic milliseconds. May be NULL (animations are not used before It7). */
+    /** Monotonic milliseconds. May be NULL: without a clock nothing animates and a long press or the repeat of a key never fires. */
     uint32_t (*now_ms)(void *user);
 
     /** Called after the last strip of a frame (e.g. present the window); every transfer must be
