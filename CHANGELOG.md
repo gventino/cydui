@@ -2,6 +2,23 @@
 
 Versions are tagged per iteration. Until 1.0 a new minor version may change the API; every change is listed under "API changes" (see `docs/11-api.md`).
 
+## 0.6.0 — iteration 6: text fields, popups and the keyboard on the screen
+
+### Added
+- `cydui_text_input` (one line, `CYDUI_TEXT_PASSWORD`) and `cydui_text_area` (several lines that wrap), `cydui_focus_set/_clear`, `cydui_has_focus`; `CYDUI_TEXT_CHANGED` / `CYDUI_TEXT_CONFIRMED`.
+- `cydui_textedit_*` (`cydui/textedit.h`): the editing of a UTF-8 string in a buffer, with no UI.
+- `cydui_popup_begin/_end` and `CYDUI_POPUP_MODAL`: a panel above everything that takes the touch while it is shown.
+- The keyboard on the screen (letters, numbers, symbols, Latin-1 accents), shown by the library while a field has the focus; `cydui_keyboard_top`, `cydui_keyboard_enable`. A field inside a scroll area is scrolled to stay above it.
+- `CYDUI_EVENT_CHAR`, `CYDUI_EVENT_KEY`, `cydui_key` and `cydui_event.key`; the SDL backend types with the keyboard of the computer; `CYDUI_KEY_QUEUE` (32).
+- Theme kinds `CYDUI_WIDGET_TEXT_INPUT`, `CYDUI_WIDGET_POPUP`, `CYDUI_WIDGET_KEY`, filled by the default and both `clean` themes.
+- The gallery has a page "Texto" (18 hashes instead of 15 on the PC and on the board) and the board firmware a self-test that types on the keyboard of the screen.
+
+### API changes
+- `sizeof(cydui_event)` goes from 8 to 12 (the new field `key`); code that builds events with `{type, x, y}` still works.
+- `cydui_theme` is bigger (three more kinds of widget, 360 bytes); `cydui_ui` too (a queue of keys and the state of the focus, the popup and the keyboard); the storage of an application that uses the keyboard needs about 120 more commands.
+- The touch under a popup or under the keyboard does not reach the widgets there (`cydui_interact` returns nothing for them).
+- Not done: Tab navigation and the BOOT button (FR-44 in part), long press for accents, the QR code / web page for typing from a phone (the applications).
+
 ## 0.5.0 — iteration 5: the ESP32 backend
 
 ### Added

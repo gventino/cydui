@@ -24,6 +24,22 @@ while (cydui_ui_begin(&ui, theme.style.bg)) {
 }
 ```
 
+## Text input
+
+```c
+static char name[32];
+...
+if (cydui_text_input(&ui, "Name", name, sizeof(name), 24, 0) & CYDUI_TEXT_CONFIRMED) { save(name); }
+cydui_text_area(&ui, "Notes", notes, sizeof(notes), 0, 3, 0);              /* 3 rows, wraps, like an HTML textarea */
+if (cydui_popup_begin(&ui, "Delete?", &ask, 240, 110, CYDUI_POPUP_MODAL)) { /* a confirmation nothing can bypass */
+    cydui_label(&ui, "Delete this?");
+    if (cydui_button(&ui, "Delete")) { remove_it(); ask = false; }
+    cydui_popup_end(&ui);
+}
+```
+
+A tap on a field gives it the focus and a keyboard appears on the screen (letters, numbers, symbols, Latin-1 accents); `cydui_keyboard_top()` says where it begins. A backend can also feed `CYDUI_EVENT_CHAR` and `CYDUI_EVENT_KEY` events (the SDL backend does it with the keyboard of the computer), which is how an application could receive text from somewhere else, for example a web page that the board serves (not part of the library).
+
 ## Building and running (PC)
 
 ```sh
@@ -37,7 +53,7 @@ cmake --build build/clang && ctest --test-dir build/clang
 ./build/examples/text/text                # text demo: press or drag the mouse to reflow a paragraph
 ./build/examples/hello/hello              # a button and a counter: 22 lines of C
 ./build/examples/widgets/widgets          # every widget and layout; the mouse is the touch screen
-./build/examples/theme-gallery/theme-gallery   # the widgets in each theme, a list of 200 tasks, a custom widget; the buttons switch theme
+./build/examples/theme-gallery/theme-gallery   # the widgets in each theme, a list of 200 tasks, a custom widget, text fields; the buttons switch theme (the keyboard of the computer types into a focused text field)
 ./build/examples/shapes/shapes --headless --hash --png shapes.png
 ```
 

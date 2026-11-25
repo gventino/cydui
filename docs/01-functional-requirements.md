@@ -39,8 +39,8 @@ Iteration = where the FR is delivered (see `07-iterations.md`).
 | FR-31 | `slider`, `progress`. | M | 4 |
 | FR-32 | `tabs`. | M | 4 |
 | FR-33 | List with drag scrolling and **kinetic** inertia. | M | 4 |
-| FR-34 | `text_input` with cursor and on-screen **virtual keyboard**. | M | 6 |
-| FR-35 | `popup`/modal with top layer and input capture. | S | 6 |
+| FR-34 | `text_input` with cursor and on-screen **virtual keyboard**. *Done as:* `cydui_text_input` (one line, password mode), `cydui_text_area` (several lines that wrap, like an HTML `textarea`), a keyboard on the screen with letters, numbers, symbols and Latin-1 accents, and the editing core `cydui_textedit_*`. A QR code with a web page served by the board is left to the applications (it needs Wi-Fi). | M | 6 |
+| FR-35 | `popup`/modal with top layer and input capture. *Done as:* `cydui_popup_begin/end`, modal or closed by a press outside or Escape. | S | 6 |
 | FR-36 | API for custom widgets (the app registers its own drawing on top of the primitives). Done in It4: the library's widgets use the same public functions; `examples/theme-gallery/rating.c` is proof (`docs/11-api.md`). | S | 4 |
 
 ## Input
@@ -50,7 +50,7 @@ Iteration = where the FR is delivered (see `07-iterations.md`).
 | FR-41 | The library derives `tap`, `drag`, `long_press` with configurable thresholds. | M | 3 |
 | FR-42 | ESP32 backend: touch calibration (3+ points) persisted in NVS. | M | 5 |
 | FR-43 | Touch noise filter (mean/median + pressure debounce). | M | 5 |
-| FR-44 | Keyboard focus and navigation in the SDL backend (for testing); on the CYD optional via the BOOT button. | C | 6 |
+| FR-44 | Keyboard focus and navigation in the SDL backend (for testing); on the CYD optional via the BOOT button. *Done in part:* the SDL backend turns the keyboard of the computer into typed characters and editing keys for the focused text field; there is no Tab navigation between widgets and no BOOT button. | C | 6 |
 
 ## Themes and animation
 | ID | Requirement | Pri | It |

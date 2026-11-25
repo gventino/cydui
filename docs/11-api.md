@@ -1,4 +1,4 @@
-# 11 — The Public API (frozen at 0.4.0, additions in 0.5.0)
+# 11 — The Public API (frozen at 0.4.0, additions in 0.5.0 and 0.6.0)
 
 This is the contract of `include/cydui/*.h`. It is enforced by `tests/test_api_surface.c`: every function below is bound there to a pointer of its exact type, every enumerator and constant has its value, and every field of the stable structs has its type. A change to that file is an API change, and the rules of the last section apply.
 
@@ -29,7 +29,7 @@ The comments in the headers are the reference for each function (arguments, limi
 | | |
 |---|---|
 | `cydui_init`, `cydui_ui_init` | Build the drawing context / the whole UI from caller-provided memory. Return 0 or a `CYDUI_ERR_*` flag. No allocation, ever. |
-| `cydui_version` | `"0.4.0"`, also `CYDUI_VERSION_MAJOR/MINOR/PATCH/STRING`. |
+| `cydui_version` | `"0.6.0"`, also `CYDUI_VERSION_MAJOR/MINOR/PATCH/STRING`. |
 | `CYDUI_STORAGE`, `CYDUI_CONFIG` | Declare the memory of a UI and the config that points at it. |
 
 ### Frame
@@ -68,6 +68,16 @@ The comments in the headers are the reference for each function (arguments, limi
 ### Scroll areas and lists
 `cydui_scroll_begin`, `cydui_scroll_end`, `CYDUI_SCROLL`, `cydui_scroll_to`, `cydui_list_begin`, `cydui_begin_list_item`, `cydui_end_list_item`, `cydui_list_end`. Dragging scrolls and lets go into a coast (integer friction, driven by the backend clock; no overscroll); a drag that began on a button takes the touch from it; a widget with `CYDUI_CAPTURE` (the slider) is not taken over. A list builds only the rows in `[first, last)`; its content is at most `CYDUI_LIST_MAX_PX`. Scroll areas do not nest.
 
+### Text fields, popups and the keyboard on the screen (0.6.0)
+| | |
+|---|---|
+| `cydui_text_input`, `cydui_text_area` | A field of one line (`CYDUI_TEXT_PASSWORD` draws bullets) and a field of several lines that wrap, editing a string of the application (`buf`, `cap`, an optional `max_chars`). Return `CYDUI_TEXT_CHANGED` / `CYDUI_TEXT_CONFIRMED` bits. A tap gives the focus; only the focused field takes the typed characters. A refused character outlines the field for 400 ms. |
+| `cydui_focus_set`, `cydui_focus_clear`, `cydui_has_focus` | The focus. A press anywhere else, Enter on a single line field, Escape, or a field that is not called for a frame, drops it. |
+| `CYDUI_EVENT_CHAR`, `CYDUI_EVENT_KEY`, `cydui_key`, `cydui_event.key` | A backend (or the application) gives characters and editing keys; the `key` field is a code point or a `CYDUI_KEY_*`. `sizeof(cydui_event)` is 12 now. |
+| `cydui_textedit_*` | The editing of a UTF-8 string in a buffer (insert, backspace, delete, move, normalize), with no UI: safe for a buffer with no NUL, a cap of 0 or 1 and any cursor. |
+| `cydui_popup_begin`, `cydui_popup_end`, `CYDUI_POPUP_MODAL` | A panel above everything that takes the touch while it is shown; closed by a press outside or Escape unless it is modal. One at a time; it takes no room in its container. |
+| `cydui_keyboard_top`, `cydui_keyboard_enable` | The keyboard is shown by the library while a field has the focus (letters, numbers, symbols, Latin-1 accents); the application only leaves the field above `cydui_keyboard_top` (a field inside a scroll area is scrolled there by the library) or turns the keyboard off. |
+
 ### Themes
 | | |
 |---|---|
@@ -94,7 +104,7 @@ Structs the application fills or reads: `cydui_config`, `cydui_ui_config`, `cydu
 | `CYDUI_ERR_THREAD` | 256 | called from another task than the one that created the UI |
 | `CYDUI_ERR_FRAME_BUDGET` | 512 | (0.5.0) the frame passed `frame_budget_ms`; the widgets still to be called were skipped |
 
-Interaction flags: `CYDUI_SENSE_CLICK` 1, `CYDUI_SENSE_DRAG` 2, `CYDUI_DISABLED` 4, `CYDUI_CAPTURE` 8. Widget kinds and states (`cydui_widget_kind`, `cydui_widget_state`) have the order in `theme.h`; new kinds are only added at the end.
+Interaction flags: `CYDUI_SENSE_CLICK` 1, `CYDUI_SENSE_DRAG` 2, `CYDUI_DISABLED` 4, `CYDUI_CAPTURE` 8. Widget kinds and states (`cydui_widget_kind`, `cydui_widget_state`) have the order in `theme.h`; new kinds are only added at the end (0.6.0 adds `CYDUI_WIDGET_TEXT_INPUT`, `CYDUI_WIDGET_POPUP` and `CYDUI_WIDGET_KEY`, so `cydui_theme` is bigger; a theme built by `cydui_theme_derive_table` or a `clean` one has them, a theme filled by hand gets plain panels).
 
 ## Changing the API
 
