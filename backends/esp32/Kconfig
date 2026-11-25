@@ -1,0 +1,177 @@
+menu "cydui ESP32 backend"
+
+    config CYDUI_ESP32_PROFILE_CYD
+        bool "Board profile: classic CYD (ESP32-2432S028R)"
+        default y
+        help
+            The classic CYD wires its display and touch to strapping pins (GPIO 2, 12, 15). With this
+            profile enabled, using them does not produce a warning at build time. Pins that cannot work
+            (flash pins 6..11, input-only pins 34..39 as outputs, pins that do not exist) stop the build
+            whatever the profile.
+
+    menu "Display"
+        choice CYDUI_ESP32_LCD_CONTROLLER
+            prompt "Controller"
+            default CYDUI_ESP32_LCD_ILI9342C
+            config CYDUI_ESP32_LCD_ILI9342C
+                bool "ILI9342C-like, natively 320x240 (the CYD; verified on the board)"
+            config CYDUI_ESP32_LCD_ILI9341
+                bool "ILI9341, natively 240x320 (same init, landscape through MADCTL; NOT verified on hardware)"
+            config CYDUI_ESP32_LCD_ST7789
+                bool "ST7789 (NOT verified on hardware; best effort)"
+        endchoice
+
+        config CYDUI_ESP32_LCD_HOST
+            int "SPI host of the display (1 = HSPI/SPI2, 2 = VSPI/SPI3)"
+            range 1 2
+            default 1
+
+        config CYDUI_ESP32_LCD_MOSI
+            int "MOSI GPIO"
+            default 13
+        config CYDUI_ESP32_LCD_MISO
+            int "MISO GPIO (-1: not connected; the backend never reads the panel)"
+            range -1 39
+            default -1
+        config CYDUI_ESP32_LCD_SCLK
+            int "SCLK GPIO"
+            default 14
+        config CYDUI_ESP32_LCD_CS
+            int "CS GPIO"
+            default 15
+        config CYDUI_ESP32_LCD_DC
+            int "DC GPIO"
+            default 2
+        config CYDUI_ESP32_LCD_RST
+            int "RESET GPIO (-1: not wired, software reset; the CYD)"
+            range -1 39
+            default -1
+        config CYDUI_ESP32_LCD_BL
+            int "Backlight GPIO (classic CYD: 21; some variants: 27)"
+            default 21
+        config CYDUI_ESP32_LCD_BL_ACTIVE_HIGH
+            bool "Backlight is active high"
+            default y
+
+        config CYDUI_ESP32_LCD_SPI_MHZ
+            int "SPI clock (MHz)"
+            range 1 80
+            default 40
+            help
+                The ESP32 divides 80 MHz by integers, so 60 MHz runs at 40. 40 MHz is the safe default
+                (about 31 full-screen frames per second). 80 MHz (about 62) was clean on the author's
+                board with write-only traffic, but a longer wire or another batch may not manage it.
+
+        config CYDUI_ESP32_LCD_INVERT
+            bool "Send INVON (color inversion)"
+            default n
+        config CYDUI_ESP32_LCD_BGR
+            bool "MADCTL BGR bit (red and blue swapped)"
+            default n
+
+        choice CYDUI_ESP32_LCD_ROTATION
+            prompt "Rotation"
+            default CYDUI_ESP32_LCD_ROTATION_0
+            help
+                The screen is 320x240. 90 and 270 degrees (portrait) are not supported.
+            config CYDUI_ESP32_LCD_ROTATION_0
+                bool "0 degrees (landscape, connector side as on the CYD)"
+            config CYDUI_ESP32_LCD_ROTATION_180
+                bool "180 degrees"
+        endchoice
+    endmenu
+
+    menu "Touch (XPT2046)"
+        config CYDUI_ESP32_TOUCH_HOST
+            int "SPI host of the touch controller (1 = HSPI/SPI2, 2 = VSPI/SPI3); not the display's"
+            range 1 2
+            default 2
+        config CYDUI_ESP32_TOUCH_CLK
+            int "CLK GPIO"
+            default 25
+        config CYDUI_ESP32_TOUCH_MOSI
+            int "MOSI GPIO"
+            default 32
+        config CYDUI_ESP32_TOUCH_MISO
+            int "MISO GPIO (input only is fine)"
+            default 39
+        config CYDUI_ESP32_TOUCH_CS
+            int "CS GPIO"
+            default 33
+        config CYDUI_ESP32_TOUCH_IRQ
+            int "IRQ GPIO (active low while touched)"
+            default 36
+        config CYDUI_ESP32_TOUCH_KHZ
+            int "SPI clock (kHz)"
+            range 100 2500
+            default 2000
+
+        config CYDUI_ESP32_TOUCH_SWAP_XY
+            bool "The controller's X is the screen's vertical axis (the CYD)"
+            default y
+        config CYDUI_ESP32_TOUCH_FLIP_X
+            bool "Mirror the horizontal axis"
+            default n
+        config CYDUI_ESP32_TOUCH_FLIP_Y
+            bool "Mirror the vertical axis"
+            default n
+        config CYDUI_ESP32_TOUCH_RAW_MIN
+            int "Smallest raw reading in use (for the map used before the first calibration)"
+            range 0 2000
+            default 400
+        config CYDUI_ESP32_TOUCH_RAW_MAX
+            int "Largest raw reading in use"
+            range 2100 4095
+            default 3600
+
+        config CYDUI_ESP32_TOUCH_PERIOD_MS
+            int "Time between samples while the screen is touched (ms)"
+            range 2 100
+            default 10
+        config CYDUI_ESP32_TOUCH_READS
+            int "Conversions per sample (3 to 9; the extremes are dropped)"
+            range 1 9
+            default 5
+        config CYDUI_ESP32_TOUCH_Z_ON
+            int "Pressure to start a touch"
+            range 1 8000
+            default 600
+        config CYDUI_ESP32_TOUCH_Z_OFF
+            int "Pressure under which a touch ends"
+            range 1 8000
+            default 350
+        config CYDUI_ESP32_TOUCH_DOWN_TICKS
+            int "Samples over the pressure before a touch starts"
+            range 1 10
+            default 2
+        config CYDUI_ESP32_TOUCH_UP_TICKS
+            int "Samples under the pressure before a touch ends"
+            range 1 10
+            default 3
+        config CYDUI_ESP32_TOUCH_MOVE_MIN
+            int "Smallest change of position that is a move (raw units; about 0.1 px each)"
+            range 1 500
+            default 24
+        config CYDUI_ESP32_TOUCH_MAX_SPREAD
+            int "A sample whose conversions differ by more than this is thrown away (raw units)"
+            range 10 2000
+            default 220
+        config CYDUI_ESP32_TOUCH_MAX_JUMP
+            int "A change this large needs a second sample to agree (raw units)"
+            range 100 4000
+            default 1200
+        config CYDUI_ESP32_CAL_MAX_RESIDUAL
+            int "Calibration: largest error (px) of a target from the fitted map before it is refused"
+            range 2 100
+            default 12
+    endmenu
+
+    config CYDUI_ESP32_PIXEL_HASH
+        bool "Be able to hash what is sent to the panel (to compare with the PC)"
+        default y
+        help
+            With it, cydui_esp32_hash_enable(true) makes the backend compute the FNV-1a 64 of the pixels
+            of every strip before sending it: the same number that the PC backend gives for the same
+            frame, which proves the renderer is identical on the chip. It costs time while enabled.
+
+endmenu

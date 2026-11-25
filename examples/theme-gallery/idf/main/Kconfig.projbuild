@@ -1,0 +1,15 @@
+menu "theme-gallery"
+
+    config GALLERY_PRINT_HASH
+        bool "Print the hash of every page in every theme at boot (to compare with the PC)"
+        default y
+        help
+            The nine hashes are in the format of `theme-gallery --headless --hash` on the PC; the same
+            number means the pixels sent to the panel are the pixels the PC renders.
+
+    config GALLERY_BENCH_SECONDS
+        int "Seconds to measure a full redraw of every frame at boot (0: skip)"
+        range 0 30
+        default 3
+
+endmenu

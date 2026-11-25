@@ -1,4 +1,4 @@
-add_executable(theme-gallery main.c)
+add_executable(theme-gallery main.c gallery.c)
 target_link_libraries(theme-gallery PRIVATE cydui_mem cydui_fonts cydui_themes cydui_rating)
 set_target_properties(theme-gallery PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(theme-gallery PRIVATE ${CYDUI_STRICT_FLAGS})

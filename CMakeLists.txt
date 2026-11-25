@@ -7,10 +7,17 @@
 set(CYDUI_CORE_SRCS src/arena.c src/ctx.c src/font.c src/layout.c src/raster.c src/scroll.c src/text.c src/types.c src/theme.c src/ui.c src/utf8.c src/version.c src/widgets.c)
 
 if(ESP_PLATFORM)
+    # The core and the ESP32 backend are one component; the fonts and themes are compiled by the
+    # application (it chooses its fonts, FR-10), see examples/theme-gallery/idf.
     idf_component_register(
         SRCS ${CYDUI_CORE_SRCS}
-        INCLUDE_DIRS "include"
+             backends/esp32/cydui_esp32.c backends/esp32/touch_cal.c backends/esp32/touch_filter.c
+        INCLUDE_DIRS "include" "backends/esp32"
+        REQUIRES esp_driver_spi freertos
+        PRIV_REQUIRES esp_driver_gpio esp_driver_ledc esp_timer esp_hw_support nvs_flash esp_system
+        KCONFIG "${CMAKE_CURRENT_LIST_DIR}/backends/esp32/Kconfig"
     )
+    target_compile_options(${COMPONENT_LIB} PRIVATE -Wformat -Wformat-security) # CT-13
     return()
 endif()
 

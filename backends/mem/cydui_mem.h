@@ -31,7 +31,11 @@ void cydui_mem_init(cydui_mem *m, cydui_color *fb, int16_t width, int16_t height
  */
 bool cydui_mem_push_event(cydui_mem *m, cydui_event_type type, int16_t x, int16_t y);
 
-/** FNV-1a 64-bit over the pixels as little-endian bytes (independent of host endianness). */
+/**
+ * FNV-1a 64-bit over the pixels as little-endian bytes (independent of host endianness). The offset basis is
+ * 1469598103934665603, a digit short of the standard 14695981039346656037; it stays so, because every golden
+ * hash was made with it (and the ESP32 backend uses the same number to compare with the PC).
+ */
 uint64_t cydui_mem_hash(const cydui_mem *m);
 
 /** Writes the framebuffer as an RGB PNG. Returns 0 on success. */
