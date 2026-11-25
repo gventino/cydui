@@ -2,6 +2,25 @@
 
 Versions are tagged per iteration. Until 1.0 a new minor version may change the API; every change is listed under "API changes" (see `docs/11-api.md`).
 
+## 0.7.0 — iteration 7: a faster renderer, animation, post-effects and the `retro` and `cyberpunk` themes
+
+### Added
+- `cydui_animate` and the easing curves (`anim.h`), `cydui_now`, `cydui_theme_age`; `CYDUI_MAX_TWEENS`, `CYDUI_ANIM_MAX_MS`, `CYDUI_ERR_TWEEN_LIMIT`. Buttons, check boxes, switches, tabs and the dimming of a popup change their look over `cydui_style.anim_ms` (0 for every theme before).
+- `cydui_post_effect` and `cydui_set_post_effect`: a hook per strip, with a key that takes part in the dirty regions; `cydui_theme.post`; `cydui_set_effects_level` (`CYDUI_FX_*`).
+- `cydui_paint_look` and `cydui_paint_amount` for painters that want to take part in the transitions.
+- The themes `retro` (silver, 3D edges, `cydui_mono_16`, a 1-bit monospaced font made from Liberation Mono: `fontgen.py --hinting mono`) and `cyberpunk` (neon, glow, scanlines, a glitch, an entrance sweep). The gallery has five themes (a tab bar instead of three buttons) and 30 hashes on the PC and on the board, plus 12 more at the times of the effects of cyberpunk; `--at MS` for the headless run.
+
+### Changed
+- The rasterizer is 3 to 10 times faster on the board and the output is the same, pixel by pixel (rounded rectangles by runs, spans filled by words, lines near the segment only, a glyph skips its empty bytes): a full frame draws in 11.5 ms instead of 26.
+- The shadow of a card or a popup is four layers of alpha 16, not eight of alpha 8: the old one turned green over a dark or dimmed page (a test pins the new one). The goldens `clean_panel`, `clean_card` and `clean_popup` changed.
+- `cydui_ui_init` clears the state table it is given. A theme set again with the same pointer is not a new entrance.
+
+### API changes
+- `cydui_style` (+2 bytes), `cydui_paint_info` and `cydui_theme` (+1 pointer) grew at their end; `cydui_ui` and `cydui_ctx` are bigger. `CYDUI_ERR_TWEEN_LIMIT` is a new bit.
+- `cydui_ui_end` also returns true while a tween moves.
+- `tools/gen_fonts.sh` makes one more font (`fonts/cydui_mono_16`); a theme that uses many widgets with a duration needs a state table that holds one more entry for each of them (a tween never replaces other state: with none free the value is the target at once).
+- Not done: a pixel font with the check mark, a theme with entrance animations per widget (the entrance of cyberpunk is the sweep of the whole screen), a Kconfig default for the level of effects.
+
 ## 0.6.0 — iteration 6: text fields, popups and the keyboard on the screen
 
 ### Added

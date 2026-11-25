@@ -38,10 +38,10 @@ All must be **measurable**; the "Verification" column says how.
 | NFR-40 | A "hello" app in ≤ 25 lines of C. | Example. |
 | NFR-41 | Edit→see cycle on PC < 5 s (incremental build + SDL window). | Timing. |
 | NFR-42 | Every public function documented (Doxygen-style comment), with an example for widgets. | Local check (script). |
-| NFR-43 | Creating a new theme: copy a base theme and change the table; no core changes. | `retro` theme built this way. `clean` and `clean_dark` are one function over a palette (a variant costs a few colors); `retro` in It7. |
+| NFR-43 | Creating a new theme: copy a base theme and change the table; no core changes. | `retro` and `cyberpunk` are built this way (a table, plus painters for the 3D edges and the glow, and a post-effect for the scanlines): no change in the core. `clean` and `clean_dark` are one function over a palette. |
 
 ## Status after It5 (measured on the board; details in `09-hardware-notes.md`)
-NFR-01: animation 83 fps at 40 MHz and 104 fps at 80 MHz with dirty regions, a full redraw 24 / 30 fps, so the cyberpunk theme (It7) depends on optimizing the renderer. NFR-02: p95 24 ms with the stylus. NFR-03: 0.7 to 1.5 ms. NFR-04: 0.12 % CPU idle, no strip sent. NFR-10: 37 KB static. NFR-13: 305 KB of free heap before Wi-Fi (not measured with Wi-Fi). NFR-50: as measured in It4. NFR-60 and 61: by timeouts, error returns and review; the hardware-disconnected test of NFR-60 was not done.
+NFR-01 (It7): the renderer draws a full frame in 11.5 ms (it was 26), so a full redraw is bound by the SPI: 26 fps at 40 MHz (34.5 ms to send) and, for `cyberpunk` (17.5 ms of drawing with its glow and scanlines), 25 fps at 40 MHz and 35 fps at 80 MHz; a full-screen redraw at 30 fps or more needs 80 MHz. What an animation changes is a few strips: 89 fps (`cyberpunk`) and 99 fps (`clean`) at 40 MHz, 124 / 162 at 80 MHz. The requirement is met for animation with dirty regions at 40 MHz, and for a full-screen one only at 80 MHz (the 40 MHz limit is the SPI, not the library). NFR-02: p95 24 ms with the stylus. NFR-03: 0.7 to 1.5 ms. NFR-04: 0.12 % CPU idle, no strip sent. NFR-10: 37 KB static. NFR-13: 305 KB of free heap before Wi-Fi (not measured with Wi-Fi). NFR-50: as measured in It4. NFR-60 and 61: by timeouts, error returns and review; the hardware-disconnected test of NFR-60 was not done.
 
 ## Footprint
 | ID | Requirement | Verification |

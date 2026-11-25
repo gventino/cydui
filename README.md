@@ -2,9 +2,9 @@
 
 Immediate-mode UI library in C for small embedded displays, targeting the ESP32 "Cheap Yellow Display" (ESP32-2432S028R: ILI9341 320x240 + XPT2046 touch). egui-style API, strip-based rendering (no full framebuffer), swappable themes from clean/modern to retro to cyberpunk.
 
-**Status:** version **0.4.0**, iteration 4: drawing core, strip rasterizer, in-memory and SDL backends, UTF-8 text with bitmap fonts, and an immediate-mode UI with ids, state, touch input, layout (alignment, cards), label/button/checkbox/toggle/slider/progress/tabs, scroll areas with inertia, virtual lists, themes switchable at run time (`clean` in a light and a dark variant) and an API for widgets of your own. **The public API is frozen** by a test: see [`docs/11-api.md`](docs/11-api.md). Not yet: the ESP32 backend (next), text input, popups, animation, the `retro` and `cyberpunk` themes. See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md); the [changelog](CHANGELOG.md) lists what changed.
+**Status:** version **0.7.0**, iteration 7: drawing core, strip rasterizer (fast: a full frame draws in 11.5 ms on the ESP32), in-memory, SDL and ESP32 backends, UTF-8 text with bitmap fonts, an immediate-mode UI (ids, state, touch, layout, widgets, scroll areas, lists, text fields, popups and a keyboard on the screen), themes switchable at run time (`clean` light and dark, `retro`, `cyberpunk`), tweens and a per-strip post-effect hook, and an API for widgets of your own. **The public API has been frozen since 0.4.0** (additions only): see [`docs/11-api.md`](docs/11-api.md). See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md); the [changelog](CHANGELOG.md) lists what changed.
 
-![The theme gallery](docs/img/gallery-clean.png) ![in the dark theme](docs/img/gallery-clean-dark.png) ![a list of 200 tasks](docs/img/gallery-list.png) ![a custom widget](docs/img/gallery-stars.png)
+![The theme gallery](docs/img/gallery-clean.png) ![in the dark theme](docs/img/gallery-clean-dark.png) ![a list of 200 tasks](docs/img/gallery-list.png) ![a custom widget](docs/img/gallery-stars.png) ![the retro theme](docs/img/gallery-retro.png) ![the cyberpunk theme](docs/img/gallery-cyberpunk.png)
 
 ```c
 CYDUI_STORAGE(storage, 320, 240, 20, 192, 1024, 32);   /* all the memory, as one static object */
@@ -40,6 +40,18 @@ if (cydui_popup_begin(&ui, "Delete?", &ask, 240, 110, CYDUI_POPUP_MODAL)) { /* a
 
 A tap on a field gives it the focus and a keyboard appears on the screen (letters, numbers, symbols, Latin-1 accents); `cydui_keyboard_top()` says where it begins. A backend can also feed `CYDUI_EVENT_CHAR` and `CYDUI_EVENT_KEY` events (the SDL backend does it with the keyboard of the computer), which is how an application could receive text from somewhere else, for example a web page that the board serves (not part of the library).
 
+## Animation and effects
+
+```c
+/* a value that moves to its target: the first call starts at 0, a new target goes there from where it is */
+int32_t alpha = cydui_animate(&ui, cydui_id_str(&ui, "fade"), 0, shown ? 255 : 0, 200, CYDUI_EASE_OUT_QUAD);
+
+cydui_set_theme(&ui, &cyberpunk);        /* a theme can carry a post-effect: scanlines, a glitch, an entrance sweep */
+cydui_set_effects_level(&ui, CYDUI_FX_LOW); /* ... and be turned down when the frame rate suffers */
+```
+
+The widgets of a theme with `style.anim_ms` > 0 change their look over that time (buttons, check boxes, switches, tabs). Everything follows the clock of the backend, so a test with a made-up clock sees the same frame as the board: the gallery prints 42 hashes (30 pages in five themes, 12 at the times of the effects of `cyberpunk`) that are the same on the PC and on the ESP32. `cydui_ui_end` returns true while something moves; when it returns false the application may sleep. A full 320 x 240 redraw is bound by the SPI at 40 MHz (about 26 frames per second); animations that change a few strips run at 90 to 100, and at 80 MHz a full redraw of `cyberpunk` is 35 fps.
+
 ## Building and running (PC)
 
 ```sh
@@ -53,7 +65,7 @@ cmake --build build/clang && ctest --test-dir build/clang
 ./build/examples/text/text                # text demo: press or drag the mouse to reflow a paragraph
 ./build/examples/hello/hello              # a button and a counter: 22 lines of C
 ./build/examples/widgets/widgets          # every widget and layout; the mouse is the touch screen
-./build/examples/theme-gallery/theme-gallery   # the widgets in each theme, a list of 200 tasks, a custom widget, text fields; the buttons switch theme (the keyboard of the computer types into a focused text field)
+./build/examples/theme-gallery/theme-gallery   # the widgets in each theme, a list of 200 tasks, a custom widget, text fields; a tab bar switches among the five themes (the keyboard of the computer types into a focused text field); `--theme 0..4 --tab 0..5 --at MS` renders one state headless
 ./build/examples/shapes/shapes --headless --hash --png shapes.png
 ```
 
@@ -94,7 +106,7 @@ With no calibration in the flash it asks for five touches on crosses at the firs
 
 ## Fonts
 
-`fonts/` holds bitmap fonts generated by `tools/fontgen.py` (a `cydui_font` is constant data: a sorted glyph table plus 4-bit coverage bitmaps). The bundled `cydui_sans_{12,16,24}` are renderings of Liberation Sans and stay under the **SIL Open Font License 1.1** (`fonts/LICENSE-OFL.txt`), not the MIT license; they are named without "Liberation" because the OFL reserves that name for unmodified fonts.
+`fonts/` holds bitmap fonts generated by `tools/fontgen.py` (a `cydui_font` is constant data: a sorted glyph table plus 4-bit coverage bitmaps). The bundled `cydui_sans_{12,16,24}` are renderings of Liberation Sans and `cydui_mono_16` (for the `retro` theme) a one-bit rendering of Liberation Mono; they stay under the **SIL Open Font License 1.1** (`fonts/LICENSE-OFL.txt`), not the MIT license; they are named without "Liberation" because the OFL reserves that name for unmodified fonts.
 
 ```sh
 python3 -m venv tools/.venv && tools/.venv/bin/pip install -r tools/requirements.txt   # once

@@ -12,7 +12,7 @@ Iteration = where the FR is delivered (see `07-iterations.md`).
 | FR-04 | Rounded corners and diagonal lines must be antialiased. | M | 1 |
 | FR-05 | The rasterizer supports **dirty regions**: it only redraws what changed between frames (per-region command hash comparison). | S | 5 |
 | FR-06 | Color is RGB565 internally; the API accepts RGB888 and converts. Simple src-over alpha blending for rects/bitmaps/text. | M | 1 |
-| FR-07 | **Per-strip post-effect** hook (`fn(strip_buf, y0, h, user)`) for theme effects (scanline, glitch, glow). | S | 7 |
+| FR-07 | **Per-strip post-effect** hook (`fn(strip_buf, y0, h, user)`) for theme effects (scanline, glitch, glow). *Done:* `cydui_post_effect` with `apply` and a `key` for the dirty regions, a level to turn it down; a glow is drawn by the painters of the theme with translucent rings, not by the hook. | S | 7 |
 
 ## Text and fonts
 | ID | Requirement | Pri | It |
@@ -58,9 +58,9 @@ Iteration = where the FR is delivered (see `07-iterations.md`).
 | FR-50 | Theme = style table struct (colors, border, radius, padding, fonts, durations) per widget state. | M | 4 |
 | FR-51 | A theme can **override the paint function** of each widget type (`paint_button`, `paint_checkbox`, ...). | M | 4 |
 | FR-52 | Runtime theme switching without reinitializing the context. | M | 4 |
-| FR-53 | Tweens with easing (linear, in/out quad/cubic, back, elastic) bound to widget state. | M | 7 |
-| FR-54 | Shipped themes: `clean`, `retro`, `cyberpunk`. **It4 delivers `clean` in a light and a dark variant (`clean`, `clean_dark`)**; `retro` and `cyberpunk` come with It7. | M | 4/7 |
-| FR-55 | Animation clock injected by the backend (`now_ms`), for deterministic tests. | M | 7 |
+| FR-53 | Tweens with easing (linear, in/out quad/cubic, back, elastic) bound to widget state. *Done:* `cydui_animate` and the curves (back and elastic only as "out"), and the changes of look of buttons, check boxes, switches, tabs and the dimming of a popup over `style.anim_ms`. | M | 7 |
+| FR-54 | Shipped themes: `clean`, `retro`, `cyberpunk`. **It4 delivers `clean` in a light and a dark variant (`clean`, `clean_dark`)**; `retro` and `cyberpunk` come with It7. *Done in It7:* all three. | M | 4/7 |
+| FR-55 | Animation clock injected by the backend (`now_ms`), for deterministic tests. *Done:* `cydui_now`, `cydui_theme_age`, tweens and effects follow it; without a clock nothing animates. | M | 7 |
 
 ## Backends
 | ID | Requirement | Pri | It |

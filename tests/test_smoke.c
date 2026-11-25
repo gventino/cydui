@@ -5,7 +5,7 @@
 
 int main(void)
 {
-    if (strcmp(cydui_version(), CYDUI_VERSION_STRING) != 0 || strcmp(CYDUI_VERSION_STRING, "0.6.0") != 0) {
+    if (strcmp(cydui_version(), CYDUI_VERSION_STRING) != 0 || strcmp(CYDUI_VERSION_STRING, "0.7.0") != 0) {
         fprintf(stderr, "unexpected version: %s\n", cydui_version());
         return 1;
     }

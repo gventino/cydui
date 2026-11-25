@@ -1,4 +1,4 @@
-# 11 — The Public API (frozen at 0.4.0, additions in 0.5.0 and 0.6.0)
+# 11 — The Public API (frozen at 0.4.0, additions in 0.5.0, 0.6.0 and 0.7.0)
 
 This is the contract of `include/cydui/*.h`. It is enforced by `tests/test_api_surface.c`: every function below is bound there to a pointer of its exact type, every enumerator and constant has its value, and every field of the stable structs has its type. A change to that file is an API change, and the rules of the last section apply.
 
@@ -29,7 +29,7 @@ The comments in the headers are the reference for each function (arguments, limi
 | | |
 |---|---|
 | `cydui_init`, `cydui_ui_init` | Build the drawing context / the whole UI from caller-provided memory. Return 0 or a `CYDUI_ERR_*` flag. No allocation, ever. |
-| `cydui_version` | `"0.6.0"`, also `CYDUI_VERSION_MAJOR/MINOR/PATCH/STRING`. |
+| `cydui_version` | `"0.7.0"`, also `CYDUI_VERSION_MAJOR/MINOR/PATCH/STRING`. |
 | `CYDUI_STORAGE`, `CYDUI_CONFIG` | Declare the memory of a UI and the config that points at it. |
 
 ### Frame
@@ -78,6 +78,16 @@ The comments in the headers are the reference for each function (arguments, limi
 | `cydui_popup_begin`, `cydui_popup_end`, `CYDUI_POPUP_MODAL` | A panel above everything that takes the touch while it is shown; closed by a press outside or Escape unless it is modal. One at a time; it takes no room in its container. |
 | `cydui_keyboard_top`, `cydui_keyboard_enable` | The keyboard is shown by the library while a field has the focus (letters, numbers, symbols, Latin-1 accents); the application only leaves the field above `cydui_keyboard_top` (a field inside a scroll area is scrolled there by the library) or turns the keyboard off. |
 
+### Animation, post-effects and the clock (0.7.0)
+| | |
+|---|---|
+| `cydui_animate(ui, id, from, target, duration_ms, ease)` | A value that moves to its target: it starts at `from` the first time, and goes from where it is to every new target along `ease` (`CYDUI_EASE_LINEAR`, `_IN/_OUT/_IN_OUT_QUAD`, `_IN/_OUT/_IN_OUT_CUBIC`, `_OUT_BACK`, `_OUT_ELASTIC`; integers only, `cydui_ease_apply` and `cydui_lerp` are in `anim.h`). Kept in the state table, apart from the state of a widget with the same id. With no clock, a duration of 0 or no free entry in the state table the value is the target at once. At most `CYDUI_MAX_TWEENS` (16) move together (`CYDUI_ERR_TWEEN_LIMIT`), a duration is cut to `CYDUI_ANIM_MAX_MS` (5000), and `cydui_ui_end` returns true while one moves. |
+| `cydui_now`, `cydui_theme_age` | The clock of the frame, and the ms since the theme in use came in (for an entrance). |
+| `cydui_post_effect`, `cydui_set_post_effect(ctx, fx)` | A function that changes every strip after it is drawn and before it is sent (`apply(user, buf, width, y0, h)`), with a `key(user, y0, h)` that says what it will do to those rows and takes part in the dirty-region hash, so a time dependent effect resends only the strips it changes. It must depend on the absolute row, never on the strip. |
+| `cydui_set_effects_level`, `cydui_effects_level`, `CYDUI_FX_NONE/LOW/FULL`, `CYDUI_FX_DEFAULT` | What a theme may spend on its effects; a theme that has none ignores it. |
+| `cydui_theme.post`, `cydui_style.anim_ms` | A theme can carry a post-effect (it receives the `cydui_ui` as `user`) and a duration for the changes of look of its widgets (buttons, check boxes, switches, tabs, the dimming of a popup); 0 = at once, which is what every theme built before 0.7.0 gets. |
+| `cydui_paint_look`, `cydui_paint_amount`, `cydui_paint_info.mix/from_state/from_selected` | For a painter: the look of the widget between two states while it changes, and how selected it is (a switch places its knob with it). `mix` 0 means settled. |
+
 ### Themes
 | | |
 |---|---|
@@ -103,8 +113,9 @@ Structs the application fills or reads: `cydui_config`, `cydui_ui_config`, `cydu
 | `CYDUI_ERR_TOO_MANY_WIDGETS` | 128 | more than `CYDUI_MAX_WIDGETS` in a frame |
 | `CYDUI_ERR_THREAD` | 256 | called from another task than the one that created the UI |
 | `CYDUI_ERR_FRAME_BUDGET` | 512 | (0.5.0) the frame passed `frame_budget_ms`; the widgets still to be called were skipped |
+| `CYDUI_ERR_TWEEN_LIMIT` | 1024 | (0.7.0) more than `CYDUI_MAX_TWEENS` tweens moving at once; the extra ones jumped to their target |
 
-Interaction flags: `CYDUI_SENSE_CLICK` 1, `CYDUI_SENSE_DRAG` 2, `CYDUI_DISABLED` 4, `CYDUI_CAPTURE` 8. Widget kinds and states (`cydui_widget_kind`, `cydui_widget_state`) have the order in `theme.h`; new kinds are only added at the end (0.6.0 adds `CYDUI_WIDGET_TEXT_INPUT`, `CYDUI_WIDGET_POPUP` and `CYDUI_WIDGET_KEY`, so `cydui_theme` is bigger; a theme built by `cydui_theme_derive_table` or a `clean` one has them, a theme filled by hand gets plain panels).
+Interaction flags: `CYDUI_SENSE_CLICK` 1, `CYDUI_SENSE_DRAG` 2, `CYDUI_DISABLED` 4, `CYDUI_CAPTURE` 8. `cydui_style` and `cydui_paint_info` grew at their end in 0.7.0 (`anim_ms`; `mix`, `from_state`, `from_selected`) and `cydui_theme` got `post` at its end: code that fills them by name and zeroes the rest is unchanged. Widget kinds and states (`cydui_widget_kind`, `cydui_widget_state`) have the order in `theme.h`; new kinds are only added at the end (0.6.0 adds `CYDUI_WIDGET_TEXT_INPUT`, `CYDUI_WIDGET_POPUP` and `CYDUI_WIDGET_KEY`, so `cydui_theme` is bigger; a theme built by `cydui_theme_derive_table` or a `clean` one has them, a theme filled by hand gets plain panels).
 
 ## Changing the API
 

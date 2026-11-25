@@ -47,7 +47,7 @@ Type: **P** preventive, **D** detective, **C** corrective/safe degradation. Owne
 | CT-13 | done: strong stack protector, comprehensive heap poisoning and `-Wformat-security` in the gallery firmware, checked by the local `ci.sh` | `examples/theme-gallery/idf/sdkconfig.defaults` |
 | CT-14 | done: the Kconfig rejects pins that are not usable (`pins.h`, tested) | `backends/esp32/pins.h`, `tests/test_pins.c` |
 | CT-15 | done: the task watchdog is subscribed and fed every frame; the frame budget was proved on the board | `backends/esp32/cydui_esp32.c` |
-| CT-08 | later iteration | |
+| CT-08 | It7 | `tests/test_anim.c`: the cap of 16 tweens, the cut of the duration, a clock that wraps or goes back, no tween replaces other state, states recycled (3000 frames, no growth); on the board 1500 frames over all the pages of `cyberpunk` keep 14 state entries and 2 tweens at most, and the loop settles (`GALLERY_TWEENS`); idle 0.05 % CPU, no strip sent |
 | CT-16..22 | owned by the app | |
 
 ## 2. Threat → control traceability
@@ -79,13 +79,13 @@ Probability (P) and impact (I): 1–3. Score = P×I. Residual after controls.
 | ID | Risk | P | I | Score | Response | Residual |
 |----|------|---|---|-------|----------|----------|
 | R-01 | Insufficient RAM (no PSRAM) with WiFi+TLS+UI. | 2 | 3 | 6 | Strip rendering, fixed arenas, measure early in It5; smaller strips (H=10) if needed. | Low |
-| R-02 | FPS < 30 in the cyberpunk theme with post-effects. | 3 | 2 | 6 | SPI at 40–80 MHz, dirty regions, cheap effects (LUT), per-strip budget, downgrade effects via Kconfig. **Measured in It5:** drawing a full frame costs ~26 ms on the board (the SPI at 40 MHz another 34 ms, overlapped), a full redraw is 24 / 30 fps; with dirty regions an animation is 83 / 104 fps. **After the optimization of It7 step 1:** drawing a full frame costs 11.5 ms, so a full redraw is bound by the SPI (34.5 ms at 40 MHz, 26.8 fps). | Medium |
+| R-02 | FPS < 30 in the cyberpunk theme with post-effects. | 3 | 2 | 6 | SPI at 40–80 MHz, dirty regions, cheap effects (LUT), per-strip budget, downgrade effects via Kconfig. **Measured in It5:** drawing a full frame costs ~26 ms on the board (the SPI at 40 MHz another 34 ms, overlapped), a full redraw is 24 / 30 fps; with dirty regions an animation is 83 / 104 fps. **After the optimization of It7:** drawing a full frame costs 11.5 ms and a full redraw is bound by the SPI (34.5 ms at 40 MHz, 26.8 fps); `cyberpunk` draws in 17.5 ms (the scanlines cost 1.3 ms) and a full redraw is 25 fps at 40 MHz and 35 fps at 80 MHz; an animation with dirty regions 89 fps (40 MHz) and 124 fps (80 MHz). The effects can be turned down with `cydui_set_effects_level`. | Medium |
 | R-03 | Panel/touch clones with a different native orientation, color inversion, RGB/BGR order, or touch noise. **Materialized in It0:** the panel is natively 320x240 (ILI9342C-like), the controller ID cannot be read, and the touch axes are swapped. | 3 | 2 | 6 | Kconfig for raw `MADCTL`, native orientation, inversion; touch axis swap and calibration in the backend; findings in `09-hardware-notes.md`; re-run `hw-probe` on any new board. | Medium |
 | R-04 | Noisy/imprecise resistive touch. | 3 | 2 | 6 | 5-point calibration, median, debounce, widgets with targets ≥ 32 px. | Low |
 | R-05 | Immediate-mode layout without retention becomes costly or unstable (auto size). | 2 | 2 | 4 | Single-pass layout + one-frame delay; limit auto-size to simple cases. **Done:** positions are final when placed, only `fill` uses last frame's numbers and asks for another frame; 40 widgets cost 9.6 µs on a PC. Real cost on the board (It5): 0.7 to 1.5 ms. | Low |
 | R-06 | Tearing/flicker from partial flush with DMA. | 2 | 2 | 4 | Double buffering, flush by whole strips; simple synchronization. | Low |
 | R-07 | Generated fonts weigh on flash (many sizes/glyphs). | 2 | 2 | 4 | Per-app subset, 4bpp, shared identical bitmaps; NFR-50 budget. **Measured:** the three bundled fonts (ASCII + Latin-1 + symbols) take 45.7 KB, the whole core 6.8 KB. | Low |
-| R-08 | Determinism gaps between SDL and ESP32 (floating point, operation order). | 2 | 2 | 4 | Integer/fixed-point raster; no `float` in the pixel path. | Low |
+| R-08 | Determinism gaps between SDL and ESP32 (floating point, operation order). | 2 | 2 | 4 | Integer/fixed-point raster; no `float` in the pixel path. **Tested in It7:** the easings, the effects and the themes with a clock give the same 42 hashes on the PC and on the board (the gallery takes them on a made-up clock). | Low |
 | R-09 | ESP-IDF version drift breaking the backend. | 2 | 2 | 4 | Pin version in `08-tech-stack.md`; build check. | Low |
 
 ### Project risks
