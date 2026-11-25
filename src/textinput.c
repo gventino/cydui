@@ -90,7 +90,9 @@ static void draw_bullets(cydui_ui *ui, cydui_rect box, int x, int y, size_t coun
     size_t i;
 
     for (i = 0; i < BULLET_CHUNK; i++) {
-        memcpy(s + i * 3, BULLET, 3);
+        s[i * 3] = BULLET[0];
+        s[i * 3 + 1] = BULLET[1];
+        s[i * 3 + 2] = BULLET[2];
     }
     while (count > 0 && x < box.x + box.w) {
         size_t n = count > BULLET_CHUNK ? BULLET_CHUNK : count;
@@ -470,7 +472,7 @@ unsigned cydui_text_area(cydui_ui *ui, const char *label, char *buf, size_t cap,
         if (idx >= sc.total) {
             idx = sc.total ? sc.total - 1u : 0;
         }
-        if (line_at(&ms, buf, len, wrap, idx, &v)) {
+        if (buf && line_at(&ms, buf, len, wrap, idx, &v)) {
             cur = v.start + at_of(&ms, buf + v.start, v.end - v.start, resp.x - inner.x);
         }
     }

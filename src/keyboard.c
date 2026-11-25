@@ -31,7 +31,7 @@ typedef struct {
     uint32_t cp;    /* K_CHAR: the character, before Shift */
 } key_def;
 
-static const char *const rows[P_COUNT][3] = {
+static const char rows[P_COUNT][3][21] = { /* the longest is ten two-byte letters and the NUL */
     {"qwertyuiop", "asdfghjkl", "zxcvbnm"},
     {"\xC3\xA1\xC3\xA0\xC3\xA2\xC3\xA3\xC3\xA4\xC3\xA9\xC3\xA8\xC3\xAA\xC3\xAB\xC3\xAD", /* á à â ã ä é è ê ë í */
      "\xC3\xAC\xC3\xAE\xC3\xAF\xC3\xB3\xC3\xB2\xC3\xB4\xC3\xB5\xC3\xB6\xC3\xBA\xC3\xB9",  /* ì î ï ó ò ô õ ö ú ù */
@@ -43,10 +43,12 @@ static const char *const rows[P_COUNT][3] = {
 static key_def mk(const char *label, uint8_t kind, uint8_t weight, uint8_t page, uint32_t cp)
 {
     key_def k;
-    size_t n = strlen(label);
+    size_t i;
 
     memset(&k, 0, sizeof(k));
-    memcpy(k.label, label, n < sizeof(k.label) - 1 ? n : sizeof(k.label) - 1); /* the last byte stays the NUL */
+    for (i = 0; i < sizeof(k.label) - 1 && label[i] != '\0'; i++) { /* the last byte stays the NUL */
+        k.label[i] = label[i];
+    }
     k.kind = kind;
     k.weight = weight;
     k.page = page;

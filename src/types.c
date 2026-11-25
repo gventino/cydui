@@ -1,5 +1,7 @@
 #include "cydui/types.h"
 
+#include "blend.h"
+
 cydui_rect cydui_rect_intersect(cydui_rect a, cydui_rect b)
 {
     int32_t x0 = a.x > b.x ? a.x : b.x;
@@ -24,16 +26,9 @@ bool cydui_rect_empty(cydui_rect r)
     return r.w <= 0 || r.h <= 0;
 }
 
-/* RGB565 fields spread so each has headroom for the multiply: 0x07E0F81F. */
-#define SPREAD_MASK 0x07E0F81Fu
-
 cydui_color cydui_blend(cydui_color dst, cydui_color src, uint8_t alpha)
 {
-    uint32_t a = ((uint32_t)alpha + 4u) >> 3; /* 0..32 */
-    uint32_t s = ((uint32_t)src | ((uint32_t)src << 16)) & SPREAD_MASK;
-    uint32_t d = ((uint32_t)dst | ((uint32_t)dst << 16)) & SPREAD_MASK;
-    uint32_t r = ((((s - d) * a) >> 5) + d) & SPREAD_MASK;
-    return (cydui_color)(r | (r >> 16));
+    return cydui__blend565(dst, src, alpha);
 }
 
 void cydui_color_unpack(cydui_color c, uint8_t *r, uint8_t *g, uint8_t *b)

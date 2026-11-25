@@ -1,10 +1,15 @@
 /*
  * Strip rasterizer. Integer arithmetic only, so results are bit-identical across compilers and
  * targets. Antialiasing uses signed distances in 1/16 pixel; pixel centers sit at (x*16+8).
+ *
+ * Speed (R-02): the output of every command is defined pixel by pixel, and the fast paths below
+ * only skip the work whose result is known (a run of one coverage, a pixel too far from a shape,
+ * a transparent nibble); what is left is the same arithmetic as the plain version.
  */
 
 #include <string.h>
 
+#include "blend.h"
 #include "cydui/cmd.h"
 #include "cydui/text.h"
 
@@ -12,6 +17,12 @@ typedef struct {
     cydui_color *buf;
     int16_t width, y0, h;
 } strip_t;
+
+#if defined(__GNUC__)
+typedef uint32_t __attribute__((may_alias)) word_t;
+#else
+typedef uint32_t word_t;
+#endif
 
 static cydui_color *pixel_at(const strip_t *s, int x, int y)
 {
@@ -43,9 +54,23 @@ static uint32_t isqrt64(uint64_t x)
     return (uint32_t)r;
 }
 
+/* The same floor square root without 64-bit arithmetic (slow on a 32-bit core). */
 static uint32_t isqrt32(uint32_t x)
 {
-    return isqrt64(x);
+    uint32_t r = 0, b = (uint32_t)1 << 30;
+    while (b > x) {
+        b >>= 2;
+    }
+    while (b) {
+        if (x >= r + b) {
+            x -= r + b;
+            r = (r >> 1) + b;
+        } else {
+            r >>= 1;
+        }
+        b >>= 2;
+    }
+    return r;
 }
 
 static void put(cydui_color *p, cydui_color c, unsigned a)
@@ -53,7 +78,44 @@ static void put(cydui_color *p, cydui_color c, unsigned a)
     if (a >= 252u) {
         *p = c;
     } else if (a >= 4u) {
-        *p = cydui_blend(*p, c, (uint8_t)a);
+        *p = cydui__blend565(*p, c, (uint8_t)a);
+    }
+}
+
+/* put() over `n` pixels: opaque is a fill by words, translucent remembers the last result because
+ * a run over one background (the usual case) blends the same pair again and again. */
+static void span_put(cydui_color *p, int n, cydui_color c, unsigned a)
+{
+    if (n <= 0) {
+        return;
+    }
+    if (a >= 252u) {
+        uint32_t w = (uint32_t)c | ((uint32_t)c << 16);
+
+        if (((uintptr_t)p & 2u) != 0u) {
+            *p++ = c;
+            n--;
+        }
+        for (; n >= 2; n -= 2, p += 2) {
+            *(word_t *)p = w;
+        }
+        if (n > 0) {
+            *p = c;
+        }
+    } else if (a >= 4u) {
+        cydui_color last_d = 0, last_r = 0;
+        bool have = false;
+        int i;
+
+        for (i = 0; i < n; i++) {
+            cydui_color d = p[i];
+            if (!have || d != last_d) {
+                last_d = d;
+                last_r = cydui__blend565(d, c, (uint8_t)a);
+                have = true;
+            }
+            p[i] = last_r;
+        }
     }
 }
 
@@ -79,16 +141,13 @@ static bool visible(const cydui_cmd *c, const strip_t *s, cydui_rect *out)
 static void draw_rect(const cydui_cmd *c, const strip_t *s)
 {
     cydui_rect v;
-    int y, x;
+    int y;
 
     if (!visible(c, s, &v)) {
         return;
     }
     for (y = v.y; y < v.y + v.h; y++) {
-        cydui_color *p = pixel_at(s, v.x, y);
-        for (x = 0; x < v.w; x++) {
-            put(&p[x], c->u.rect.color, c->alpha);
-        }
+        span_put(pixel_at(s, v.x, y), v.w, c->u.rect.color, c->alpha);
     }
 }
 
@@ -119,24 +178,30 @@ static void draw_gradient(const cydui_cmd *c, const strip_t *s)
 
     for (y = v.y; y < v.y + v.h; y++) {
         cydui_color *p = pixel_at(s, v.x, y);
-        cydui_color row = 0;
-        if (c->u.gradient.vertical) {
-            row = lerp_color(a, b, y - c->rect.y, c->rect.h - 1);
+        if (c->u.gradient.vertical) { /* one color for the whole row */
+            span_put(p, v.w, lerp_color(a, b, y - c->rect.y, c->rect.h - 1), c->alpha);
+            continue;
         }
         for (x = 0; x < v.w; x++) {
-            cydui_color col = c->u.gradient.vertical
-                                  ? row
-                                  : lerp_color(a, b, v.x + x - c->rect.x, c->rect.w - 1);
-            put(&p[x], col, c->alpha);
+            put(&p[x], lerp_color(a, b, v.x + x - c->rect.x, c->rect.w - 1), c->alpha);
         }
     }
 }
 
 /* ---- bitmap and glyph blitting ---- */
 
+/* tab[n] is the blend alpha of a 4-bit coverage n under the command alpha. */
+static void a4_table(uint8_t tab[16], unsigned alpha)
+{
+    unsigned n;
+    for (n = 0; n < 16; n++) {
+        tab[n] = (uint8_t)div255(n * 17u * alpha);
+    }
+}
+
 /* Draws a w x h A4 coverage mask with its top-left at (dx, dy), within `clip` and the strip. */
 static void blit_a4(const strip_t *s, int dx, int dy, int w, int h, const uint8_t *data,
-                    cydui_color tint, unsigned alpha, const cydui_rect *clip)
+                    cydui_color tint, const uint8_t tab[16], const cydui_rect *clip)
 {
     int x0 = dx, x1 = dx + w, y0 = dy, y1 = dy + h, x, y;
     size_t row_bytes = ((size_t)w + 1u) / 2u;
@@ -149,17 +214,26 @@ static void blit_a4(const strip_t *s, int dx, int dy, int w, int h, const uint8_
     if (x1 > s->width) x1 = s->width;
     if (y0 < s->y0) y0 = s->y0;
     if (y1 > s->y0 + s->h) y1 = s->y0 + s->h;
+    if (x0 >= x1) {
+        return;
+    }
 
     for (y = y0; y < y1; y++) {
         cydui_color *p = pixel_at(s, 0, y);
-        const uint8_t *row = data + (size_t)(y - dy) * row_bytes;
-        for (x = x0; x < x1; x++) {
-            int sx = x - dx;
-            unsigned byte = row[sx / 2];
-            unsigned nib = (sx & 1) ? (byte & 0xFu) : (byte >> 4);
-            if (nib) {
-                put(&p[x], tint, div255(nib * 17u * alpha));
+        const uint8_t *q = data + (size_t)(y - dy) * row_bytes + (size_t)((x0 - dx) >> 1);
+
+        x = x0;
+        if (((x0 - dx) & 1) != 0) { /* the row starts on the low nibble of a byte */
+            put(&p[x++], tint, tab[*q++ & 0xFu]);
+        }
+        for (; x + 1 < x1; x += 2, q++) { /* a byte is two pixels, and most are empty */
+            if (*q != 0) {
+                put(&p[x], tint, tab[*q >> 4]);
+                put(&p[x + 1], tint, tab[*q & 0xFu]);
             }
+        }
+        if (x < x1) {
+            put(&p[x], tint, tab[*q >> 4]);
         }
     }
 }
@@ -174,17 +248,23 @@ static void draw_bitmap(const cydui_cmd *c, const strip_t *s)
         return;
     }
     if (c->u.bitmap.format == CYDUI_BITMAP_A4) {
-        blit_a4(s, c->rect.x, c->rect.y, c->rect.w, c->rect.h, data, c->u.bitmap.tint, c->alpha,
-                &c->clip);
+        uint8_t tab[16];
+        a4_table(tab, c->alpha);
+        blit_a4(s, c->rect.x, c->rect.y, c->rect.w, c->rect.h, data, c->u.bitmap.tint, tab, &c->clip);
         return;
     }
     for (y = v.y; y < v.y + v.h; y++) {
         cydui_color *p = pixel_at(s, v.x, y);
         int sy = y - c->rect.y;
+        const uint8_t *src = data + ((size_t)sy * (size_t)c->rect.w + (size_t)(v.x - c->rect.x)) * 2u;
+
+        if (c->alpha >= 252u) { /* opaque: the row is copied */
+            memcpy(p, src, (size_t)v.w * 2u);
+            continue;
+        }
         for (x = 0; x < v.w; x++) {
-            int sx = v.x + x - c->rect.x;
             cydui_color px;
-            memcpy(&px, data + ((size_t)sy * (size_t)c->rect.w + (size_t)sx) * 2u, 2u);
+            memcpy(&px, src + (size_t)x * 2u, 2u);
             put(&p[x], px, c->alpha);
         }
     }
@@ -199,10 +279,12 @@ static void draw_text(const cydui_cmd *c, const strip_t *s)
     cydui_text_iter it;
     cydui_text_line ln;
     int line_no = 0;
+    uint8_t tab[16];
 
     if (!f || !c->u.text.str) {
         return;
     }
+    a4_table(tab, c->alpha);
     cydui_text_iter_init(&it, f, c->u.text.str, c->u.text.len, c->u.text.wrap);
     while (cydui_text_next_line(&it, &ln)) {
         int line_y = c->rect.y + line_no * f->line_height;
@@ -237,7 +319,7 @@ static void draw_text(const cydui_cmd *c, const strip_t *s)
                 const uint8_t *data = cydui_font_glyph_data(f, g);
                 if (data) {
                     blit_a4(s, pen + g->left, line_y + f->ascent - g->top, g->w, g->h, data,
-                            c->u.text.color, c->alpha, &c->clip);
+                            c->u.text.color, tab, &c->clip);
                 }
             }
             pen += g->advance;
@@ -252,10 +334,12 @@ typedef struct {
     int r;
 } rr_t;
 
-/* Coverage 0..16 of pixel (px, py). Straight edges are pixel-aligned; only corners need AA. */
+/* Coverage 0..16 of pixel (px, py). Straight edges are pixel-aligned; only corners need AA, and
+ * of those only the pixels within half a pixel of the arc need the square root. */
 static unsigned rr_cov16(const rr_t *q, int px, int py)
 {
-    int pxc, pyc, lx, rx, ty, by, dx, dy, d;
+    int pxc, pyc, lx, rx, ty, by, dx, dy, big, d;
+    uint32_t dist2;
 
     if (px < q->x0 || px >= q->x1 || py < q->y0 || py >= q->y1) {
         return 0;
@@ -271,9 +355,38 @@ static unsigned rr_cov16(const rr_t *q, int px, int py)
     if (dx == 0 || dy == 0) {
         return 16;
     }
-    d = (int)isqrt32((uint32_t)(dx * dx + dy * dy)) - q->r * 16;
+    big = q->r * 16;
+    dist2 = (uint32_t)(dx * dx + dy * dy);
+    /* floor(sqrt(dist2)) >= big + 8 gives 0 and <= big - 8 gives 16, whatever the root is exactly */
+    if (dist2 >= (uint32_t)((big + 8) * (big + 8))) {
+        return 0;
+    }
+    if (big > 7 && dist2 < (uint32_t)((big - 7) * (big - 7))) {
+        return 16;
+    }
+    d = (int)isqrt32(dist2) - big;
     d = 8 - d;
     return (unsigned)(d < 0 ? 0 : (d > 16 ? 16 : d));
+}
+
+/* The coverage of the outline or fill: the outer shape minus the inner one. */
+static unsigned rr_cov(const rr_t *outer, const rr_t *inner, bool has_inner, int t, int px, int py)
+{
+    unsigned cov = rr_cov16(outer, px, py);
+    if (cov && t > 0) {
+        unsigned in = has_inner ? rr_cov16(inner, px, py) : 0u;
+        cov = cov > in ? cov - in : 0u;
+    }
+    return cov;
+}
+
+/* Is column px of row py among the pixels where the arc of `q` can change the coverage? */
+static bool rr_in_corner(const rr_t *q, int px, int py)
+{
+    if (py >= q->y0 + q->r && py < q->y1 - q->r) {
+        return false;
+    }
+    return (px >= q->x0 && px < q->x0 + q->r) || (px >= q->x1 - q->r && px < q->x1);
 }
 
 static void draw_rrect(const cydui_cmd *c, const strip_t *s)
@@ -282,7 +395,7 @@ static void draw_rrect(const cydui_cmd *c, const strip_t *s)
     rr_t outer, inner;
     int t = c->u.rrect.thickness;
     int r = c->u.rrect.radius;
-    int y, x;
+    int y;
     bool has_inner;
 
     if (!visible(c, s, &v)) {
@@ -306,29 +419,101 @@ static void draw_rrect(const cydui_cmd *c, const strip_t *s)
 
     for (y = v.y; y < v.y + v.h; y++) {
         cydui_color *p = pixel_at(s, v.x, y);
-        bool zone_row = y < outer.y0 + r || y >= outer.y1 - r;
+        /* A row is cut into runs at the edges of the corners and of the inner shape: inside a run
+         * the coverage is one value (computed once) or, in a corner of the outer shape, it varies
+         * and each pixel is computed. The arc of the inner shape lies inside that corner. */
+        bool inner_row = has_inner && y >= inner.y0 && y < inner.y1;
+        int cuts[6], n = 0, i, j, x = v.x, end = v.x + v.w;
 
-        if (t == 0 && !zone_row) { /* body row: solid span */
-            for (x = 0; x < v.w; x++) {
-                put(&p[x], c->u.rrect.color, c->alpha);
-            }
-            continue;
+        cuts[n++] = outer.x0;
+        cuts[n++] = outer.x0 + outer.r;
+        cuts[n++] = outer.x1 - outer.r;
+        cuts[n++] = outer.x1;
+        if (inner_row) {
+            cuts[n++] = inner.x0;
+            cuts[n++] = inner.x1;
         }
-        for (x = 0; x < v.w; x++) {
-            int px = v.x + x;
-            unsigned cov = rr_cov16(&outer, px, y);
-            if (cov && t > 0) {
-                unsigned in = has_inner ? rr_cov16(&inner, px, y) : 0u;
-                cov = cov > in ? cov - in : 0u;
+        for (i = 1; i < n; i++) { /* insertion sort of at most 6 */
+            int k = cuts[i];
+            for (j = i - 1; j >= 0 && cuts[j] > k; j--) {
+                cuts[j + 1] = cuts[j];
             }
-            if (cov) {
-                put(&p[x], c->u.rrect.color, cov_alpha(cov, c->alpha));
+            cuts[j + 1] = k;
+        }
+        while (x < end) {
+            int stop = end;
+            bool varies;
+
+            for (i = 0; i < n; i++) {
+                if (cuts[i] > x) {
+                    stop = cuts[i] < end ? cuts[i] : end;
+                    break;
+                }
             }
+            varies = rr_in_corner(&outer, x, y);
+            if (varies) {
+                for (i = x; i < stop; i++) {
+                    unsigned cov = rr_cov(&outer, &inner, has_inner, t, i, y);
+                    if (cov) {
+                        put(&p[i - v.x], c->u.rrect.color, cov_alpha(cov, c->alpha));
+                    }
+                }
+            } else {
+                unsigned cov = rr_cov(&outer, &inner, has_inner, t, x, y);
+                if (cov) {
+                    span_put(&p[x - v.x], stop - x, c->u.rrect.color, cov_alpha(cov, c->alpha));
+                }
+            }
+            x = stop;
         }
     }
 }
 
 /* ---- line ---- */
+
+static int64_t floor_div(int64_t a, int64_t b) /* b > 0 */
+{
+    int64_t q = a / b;
+    return (a % b != 0 && a < 0) ? q - 1 : q;
+}
+
+/* The columns [*lo, *hi) of row `pcy` (in 1/16 px) where the stroke can have any coverage: a
+ * superset taken from the capsule of radius `reach` around the segment, where the exact test of
+ * the pixel decides. Returns false when the row cannot be touched at all. */
+static bool line_columns(int64_t ax, int64_t ay, int64_t bx, int64_t by, int64_t reach, int64_t pcy,
+                         int x0, int x1, int *lo, int *hi)
+{
+    int64_t vx = bx - ax, vy = by - ay;
+    int64_t xmin, xmax, l, h;
+
+    if (vy == 0) {
+        int64_t dy = pcy - ay;
+        if (dy < -reach || dy > reach) {
+            return false;
+        }
+        xmin = ax < bx ? ax : bx;
+        xmax = ax < bx ? bx : ax;
+    } else {
+        int64_t nlo = vy > 0 ? 0 : vy, nhi = vy > 0 ? vy : 0; /* vy * t for t in [0, 1] */
+        int64_t u0 = pcy - reach - ay, u1 = pcy + reach - ay; /* what vy * t may be to reach the row */
+        int64_t c0, c1, xs, xe;
+
+        if (u1 < nlo || u0 > nhi) {
+            return false;
+        }
+        c0 = u0 < nlo ? nlo : (u0 > nhi ? nhi : u0);
+        c1 = u1 < nlo ? nlo : (u1 > nhi ? nhi : u1);
+        xs = ax + vx * c0 / vy; /* the division truncates: the pad below covers it */
+        xe = ax + vx * c1 / vy;
+        xmin = (xs < xe ? xs : xe) - 1;
+        xmax = (xs < xe ? xe : xs) + 1;
+    }
+    l = floor_div(xmin - reach - 8, 16) - 1;
+    h = floor_div(xmax + reach - 8, 16) + 2;
+    *lo = l < x0 ? x0 : (l > x1 ? x1 : (int)l);
+    *hi = h < x0 ? x0 : (h > x1 ? x1 : (int)h);
+    return *lo < *hi;
+}
 
 static void draw_line(const cydui_cmd *c, const strip_t *s)
 {
@@ -347,14 +532,19 @@ static void draw_line(const cydui_cmd *c, const strip_t *s)
     }
     for (y = v.y; y < v.y + v.h; y++) {
         cydui_color *p = pixel_at(s, v.x, y);
-        for (x = 0; x < v.w; x++) {
+        int lo, hi;
+
+        if (!line_columns(ax, ay, bx, by, reach, (int64_t)y * 16 + 8, v.x, v.x + v.w, &lo, &hi)) {
+            continue;
+        }
+        for (x = lo - v.x; x < hi - v.x; x++) {
             int64_t pcx = (int64_t)(v.x + x) * 16 + 8, pcy = (int64_t)y * 16 + 8;
             int64_t wx = pcx - ax, wy = pcy - ay;
             int64_t num = wx * vx + wy * vy;
             int64_t d;
             int64_t cov;
 
-            if (vv == 0 || num <= 0) {
+            if (vv == 0 || lenv == 0 || num <= 0) {
                 int64_t d2 = wx * wx + wy * wy;
                 if (d2 >= reach * reach) continue;
                 d = (int64_t)isqrt64((uint64_t)d2);
@@ -384,7 +574,7 @@ void cydui_raster_strip(const cydui_cmd *cmds, uint32_t n, cydui_color *buf, int
                         int16_t y0, int16_t h, cydui_color clear)
 {
     strip_t s;
-    size_t i, total = (size_t)width * (size_t)h;
+    size_t total = (size_t)width * (size_t)h;
     uint32_t k;
 
     s.buf = buf;
@@ -392,8 +582,8 @@ void cydui_raster_strip(const cydui_cmd *cmds, uint32_t n, cydui_color *buf, int
     s.y0 = y0;
     s.h = h;
 
-    for (i = 0; i < total; i++) {
-        buf[i] = clear;
+    if (total > 0) {
+        span_put(buf, (int)total, clear, 255u);
     }
     for (k = 0; k < n; k++) {
         const cydui_cmd *c = &cmds[k];
