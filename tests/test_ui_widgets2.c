@@ -323,6 +323,21 @@ static void test_a_null_value_is_tolerated(void)
     cydui_ui_end(&rig.ui);
 }
 
+static void test_a_slider_with_a_range_that_does_not_start_at_zero_draws_the_knob_in_the_middle(void)
+{
+    const cydui_wstyle *w;
+
+    start();
+    w = &rig.theme.table[CYDUI_WIDGET_SLIDER][0][CYDUI_STATE_NORMAL];
+    value = 0;
+    slider_frame(-50, 50); /* the middle of -50..50: the knob at x = 88 */
+    TEST_ASSERT_EQUAL_HEX16(w->text, px(88, 24));
+    value = 100;
+    slider_frame(50, 150);
+    TEST_ASSERT_EQUAL_HEX16(w->text, px(88, 24));
+}
+
+
 /* ---- progress ---- */
 
 static void progress_frame(int32_t v, int32_t max)
@@ -403,6 +418,24 @@ static void test_progress_is_a_pill_and_does_not_react(void)
     cydui_ui_end(&rig.ui);
     TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
 }
+
+static void test_a_disabled_progress_bar_looks_disabled(void)
+{
+    const cydui_wstyle *on, *off;
+
+    start();
+    on = &rig.theme.table[CYDUI_WIDGET_PROGRESS][0][CYDUI_STATE_NORMAL];
+    off = &rig.theme.table[CYDUI_WIDGET_PROGRESS][0][CYDUI_STATE_DISABLED];
+    TEST_ASSERT_TRUE(on->accent != off->accent);
+    progress_frame(100, 100);
+    TEST_ASSERT_EQUAL_HEX16(on->accent, px(8 + 80, 12));
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_next_disabled(&rig.ui);
+    cydui_progress(&rig.ui, 100, 100);
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_HEX16(off->accent, px(8 + 80, 12));
+}
+
 
 /* ---- tabs ---- */
 
@@ -588,6 +621,30 @@ static void test_tabs_fill_the_room_of_their_container(void)
     TEST_ASSERT_EQUAL_INT(1, sel);
 }
 
+static uint64_t tabs_hash(const char *const *labels, int count)
+{
+    start();
+    sel = 0;
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_tabs(&rig.ui, labels, count, &sel);
+    cydui_ui_end(&rig.ui);
+    return cydui_mem_hash(&rig.mem);
+}
+
+static void test_a_selection_equal_to_the_count_is_the_last_tab_and_the_labels_are_drawn(void)
+{
+    static const char *const a[3] = {"Um", "Dois", "Tres"};
+    static const char *const b[3] = {"Um", "Dois", "Tres!"};
+    static const char *const none[3] = {NULL, NULL, NULL};
+
+    start();
+    sel = 3; /* one past the end */
+    tabs_frame(a, 3);
+    TEST_ASSERT_EQUAL_INT(2, sel);
+    TEST_ASSERT_TRUE(tabs_hash(a, 3) != tabs_hash(b, 3));    /* the text is on the screen */
+    TEST_ASSERT_TRUE(tabs_hash(a, 3) != tabs_hash(none, 3));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -619,5 +676,8 @@ int main(void)
     RUN_TEST(test_equal_labels_and_no_selection_pointer);
     RUN_TEST(test_disabled_tabs_do_not_change);
     RUN_TEST(test_tabs_fill_the_room_of_their_container);
+    RUN_TEST(test_a_slider_with_a_range_that_does_not_start_at_zero_draws_the_knob_in_the_middle);
+    RUN_TEST(test_a_disabled_progress_bar_looks_disabled);
+    RUN_TEST(test_a_selection_equal_to_the_count_is_the_last_tab_and_the_labels_are_drawn);
     return UNITY_END();
 }

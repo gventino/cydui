@@ -159,6 +159,130 @@ static void test_painting_with_out_of_range_kinds_and_states_stays_inside_the_th
     free(t);
 }
 
+static void test_a_state_or_kind_just_outside_the_table_is_the_plain_one(void)
+{
+    int k, sel;
+
+    start();
+    for (k = 0; k < CYDUI_WIDGET_COUNT; k++) {
+        for (sel = 0; sel < 2; sel++) {
+            const cydui_wstyle *plain = cydui_wstyle_of(&rig.ui, (cydui_widget_kind)k, CYDUI_STATE_NORMAL, sel != 0);
+            TEST_ASSERT_TRUE(cydui_wstyle_of(&rig.ui, (cydui_widget_kind)k, CYDUI_STATE_COUNT, sel != 0) == plain);
+            TEST_ASSERT_TRUE(cydui_wstyle_of(&rig.ui, (cydui_widget_kind)k, (cydui_widget_state)-1, sel != 0) == plain);
+        }
+    }
+    TEST_ASSERT_TRUE(cydui_wstyle_of(&rig.ui, CYDUI_WIDGET_COUNT, CYDUI_STATE_NORMAL, false) ==
+                     cydui_wstyle_of(&rig.ui, CYDUI_WIDGET_BUTTON, CYDUI_STATE_NORMAL, false));
+    TEST_ASSERT_TRUE(cydui_wstyle_of(&rig.ui, (cydui_widget_kind)-1, CYDUI_STATE_NORMAL, true) ==
+                     cydui_wstyle_of(&rig.ui, CYDUI_WIDGET_BUTTON, CYDUI_STATE_NORMAL, true));
+}
+
+static cydui_color px(int x, int y)
+{
+    return rig.fb[y * RIG_W + x];
+}
+
+static void paint_card_with_shadow(uint8_t shadow)
+{
+    cydui_paint_info pi;
+
+    start();
+    rig.theme.table[CYDUI_WIDGET_PANEL][0][CYDUI_STATE_NORMAL] =
+        (cydui_wstyle){CYDUI_RGB(255, 255, 255), 0, 0, 0, 0, 0, shadow};
+    memset(&pi, 0, sizeof(pi));
+    pi.kind = CYDUI_WIDGET_PANEL;
+    pi.rect = (cydui_rect){100, 100, 50, 40};
+    cydui_ui_begin(&rig.ui, CYDUI_RGB(255, 255, 255));
+    cydui_paint(&rig.ui, &pi);
+    cydui_ui_end(&rig.ui);
+}
+
+static void test_the_shadow_reaches_as_far_as_its_strength_says_and_no_further_than_eight(void)
+{
+    const cydui_color white = CYDUI_RGB(255, 255, 255);
+
+    /* layer i is the card grown by i, lowered by (layers + 1) / 2: for 8 layers the lowest row is 151 */
+    paint_card_with_shadow(8);
+    TEST_ASSERT_TRUE(px(125, 151) != white);
+    TEST_ASSERT_EQUAL_HEX16(white, px(125, 152));
+    TEST_ASSERT_TRUE(px(125, 144) != white); /* below the card (rows 100..139) */
+
+    paint_card_with_shadow(200); /* more than eight is eight */
+    TEST_ASSERT_TRUE(px(125, 151) != white);
+    TEST_ASSERT_EQUAL_HEX16(white, px(125, 152));
+    paint_card_with_shadow(9);
+    TEST_ASSERT_EQUAL_HEX16(white, px(125, 152));
+
+    paint_card_with_shadow(4); /* 4 layers: lowered by 2, grown by 4: the lowest row is 100 - 4 + 2 + 48 - 1 = 145 */
+    TEST_ASSERT_TRUE(px(125, 145) != white);
+    TEST_ASSERT_EQUAL_HEX16(white, px(125, 146));
+    paint_card_with_shadow(0);
+    TEST_ASSERT_EQUAL_HEX16(white, px(125, 141));
+}
+
+static void test_a_widget_with_no_size_casts_no_shadow(void)
+{
+    cydui_paint_info pi;
+
+    start();
+    rig.theme.table[CYDUI_WIDGET_PANEL][0][CYDUI_STATE_NORMAL].shadow = 8;
+    memset(&pi, 0, sizeof(pi));
+    pi.kind = CYDUI_WIDGET_PANEL;
+    cydui_ui_begin(&rig.ui, 0);
+    pi.rect = (cydui_rect){100, 100, 0, 40};
+    cydui_paint(&rig.ui, &pi);
+    pi.rect = (cydui_rect){100, 100, 40, 0};
+    cydui_paint(&rig.ui, &pi);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_cmd_count(&rig.ui.ctx));
+    cydui_ui_end(&rig.ui);
+}
+
+static void test_a_scroll_bar_with_nothing_to_scroll_is_not_painted_and_not_divided_by(void)
+{
+    cydui_paint_info pi;
+    int32_t maxes[4] = {0, -5, INT32_MIN, 1};
+    int i;
+
+    start();
+    memset(&pi, 0, sizeof(pi));
+    pi.kind = CYDUI_WIDGET_SCROLLBAR;
+    pi.rect = (cydui_rect){50, 10, 4, 96};
+    pi.aux = (cydui_rect){0, 0, 100, 100};
+    cydui_ui_begin(&rig.ui, 0);
+    for (i = 0; i < 4; i++) {
+        pi.max = maxes[i];
+        pi.value = 1000; /* a position with no range to be in: no division by zero */
+        cydui_paint(&rig.ui, &pi);
+        pi.value = INT32_MIN;
+        cydui_paint(&rig.ui, &pi);
+    }
+    pi.aux = (cydui_rect){0, 0, 0, 0}; /* and a window with no height */
+    pi.max = 100;
+    cydui_paint(&rig.ui, &pi);
+    cydui_ui_end(&rig.ui);
+}
+
+static void test_text_that_is_not_there_is_not_drawn(void)
+{
+    cydui_paint_info pi;
+    int k;
+
+    start();
+    cydui_ui_begin(&rig.ui, 0);
+    for (k = 0; k < CYDUI_WIDGET_COUNT; k++) {
+        memset(&pi, 0, sizeof(pi));
+        pi.kind = (cydui_widget_kind)k;
+        pi.rect = (cydui_rect){10, 10, 60, 30};
+        pi.text = NULL;
+        pi.text_len = 5; /* a length without a text */
+        cydui_paint(&rig.ui, &pi);
+        pi.selected = true;
+        cydui_paint(&rig.ui, &pi);
+    }
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui)); /* nothing was drawn, so nothing was wrong with it */
+    cydui_ui_end(&rig.ui);
+}
+
 /* ---- the table decides what a widget looks like (NFR-43) ---- */
 
 static void one_button(void)
@@ -591,5 +715,10 @@ int main(void)
     RUN_TEST(test_switching_theme_changes_the_look_and_asks_for_a_frame);
     RUN_TEST(test_an_invalid_theme_is_refused_and_the_current_one_stays);
     RUN_TEST(test_a_thousand_switches_change_nothing_else);
+    RUN_TEST(test_a_state_or_kind_just_outside_the_table_is_the_plain_one);
+    RUN_TEST(test_the_shadow_reaches_as_far_as_its_strength_says_and_no_further_than_eight);
+    RUN_TEST(test_a_widget_with_no_size_casts_no_shadow);
+    RUN_TEST(test_a_scroll_bar_with_nothing_to_scroll_is_not_painted_and_not_divided_by);
+    RUN_TEST(test_text_that_is_not_there_is_not_drawn);
     return UNITY_END();
 }

@@ -42,8 +42,9 @@ if(CYDUI_BUILD_FUZZ)
 endif()
 
 if(CYDUI_SANITIZE)
-    target_compile_options(cydui PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(cydui PUBLIC -fsanitize=address,undefined)
+    # Undefined behavior ends the program (the default is to print and go on, which no test would notice).
+    target_compile_options(cydui PUBLIC -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
+    target_link_options(cydui PUBLIC -fsanitize=address,undefined -fno-sanitize-recover=undefined)
 endif()
 
 # In-memory backend: no dependencies, used by tests and headless runs.

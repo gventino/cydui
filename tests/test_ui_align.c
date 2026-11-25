@@ -651,6 +651,336 @@ static void test_a_card_the_application_forgot_to_close_is_still_painted(void)
     TEST_ASSERT_TRUE(cydui_ui_errors(&rig.ui) & CYDUI_ERR_LAYOUT);
 }
 
+static void test_a_card_with_a_height_places_its_group_inside_the_padding(void)
+{
+    cydui_rect child;
+    int i;
+
+    start_with_recording_panel();
+    for (i = 0; i < 3; i++) {
+        cydui_ui_begin(&rig.ui, 0);
+        cydui_next_height(&rig.ui, 100);
+        cydui_begin_card(&rig.ui);
+        cydui_set_main_align(&rig.ui, CYDUI_PLACE_CENTER);
+        child = cydui_alloc_rect(&rig.ui, 10, 20);
+        cydui_end_card(&rig.ui);
+        more = cydui_ui_end(&rig.ui);
+    }
+    /* room inside the padding: 100 - 2 x 10 = 80; the group is 20 tall: (80 - 20) / 2 = 30 below y = 8 + 10 */
+    assert_rect(18, 18 + 30, 10, 20, child);
+    TEST_ASSERT_FALSE(more);
+}
+
+static void test_a_centered_column_centers_a_card_by_its_padded_size(void)
+{
+    cydui_rect child;
+    int i;
+
+    start_with_recording_panel();
+    for (i = 0; i < 4; i++) {
+        cydui_ui_begin(&rig.ui, 0);
+        cydui_set_cross_align(&rig.ui, CYDUI_PLACE_CENTER);
+        cydui_begin_card(&rig.ui);
+        child = cydui_alloc_rect(&rig.ui, 100, 20);
+        cydui_end_card(&rig.ui);
+        more = cydui_ui_end(&rig.ui);
+    }
+    /* the card is 100 + 2 x 10 = 120 wide: (304 - 120) / 2 = 92 from x = 8, and the child 10 further in */
+    assert_rect(8 + 92, 8, 120, 40, last_panel);
+    assert_rect(8 + 92 + 10, 8 + 10, 100, 20, child);
+    TEST_ASSERT_FALSE(more);
+}
+
+static void test_a_container_that_is_moved_takes_its_children_with_it(void)
+{
+    cydui_rect c1, c2;
+    int i;
+
+    start();
+    for (i = 0; i < 4; i++) {
+        cydui_ui_begin(&rig.ui, 0);
+        cydui_begin_row(&rig.ui);
+        cydui_set_cross_align(&rig.ui, CYDUI_PLACE_CENTER);
+        cydui_alloc_rect(&rig.ui, 10, 80);
+        cydui_begin_column(&rig.ui);
+        c1 = cydui_alloc_rect(&rig.ui, 10, 20);
+        c2 = cydui_alloc_rect(&rig.ui, 10, 20);
+        cydui_end_column(&rig.ui);
+        cydui_end_row(&rig.ui);
+        more = cydui_ui_end(&rig.ui);
+    }
+    /* the column is 10 x 48 in a row 80 tall: (80 - 48) / 2 = 16 down; its children follow, a gap of 8 apart */
+    assert_rect(8 + 10 + 8, 8 + 16, 10, 20, c1);
+    assert_rect(8 + 10 + 8, 8 + 16 + 28, 10, 20, c2);
+    TEST_ASSERT_FALSE(more);
+}
+
+static void test_a_padded_container_with_a_height_gives_its_fill_child_the_room_inside_the_padding(void)
+{
+    cydui_rect r;
+
+    start();
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_next_height(&rig.ui, 100);
+    cydui_begin_padding(&rig.ui, 10);
+    cydui_next_fill(&rig.ui);
+    r = cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_end_padding(&rig.ui);
+    cydui_ui_end(&rig.ui);
+    assert_rect(18, 18, 10, 80, r); /* 100 less 10 above and 10 below: at once, in the first frame */
+}
+
+static void test_a_container_that_asked_to_fill_counts_among_the_ones_that_share(void)
+{
+    cydui_rect second;
+    int i;
+
+    start();
+    for (i = 0; i < 4; i++) {
+        cydui_ui_begin(&rig.ui, 0);
+        cydui_next_width(&rig.ui, 200);
+        cydui_begin_row(&rig.ui);
+        cydui_next_fill(&rig.ui);
+        cydui_begin_column(&rig.ui);
+        cydui_alloc_rect(&rig.ui, 10, 10);
+        cydui_end_column(&rig.ui);
+        cydui_next_fill(&rig.ui);
+        second = cydui_alloc_rect(&rig.ui, 10, 10);
+        cydui_end_row(&rig.ui);
+        more = cydui_ui_end(&rig.ui);
+    }
+    /* 200 less the gap of 8, shared by two: 96 each; the second starts after the first and the gap */
+    assert_rect(8 + 96 + 8, 8, 96, 10, second);
+    TEST_ASSERT_FALSE(more);
+}
+
+static void test_a_width_or_height_of_zero_is_a_size_like_any_other(void)
+{
+    cydui_rect next, below;
+
+    start_with_recording_panel();
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_begin_row(&rig.ui);
+    cydui_next_width(&rig.ui, 0);
+    cydui_begin_row(&rig.ui);
+    cydui_alloc_rect(&rig.ui, 50, 10);
+    cydui_end_row(&rig.ui);
+    next = cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_end_row(&rig.ui);
+    cydui_next_height(&rig.ui, 0);
+    cydui_begin_column(&rig.ui);
+    cydui_alloc_rect(&rig.ui, 10, 50);
+    cydui_end_column(&rig.ui);
+    below = cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_next_width(&rig.ui, 0);
+    CYDUI_CARD(&rig.ui) { cydui_alloc_rect(&rig.ui, 30, 10); }
+    cydui_next_height(&rig.ui, 0);
+    CYDUI_CARD(&rig.ui) { cydui_alloc_rect(&rig.ui, 30, 10); }
+    cydui_ui_end(&rig.ui);
+    assert_rect(8 + 0 + 8, 8, 10, 10, next); /* the row that was given 0 wide took 0, whatever its child */
+    TEST_ASSERT_EQUAL_INT(8 + 10 + 8 + 0 + 8, below.y); /* the row is 10 tall, a gap, the column given 0 took 0, a gap */
+    TEST_ASSERT_EQUAL_INT(0, panel_rects[0].w);
+    TEST_ASSERT_EQUAL_INT(0, panel_rects[1].h);
+}
+
+static void test_a_container_given_no_width_has_no_room_inside(void)
+{
+    cydui_rect inside, tall;
+
+    start();
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_next_width(&rig.ui, 0);
+    cydui_begin_column(&rig.ui);
+    cydui_next_stretch(&rig.ui);
+    inside = cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_end_column(&rig.ui);
+    cydui_next_height(&rig.ui, 0);
+    cydui_begin_row(&rig.ui);
+    cydui_next_fill(&rig.ui);
+    tall = cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_end_row(&rig.ui);
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_INT(0, inside.w); /* stretched to the room of a column that has none */
+    TEST_ASSERT_EQUAL_INT(304, tall.w); /* a row of height 0 still has all its width */
+}
+
+static void test_a_card_that_could_not_open_ends_without_closing_the_one_that_is_open(void)
+{
+    int d;
+
+    start_with_recording_panel();
+    cydui_ui_begin(&rig.ui, 0);
+    for (d = 0; d < CYDUI_MAX_LAYOUT_DEPTH - 1; d++) {
+        cydui_begin_column(&rig.ui);
+    }
+    cydui_begin_card(&rig.ui); /* the last level there is */
+    cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_begin_card(&rig.ui); /* too deep: skipped */
+    cydui_ui_clear_errors(&rig.ui);
+    cydui_end_card(&rig.ui);   /* the end of the one that was skipped */
+    TEST_ASSERT_EQUAL_INT(0, panel_calls);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
+    TEST_ASSERT_EQUAL_UINT8(CYDUI_MAX_LAYOUT_DEPTH, rig.ui.depth);
+    cydui_end_card(&rig.ui);
+    TEST_ASSERT_EQUAL_INT(1, panel_calls);
+
+    for (d = 0; d < CYDUI_MAX_LAYOUT_DEPTH - 1; d++) { /* a plain column under a skipped card: no complaint */
+        cydui_end_column(&rig.ui);
+    }
+    for (d = 0; d < CYDUI_MAX_LAYOUT_DEPTH; d++) {
+        cydui_begin_column(&rig.ui);
+    }
+    cydui_begin_card(&rig.ui); /* skipped, under a plain column */
+    cydui_ui_clear_errors(&rig.ui);
+    cydui_end_card(&rig.ui);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
+    for (d = 0; d < CYDUI_MAX_LAYOUT_DEPTH; d++) {
+        cydui_end_column(&rig.ui);
+    }
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_UINT8(0, rig.ui.depth);
+}
+
+static void test_a_list_item_at_the_deepest_level_cannot_open_and_is_survived(void)
+{
+    int d;
+
+    start();
+    cydui_ui_begin(&rig.ui, 0);
+    for (d = 0; d < CYDUI_MAX_LAYOUT_DEPTH - 1; d++) {
+        cydui_begin_column(&rig.ui);
+    }
+    cydui_list_begin(&rig.ui, "s", 5, 30, 100, NULL, NULL); /* the last level there is */
+    TEST_ASSERT_EQUAL_UINT8(CYDUI_MAX_LAYOUT_DEPTH, rig.ui.depth);
+    cydui_ui_clear_errors(&rig.ui);
+    cydui_begin_list_item(&rig.ui, 0); /* no room for another level */
+    TEST_ASSERT_TRUE(cydui_ui_errors(&rig.ui) & CYDUI_ERR_LAYOUT);
+    TEST_ASSERT_EQUAL_UINT8(CYDUI_MAX_LAYOUT_DEPTH, rig.ui.depth);
+    cydui_label(&rig.ui, "x");
+    cydui_end_list_item(&rig.ui);
+    TEST_ASSERT_EQUAL_UINT8(CYDUI_MAX_LAYOUT_DEPTH, rig.ui.depth);
+    cydui_list_end(&rig.ui);
+    for (d = 0; d < CYDUI_MAX_LAYOUT_DEPTH - 1; d++) {
+        cydui_end_column(&rig.ui);
+    }
+    TEST_ASSERT_EQUAL_UINT8(0, rig.ui.depth);
+    cydui_ui_end(&rig.ui);
+}
+
+static void test_the_row_places_a_card_by_its_padded_height(void)
+{
+    cydui_rect child;
+    int i;
+
+    start();
+    for (i = 0; i < 4; i++) {
+        cydui_ui_begin(&rig.ui, 0);
+        cydui_begin_row(&rig.ui);
+        cydui_set_cross_align(&rig.ui, CYDUI_PLACE_CENTER);
+        cydui_alloc_rect(&rig.ui, 10, 80);
+        cydui_begin_card(&rig.ui);
+        child = cydui_alloc_rect(&rig.ui, 10, 20);
+        cydui_end_card(&rig.ui);
+        cydui_end_row(&rig.ui);
+        more = cydui_ui_end(&rig.ui);
+    }
+    /* the card is 20 + 2 x 10 = 40 tall in a row 80 tall: 20 down; the child is 10 further in */
+    assert_rect(8 + 10 + 8 + 10, 8 + 20 + 10, 10, 20, child);
+    TEST_ASSERT_FALSE(more);
+}
+
+static void test_a_list_item_is_a_column_of_the_size_of_its_row(void)
+{
+    cydui_rect r1, r2;
+
+    start();
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_list_begin(&rig.ui, "s", 5, 40, 100, NULL, NULL);
+    cydui_begin_list_item(&rig.ui, 1); /* y = 8 + 40 */
+    cydui_next_stretch(&rig.ui);
+    r1 = cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_next_fill(&rig.ui);
+    r2 = cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_end_list_item(&rig.ui);
+    cydui_list_end(&rig.ui);
+    cydui_ui_end(&rig.ui);
+    assert_rect(8, 48, 304, 10, r1);        /* stretched: the whole width of the row of the list */
+    assert_rect(8, 48 + 10 + 8, 10, 22, r2); /* after a gap of 8; fill: what is left of its 40 px */
+}
+
+static void test_a_container_that_fills_takes_the_room_along_the_column(void)
+{
+    cydui_rect r2;
+    int i;
+
+    start();
+    for (i = 0; i < 4; i++) {
+        cydui_ui_begin(&rig.ui, 0);
+        cydui_next_height(&rig.ui, 200);
+        cydui_begin_column(&rig.ui);
+        cydui_next_fill(&rig.ui);
+        cydui_begin_column(&rig.ui);
+        cydui_alloc_rect(&rig.ui, 10, 10);
+        cydui_end_column(&rig.ui);
+        r2 = cydui_alloc_rect(&rig.ui, 10, 20);
+        cydui_end_column(&rig.ui);
+        more = cydui_ui_end(&rig.ui);
+    }
+    assert_rect(8, 8 + 172 + 8, 10, 20, r2); /* 200 less the 20 and the gap of 8 that are not for filling */
+    TEST_ASSERT_FALSE(more);
+}
+
+static void test_a_container_that_stretches_takes_the_room_across(void)
+{
+    cydui_rect inner, wide;
+
+    start();
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_next_height(&rig.ui, 50);
+    cydui_begin_row(&rig.ui);
+    cydui_next_stretch(&rig.ui); /* as tall as the row */
+    cydui_begin_column(&rig.ui);
+    cydui_next_fill(&rig.ui);
+    inner = cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_end_column(&rig.ui);
+    cydui_end_row(&rig.ui);
+    cydui_next_stretch(&rig.ui); /* as wide as the column that holds it */
+    cydui_begin_row(&rig.ui);
+    cydui_next_fill(&rig.ui);
+    wide = cydui_alloc_rect(&rig.ui, 10, 10);
+    cydui_end_row(&rig.ui);
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_INT(50, inner.h);
+    TEST_ASSERT_EQUAL_INT(304, wide.w);
+}
+
+static void test_a_grid_has_between_one_and_sixty_four_columns(void)
+{
+    cydui_rect r[66];
+    int i;
+
+    start();
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_begin_grid(&rig.ui, 1000);
+    for (i = 0; i < 66; i++) {
+        r[i] = cydui_alloc_rect(&rig.ui, 1, 1);
+    }
+    cydui_end_grid(&rig.ui);
+    TEST_ASSERT_EQUAL_INT(r[0].y, r[63].y); /* 64 in the first row */
+    TEST_ASSERT_TRUE(r[64].y > r[0].y);     /* the 65th starts the second */
+    cydui_begin_grid(&rig.ui, 0);
+    r[0] = cydui_alloc_rect(&rig.ui, 1, 1);
+    r[1] = cydui_alloc_rect(&rig.ui, 1, 1);
+    cydui_end_grid(&rig.ui);
+    TEST_ASSERT_TRUE(r[1].y > r[0].y); /* none or fewer than one is one */
+    cydui_begin_grid(&rig.ui, -3);
+    r[0] = cydui_alloc_rect(&rig.ui, 1, 1);
+    r[1] = cydui_alloc_rect(&rig.ui, 1, 1);
+    cydui_end_grid(&rig.ui);
+    TEST_ASSERT_TRUE(r[1].y > r[0].y);
+    cydui_ui_end(&rig.ui);
+}
+
 static void test_the_default_panel_is_drawn_in_the_theme_colors(void)
 {
     start();
@@ -695,5 +1025,19 @@ int main(void)
     RUN_TEST(test_card_calls_that_do_not_match_are_survived);
     RUN_TEST(test_a_card_the_application_forgot_to_close_is_still_painted);
     RUN_TEST(test_the_default_panel_is_drawn_in_the_theme_colors);
+    RUN_TEST(test_a_card_with_a_height_places_its_group_inside_the_padding);
+    RUN_TEST(test_a_centered_column_centers_a_card_by_its_padded_size);
+    RUN_TEST(test_a_container_that_is_moved_takes_its_children_with_it);
+    RUN_TEST(test_a_padded_container_with_a_height_gives_its_fill_child_the_room_inside_the_padding);
+    RUN_TEST(test_a_container_that_asked_to_fill_counts_among_the_ones_that_share);
+    RUN_TEST(test_a_width_or_height_of_zero_is_a_size_like_any_other);
+    RUN_TEST(test_a_card_that_could_not_open_ends_without_closing_the_one_that_is_open);
+    RUN_TEST(test_a_list_item_at_the_deepest_level_cannot_open_and_is_survived);
+    RUN_TEST(test_the_row_places_a_card_by_its_padded_height);
+    RUN_TEST(test_a_list_item_is_a_column_of_the_size_of_its_row);
+    RUN_TEST(test_a_container_that_fills_takes_the_room_along_the_column);
+    RUN_TEST(test_a_container_that_stretches_takes_the_room_across);
+    RUN_TEST(test_a_grid_has_between_one_and_sixty_four_columns);
+    RUN_TEST(test_a_container_given_no_width_has_no_room_inside);
     return UNITY_END();
 }

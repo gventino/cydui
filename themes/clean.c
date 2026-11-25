@@ -41,7 +41,7 @@ static void init(cydui_theme *t, const palette_t *p)
 {
     cydui_style *s;
     cydui_color accent_dark, accent_dim;
-    int k, sel;
+    int k, sel, st;
 
     memset(t, 0, sizeof(*t));
     t->name = p->name;
@@ -122,7 +122,9 @@ static void init(cydui_theme *t, const palette_t *p)
         if (k == CYDUI_WIDGET_CHECKBOX || k == CYDUI_WIDGET_TOGGLE || k == CYDUI_WIDGET_TAB || k == CYDUI_WIDGET_PANEL) {
             continue;
         }
-        memcpy(t->table[k][1], t->table[k][0], sizeof(t->table[k][0]));
+        for (st = 0; st < CYDUI_STATE_COUNT; st++) {
+            t->table[k][1][st] = t->table[k][0][st];
+        }
     }
 }
 

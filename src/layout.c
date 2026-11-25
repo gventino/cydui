@@ -213,7 +213,7 @@ static void align_offset(const cydui_region *r, int w, int h, int *dx, int *dy)
     }
     if (r->place_cross != CYDUI_PLACE_START) {
         if (row) {
-            total = r->fix_h >= 0 ? r->fix_h - 2 * r->pad : r->prev_h;
+            total = r->fix_h >= 0 ? r->fix_h : r->prev_h; /* a row has no padding */
             off = total - h;
         } else {
             total = root ? r->avail_w : (r->fix_w >= 0 ? r->fix_w - 2 * r->pad : r->prev_w);
@@ -224,7 +224,7 @@ static void align_offset(const cydui_region *r, int w, int h, int *dx, int *dy)
     }
     if (r->place_main != CYDUI_PLACE_START && r->known) { /* before its size is known nothing is moved */
         if (row) {
-            total = r->fix_w >= 0 ? r->fix_w - 2 * r->pad : 0;
+            total = r->fix_w >= 0 ? r->fix_w : 0;
             off = total - r->prev_w;
         } else {
             total = root ? r->avail_h : (r->fix_h >= 0 ? r->fix_h - 2 * r->pad : 0);

@@ -292,7 +292,7 @@ static void paint_tab(cydui_ui *ui, const cydui_wstyle *w, const cydui_paint_inf
     const cydui_text_extent e = p->text_extent;
 
     cydui_draw_rrect(&ui->ctx, r, w->radius, w->fill, 255);
-    if (p->selected && r.w > 8 && r.h > 6) {
+    if (p->selected) { /* a bar too narrow to exist is simply not drawn */
         cydui_rect bar = {(int16_t)(r.x + 4), (int16_t)(r.y + r.h - 3), (int16_t)(r.w - 8), 3};
         cydui_draw_rrect(&ui->ctx, bar, 1, w->accent, 255);
     }

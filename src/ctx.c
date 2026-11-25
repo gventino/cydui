@@ -133,7 +133,7 @@ void cydui__cmd_move_tail(cydui_ctx *ctx, uint32_t start, uint32_t mid)
 {
     uint32_t end = ctx->cmd_len;
 
-    if (start >= mid || mid >= end || end > ctx->cmd_cap) {
+    if (start >= mid || mid >= end) {
         return; /* nothing before, or nothing after: already in order */
     }
     cmd_reverse(ctx, start, mid);

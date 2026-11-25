@@ -535,6 +535,28 @@ static void test_scrolled_content_is_the_unscrolled_content_moved_up(void)
     }
 }
 
+
+static void test_an_area_with_no_content_cannot_be_dragged_past_the_offset_cap(void)
+{
+    cydui_state *st;
+
+    start();
+    content_h = 0; /* nothing to measure: the area has no end to stop at, only the cap */
+    warm_up();
+    st = cydui_state_get(&rig.ui, cydui_id_str(&rig.ui, "s"), false);
+    TEST_ASSERT_NOT_NULL(st);
+    st->a = (1 << 30) - 256; /* a pixel short of the cap */
+    rig_down(&rig, 100, 90);
+    frame();
+    rig_move(&rig, 100, 40); /* 50 px up: 12800 more */
+    frame();
+    TEST_ASSERT_EQUAL_INT32(1 << 30, offset());
+    TEST_ASSERT_EQUAL_INT32(0, speed());
+    rig_move(&rig, 100, 10);
+    frame();
+    TEST_ASSERT_EQUAL_INT32(1 << 30, offset()); /* and no further */
+}
+
 /* ---- scroll_to ---- */
 
 static void test_scroll_to_jumps_and_clamps(void)
@@ -704,6 +726,7 @@ static void test_empty_and_degenerate_lists(void)
     TEST_ASSERT_EQUAL_INT32(0, last);
     list_frame(-5, 30, 100);
     TEST_ASSERT_EQUAL_INT32(0, last);
+    TEST_ASSERT_EQUAL_INT32(0, cydui_state_get(&rig.ui, cydui_id_str(&rig.ui, "s"), false)->c); /* no content, not a negative one */
     list_frame(10, 0, 100);
     TEST_ASSERT_EQUAL_INT32(0, last);
     list_frame(10, -4, 100);
@@ -1058,6 +1081,221 @@ static void test_a_nested_area_paints_no_bar(void)
     TEST_ASSERT_EQUAL_INT(0, bar_calls);
 }
 
+static void test_the_window_edges_are_where_a_touch_stops_a_coast(void)
+{
+    static const int inside_[4][2] = {{8, 50}, {311, 50}, {100, 8}, {100, 107}};
+    static const int outside_[4][2] = {{7, 50}, {312, 50}, {100, 7}, {100, 108}};
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        start();
+        flick(0);
+        frame();
+        rig_down(&rig, inside_[i][0], inside_[i][1]);
+        frame();
+        TEST_ASSERT_EQUAL_INT32_MESSAGE(0, speed(), "a touch on the edge of the window did not stop it");
+    }
+    for (i = 0; i < 4; i++) {
+        start();
+        flick(0);
+        frame();
+        rig_down(&rig, outside_[i][0], outside_[i][1]);
+        frame();
+        TEST_ASSERT_TRUE_MESSAGE(speed() > 0, "a touch just outside the window stopped it");
+    }
+}
+
+static void release_with_speed(int32_t v)
+{
+    cydui_state *st;
+
+    start();
+    content_h = 1000;
+    warm_up();
+    rig_down(&rig, 100, 90);
+    frame();
+    rig_move(&rig, 100, 70);
+    frame();
+    st = cydui_state_get(&rig.ui, cydui_id_str(&rig.ui, "s"), false);
+    TEST_ASSERT_NOT_NULL(st);
+    st->b = v;
+    rig_up(&rig, 100, 70);
+    frame();
+}
+
+static void test_a_flick_of_exactly_the_minimum_speed_coasts_and_one_below_does_not(void)
+{
+    release_with_speed(CYDUI_SCROLL_FLING_MIN);
+    TEST_ASSERT_EQUAL_INT32(CYDUI_SCROLL_FLING_MIN, speed());
+    release_with_speed(CYDUI_SCROLL_FLING_MIN - 1);
+    TEST_ASSERT_EQUAL_INT32(0, speed());
+    release_with_speed(-CYDUI_SCROLL_FLING_MIN);
+    TEST_ASSERT_EQUAL_INT32(-CYDUI_SCROLL_FLING_MIN, speed());
+    release_with_speed(-(CYDUI_SCROLL_FLING_MIN - 1));
+    TEST_ASSERT_EQUAL_INT32(0, speed());
+}
+
+static void test_the_height_of_an_area_is_what_it_was_given(void)
+{
+    start();
+    rig.theme.paint[CYDUI_WIDGET_SCROLLBAR] = count_bar;
+    warm_up();
+    TEST_ASSERT_EQUAL_INT(100, bar_info.aux.h); /* the argument */
+
+    bar_calls = 0;
+    rig_advance(&rig, 16);
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_next_height(&rig.ui, 50); /* next_height wins over the argument */
+    CYDUI_SCROLL(&rig.ui, "s", 100) { cydui_spacer(&rig.ui, 400); }
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_INT(50, bar_info.aux.h);
+
+    bar_calls = 0;
+    rig_advance(&rig, 16);
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_next_height(&rig.ui, 0); /* a height of nothing is a height */
+    CYDUI_SCROLL(&rig.ui, "s", 100) { cydui_spacer(&rig.ui, 400); }
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_INT(0, bar_calls);
+
+    bar_calls = 0;
+    {
+        int i;
+        for (i = 0; i < 3; i++) { /* and fill takes what the container has */
+            rig_advance(&rig, 16);
+            cydui_ui_begin(&rig.ui, 0);
+            cydui_next_height(&rig.ui, 150);
+            cydui_begin_column(&rig.ui);
+            cydui_next_fill(&rig.ui);
+            CYDUI_SCROLL(&rig.ui, "s", 50) { cydui_spacer(&rig.ui, 400); }
+            cydui_end_column(&rig.ui);
+            cydui_ui_end(&rig.ui);
+        }
+    }
+    TEST_ASSERT_EQUAL_INT(150, bar_info.aux.h);
+}
+
+static void test_the_bar_needs_a_window_of_at_least_five_by_nine(void)
+{
+    int w, h;
+
+    start();
+    rig.theme.paint[CYDUI_WIDGET_SCROLLBAR] = count_bar;
+    for (h = 3; h <= 6; h++) { /* the track is the window less 2 px each side */
+        for (w = 7; w <= 10; w++) {
+            int i;
+            bar_calls = 0;
+            for (i = 0; i < 3; i++) {
+                rig_advance(&rig, 16);
+                cydui_ui_begin(&rig.ui, 0);
+                cydui_next_width(&rig.ui, w);
+                CYDUI_SCROLL(&rig.ui, "s", h) { cydui_spacer(&rig.ui, 400); }
+                cydui_ui_end(&rig.ui);
+            }
+            bar_calls = 0;
+            rig_advance(&rig, 16);
+            cydui_ui_begin(&rig.ui, 0);
+            cydui_next_width(&rig.ui, w);
+            CYDUI_SCROLL(&rig.ui, "s", h) { cydui_spacer(&rig.ui, 400); }
+            cydui_ui_end(&rig.ui);
+            TEST_ASSERT_EQUAL_INT_MESSAGE((h >= 5 && w >= 9) ? 1 : 0, bar_calls, "bar drawn in a window too small for it");
+        }
+    }
+}
+
+static void test_a_change_of_content_or_a_jump_asks_for_another_frame(void)
+{
+    start();
+    warm_up();
+    frame();
+    TEST_ASSERT_FALSE(coasting);
+    content_h = 250;
+    frame();
+    TEST_ASSERT_TRUE(coasting); /* the clamp of this frame used the old height */
+    frame();
+    TEST_ASSERT_FALSE(coasting);
+    cydui_scroll_to(&rig.ui, "s", 10);
+    frame();
+    TEST_ASSERT_TRUE(coasting);
+    frame();
+    TEST_ASSERT_FALSE(coasting);
+}
+
+static void test_a_skipped_scroll_area_ends_without_touching_the_one_that_is_open(void)
+{
+    int d;
+
+    start();
+    rig.theme.paint[CYDUI_WIDGET_SCROLLBAR] = count_bar;
+    warm_up();
+    rig_advance(&rig, 16);
+    cydui_ui_begin(&rig.ui, 0);
+    for (d = 0; d < CYDUI_MAX_LAYOUT_DEPTH - 1; d++) {
+        cydui_begin_column(&rig.ui);
+    }
+    cydui_scroll_begin(&rig.ui, "s", 50); /* the last level there is */
+    cydui_spacer(&rig.ui, 400);
+    cydui_scroll_begin(&rig.ui, "too deep", 20); /* skipped */
+    bar_calls = 0;
+    cydui_scroll_end(&rig.ui);                   /* its end: nothing happens to the open one */
+    TEST_ASSERT_EQUAL_INT(0, bar_calls);
+    TEST_ASSERT_EQUAL_UINT8(CYDUI_MAX_LAYOUT_DEPTH, rig.ui.depth);
+    cydui_scroll_end(&rig.ui);
+    TEST_ASSERT_EQUAL_INT(1, bar_calls); /* the bar of the one that was open, once */
+    for (d = 0; d < CYDUI_MAX_LAYOUT_DEPTH - 1; d++) {
+        cydui_end_column(&rig.ui);
+    }
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_UINT8(0, rig.ui.depth);
+}
+
+static void test_an_item_in_a_list_with_no_item_height_is_a_misuse_and_is_survived(void)
+{
+    start();
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_list_begin(&rig.ui, "s", 5, 0, 100, NULL, NULL);
+    cydui_begin_list_item(&rig.ui, 0);
+    cydui_label(&rig.ui, "x");
+    cydui_end_list_item(&rig.ui);
+    cydui_list_end(&rig.ui);
+    TEST_ASSERT_TRUE(cydui_ui_errors(&rig.ui) & CYDUI_ERR_LAYOUT);
+    TEST_ASSERT_EQUAL_UINT8(0, rig.ui.depth);
+    cydui_ui_end(&rig.ui);
+
+    cydui_ui_clear_errors(&rig.ui);
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_begin_list_item(&rig.ui, 0); /* no list at all */
+    cydui_end_list_item(&rig.ui);
+    TEST_ASSERT_TRUE(cydui_ui_errors(&rig.ui) & CYDUI_ERR_LAYOUT);
+    TEST_ASSERT_EQUAL_UINT8(0, rig.ui.depth);
+    cydui_ui_end(&rig.ui);
+}
+
+static void test_rows_with_fill_in_different_items_do_not_share_their_numbers(void)
+{
+    int f, i;
+    int32_t first_, last_;
+
+    start();
+    for (f = 0; f < 8; f++) {
+        rig_advance(&rig, 16);
+        cydui_ui_begin(&rig.ui, 0);
+        cydui_list_begin(&rig.ui, "s", 10, 40, 100, &first_, &last_);
+        for (i = first_; i < last_; i++) {
+            cydui_begin_list_item(&rig.ui, i);
+            CYDUI_ROW(&rig.ui) {
+                cydui_alloc_rect(&rig.ui, 10 + i * 20, 10);
+                cydui_next_fill(&rig.ui);
+                cydui_alloc_rect(&rig.ui, 10, 10);
+            }
+            cydui_end_list_item(&rig.ui);
+        }
+        cydui_list_end(&rig.ui);
+        coasting = cydui_ui_end(&rig.ui);
+    }
+    TEST_ASSERT_FALSE_MESSAGE(coasting, "the layout of the rows never settled");
+}
+
 static void test_the_list_cap_is_exactly_four_million_pixels(void)
 {
     start();
@@ -1090,6 +1328,7 @@ int main(void)
     RUN_TEST(test_a_frozen_clock_neither_coasts_nor_hangs);
     RUN_TEST(test_a_long_pause_between_frames_counts_as_one_hundred_ms);
     RUN_TEST(test_scrolled_content_is_the_unscrolled_content_moved_up);
+    RUN_TEST(test_an_area_with_no_content_cannot_be_dragged_past_the_offset_cap);
     RUN_TEST(test_scroll_to_jumps_and_clamps);
     RUN_TEST(test_scroll_to_stops_a_coast);
     RUN_TEST(test_a_scroll_area_inside_another_is_a_plain_column);
@@ -1117,5 +1356,13 @@ int main(void)
     RUN_TEST(test_the_release_frame_counts_when_the_finger_still_moved_in_it);
     RUN_TEST(test_a_touch_outside_the_window_does_not_stop_the_coast);
     RUN_TEST(test_a_nested_area_paints_no_bar);
+    RUN_TEST(test_the_window_edges_are_where_a_touch_stops_a_coast);
+    RUN_TEST(test_a_flick_of_exactly_the_minimum_speed_coasts_and_one_below_does_not);
+    RUN_TEST(test_the_height_of_an_area_is_what_it_was_given);
+    RUN_TEST(test_the_bar_needs_a_window_of_at_least_five_by_nine);
+    RUN_TEST(test_a_change_of_content_or_a_jump_asks_for_another_frame);
+    RUN_TEST(test_a_skipped_scroll_area_ends_without_touching_the_one_that_is_open);
+    RUN_TEST(test_an_item_in_a_list_with_no_item_height_is_a_misuse_and_is_survived);
+    RUN_TEST(test_rows_with_fill_in_different_items_do_not_share_their_numbers);
     return UNITY_END();
 }

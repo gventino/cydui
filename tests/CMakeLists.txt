@@ -64,7 +64,7 @@ if(CYDUI_BUILD_FUZZ)
     add_test(NAME fuzz_cmds_seeds COMMAND fuzz_cmds ${CYDUI_FUZZ_SEEDS})
 
     add_executable(fuzz_ui fuzz_ui.c)
-    target_link_libraries(fuzz_ui PRIVATE cydui cydui_mem cydui_fonts)
+    target_link_libraries(fuzz_ui PRIVATE cydui cydui_mem cydui_fonts cydui_themes cydui_rating)
     target_compile_options(fuzz_ui PRIVATE -fsanitize=fuzzer ${CYDUI_STRICT_FLAGS})
     target_link_options(fuzz_ui PRIVATE -fsanitize=fuzzer)
     set_target_properties(fuzz_ui PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
