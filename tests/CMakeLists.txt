@@ -36,6 +36,31 @@ cydui_test(test_ui_align)
 cydui_test(test_custom_widget)
 cydui_test(test_api_surface)
 cydui_test(test_core05)
+cydui_test(test_touch_cal)
+target_link_libraries(test_touch_cal PRIVATE cydui_esp32_pure)
+cydui_test(test_touch_filter)
+target_link_libraries(test_touch_filter PRIVATE cydui_esp32_pure)
+cydui_test(test_pins)
+target_include_directories(test_pins PRIVATE ${CMAKE_SOURCE_DIR}/backends/esp32)
+
+# CT-14: the pin checks must stop the build for a bad pin and let a good one through. MODE: 1 required
+# output, 2 required input, 3 optional output, 4 optional input.
+foreach(case "1:13:ok" "1:2:ok" "1:21:ok" "1:7:fail" "1:11:fail" "1:36:fail" "1:20:fail" "1:-1:fail" "1:45:fail"
+             "2:36:ok" "2:39:ok" "2:12:ok" "2:8:fail" "2:-1:fail" "2:31:fail"
+             "3:-1:ok" "3:13:ok" "3:34:fail" "3:9:fail"
+             "4:-1:ok" "4:35:ok" "4:6:fail" "4:41:fail")
+    string(REPLACE ":" ";" parts "${case}")
+    list(GET parts 0 mode)
+    list(GET parts 1 pin)
+    list(GET parts 2 expect)
+    string(REPLACE "-" "m" pin_name "${pin}")
+    add_test(NAME pins_mode${mode}_pin${pin_name}_${expect}
+             COMMAND ${CMAKE_C_COMPILER} -std=c99 -fsyntax-only -I${CMAKE_SOURCE_DIR}/backends/esp32
+                     -DMODE=${mode} -DPIN=${pin} ${CMAKE_CURRENT_SOURCE_DIR}/pins_check.c)
+    if(expect STREQUAL "fail")
+        set_tests_properties(pins_mode${mode}_pin${pin_name}_${expect} PROPERTIES WILL_FAIL TRUE)
+    endif()
+endforeach()
 target_link_libraries(test_api_surface PRIVATE cydui)
 target_link_libraries(test_custom_widget PRIVATE cydui_rating cydui_themes cydui_fonts)
 cydui_test(test_hello)

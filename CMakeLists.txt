@@ -75,6 +75,14 @@ target_link_libraries(cydui_rating PUBLIC cydui)
 set_target_properties(cydui_rating PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
 target_compile_options(cydui_rating PRIVATE ${CYDUI_STRICT_FLAGS})
 
+# The parts of the ESP32 backend that need no ESP-IDF (touch calibration, touch filter, pin checks): built
+# here so that the PC tests can run them. The firmware compiles the same files.
+add_library(cydui_esp32_pure STATIC backends/esp32/touch_cal.c backends/esp32/touch_filter.c)
+target_include_directories(cydui_esp32_pure PUBLIC backends/esp32)
+target_link_libraries(cydui_esp32_pure PUBLIC cydui m)
+set_target_properties(cydui_esp32_pure PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)
+target_compile_options(cydui_esp32_pure PRIVATE ${CYDUI_STRICT_FLAGS})
+
 # SDL2 backend: window and mouse.
 if(CYDUI_BUILD_SDL)
     find_package(PkgConfig QUIET)
