@@ -17,6 +17,7 @@
 #include "cydui/cydui.h"
 #include "driver/spi_master.h"
 #include "touch_cal.h"
+#include "latency.h"
 #include "touch_filter.h"
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
@@ -54,6 +55,8 @@ typedef struct cydui_esp32 {
     cydui_touch_cal cal;
     bool calibrated;
     portMUX_TYPE touch_lock;
+    cydui_lat lat;                /* touch -> picture, in us */
+    int64_t down_pending_us;      /* a DOWN taken from the queue whose frame has not ended yet */
     uint16_t raw_x, raw_y, raw_z; /* the latest steady sample */
     int16_t px, py;               /* ... and where the map puts it */
     bool pressed;
@@ -106,9 +109,18 @@ esp_err_t cydui_esp32_calibrate(cydui_esp32 *dev, cydui_ctx *ctx, const cydui_fo
 
 /**
  * Sleeps for up to `ms` milliseconds, or less: it returns as soon as a touch event is waiting, so an
- * application that has nothing to redraw uses no CPU (NFR-04). The task watchdog is fed.
+ * application that has nothing to redraw uses no CPU (NFR-04). Returns true when an event is waiting and
+ * false when the time ran out, in which case nothing has changed and there is no need to build a frame.
+ * The task watchdog is fed.
  */
-void cydui_esp32_wait(cydui_esp32 *dev, uint32_t ms);
+bool cydui_esp32_wait(cydui_esp32 *dev, uint32_t ms);
+
+/**
+ * Touch-to-picture latency (NFR-02) of the last CYDUI_LAT_MAX presses: from the moment the press was queued
+ * (after the filter confirmed it, which adds about (CONFIG_CYDUI_ESP32_TOUCH_DOWN_TICKS - 1) sampling periods
+ * to what the finger felt) to the end of the frame that showed it, in microseconds.
+ */
+void cydui_esp32_latency(const cydui_esp32 *dev, cydui_lat_stats *out);
 
 /** Strips handed to the panel since the start. */
 uint32_t cydui_esp32_flushes(const cydui_esp32 *dev);

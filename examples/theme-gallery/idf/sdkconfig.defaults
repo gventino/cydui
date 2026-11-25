@@ -13,3 +13,7 @@ CONFIG_CYDUI_ESP32_PROFILE_CYD=y
 
 # -O2: the IDF default is -Og (debug), which makes the rasterizer several times slower.
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# What the CPU use of every task is measured with (NFR-04).
+CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y
+CONFIG_FREERTOS_USE_TRACE_FACILITY=y

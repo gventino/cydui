@@ -11,7 +11,8 @@ if(ESP_PLATFORM)
     # application (it chooses its fonts, FR-10), see examples/theme-gallery/idf.
     idf_component_register(
         SRCS ${CYDUI_CORE_SRCS}
-             backends/esp32/cydui_esp32.c backends/esp32/touch_cal.c backends/esp32/touch_filter.c
+             backends/esp32/cydui_esp32.c backends/esp32/esp32_touch.c backends/esp32/touch_cal.c
+             backends/esp32/touch_filter.c backends/esp32/latency.c
         INCLUDE_DIRS "include" "backends/esp32"
         REQUIRES esp_driver_spi freertos
         PRIV_REQUIRES esp_driver_gpio esp_driver_ledc esp_timer esp_hw_support nvs_flash esp_system
@@ -84,7 +85,7 @@ target_compile_options(cydui_rating PRIVATE ${CYDUI_STRICT_FLAGS})
 
 # The parts of the ESP32 backend that need no ESP-IDF (touch calibration, touch filter, pin checks): built
 # here so that the PC tests can run them. The firmware compiles the same files.
-add_library(cydui_esp32_pure STATIC backends/esp32/touch_cal.c backends/esp32/touch_filter.c)
+add_library(cydui_esp32_pure STATIC backends/esp32/touch_cal.c backends/esp32/touch_filter.c backends/esp32/latency.c)
 target_include_directories(cydui_esp32_pure PUBLIC backends/esp32)
 target_link_libraries(cydui_esp32_pure PUBLIC cydui m)
 set_target_properties(cydui_esp32_pure PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF)

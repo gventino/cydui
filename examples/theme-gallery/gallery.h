@@ -19,6 +19,8 @@ typedef struct {
     bool down;
     int16_t x, y;          /* the last position, in pixels */
     int raw_x, raw_y, raw_z; /* the controller's own numbers */
+    int lat_n;             /* presses whose latency was measured, and p50 / p95 / max in microseconds */
+    unsigned lat_p50_us, lat_p95_us, lat_max_us;
 } gallery_touch;
 
 typedef struct {

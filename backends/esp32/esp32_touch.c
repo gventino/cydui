@@ -175,12 +175,22 @@ static void IRAM_ATTR touch_isr(void *arg)
     }
 }
 
+/* What goes through the queue: the event and the moment it was queued (for the latency). */
+typedef struct {
+    cydui_event ev;
+    int64_t t_us;
+} touch_item;
+
 static void queue_event(cydui_esp32 *d, const cydui_event *ev)
 {
-    if (xQueueSend(d->touch_q, ev, 0) != pdTRUE) { /* full: the oldest goes, the newest state is what counts */
-        cydui_event old;
+    touch_item it;
+
+    it.ev = *ev;
+    it.t_us = esp_timer_get_time();
+    if (xQueueSend(d->touch_q, &it, 0) != pdTRUE) { /* full: the oldest goes, the newest state is what counts */
+        touch_item old;
         (void)xQueueReceive(d->touch_q, &old, 0);
-        (void)xQueueSend(d->touch_q, ev, 0);
+        (void)xQueueSend(d->touch_q, &it, 0);
     }
 }
 
@@ -275,10 +285,13 @@ static esp_err_t touch_try_start(cydui_esp32 *d)
 
     ESP_RETURN_ON_ERROR(spi_bus_initialize(TOUCH_HOST, &bus, SPI_DMA_DISABLED), TAG, "SPI bus of the touch controller");
     ESP_RETURN_ON_ERROR(spi_bus_add_device(TOUCH_HOST, &dev, &d->touch), TAG, "SPI device of the touch controller");
-    d->touch_q = xQueueCreate(16, sizeof(cydui_event));
+    d->touch_q = xQueueCreate(16, sizeof(touch_item));
     d->touch_irq = xSemaphoreCreateBinary();
     ESP_RETURN_ON_FALSE(d->touch_q && d->touch_irq, ESP_ERR_NO_MEM, TAG, "queue");
     ESP_RETURN_ON_ERROR(gpio_config(&irq), TAG, "pen interrupt pin");
+#if !CYDUI_PIN_IS_INPUT_ONLY(CONFIG_CYDUI_ESP32_TOUCH_IRQ)
+    gpio_pullup_en(IRQ_PIN); /* a controller that is not there then reads as "not touched" (input-only pins have none: the CYD has one on the board) */
+#endif
     e = gpio_install_isr_service(0);
     if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) { /* already installed by the application: fine */
         return e;
@@ -304,8 +317,16 @@ void cydui_esp32_touch_start(cydui_esp32 *d)
 bool cydui_esp32_poll_event(void *user, cydui_event *ev)
 {
     cydui_esp32 *d = (cydui_esp32 *)user;
+    touch_item it;
 
-    return d->touch_q && xQueueReceive(d->touch_q, ev, 0) == pdTRUE;
+    if (!d->touch_q || xQueueReceive(d->touch_q, &it, 0) != pdTRUE) {
+        return false;
+    }
+    if (it.ev.type == CYDUI_EVENT_DOWN) {
+        d->down_pending_us = it.t_us; /* closed by the end of the frame that shows it (frame_end) */
+    }
+    *ev = it.ev;
+    return true;
 }
 
 esp_err_t cydui_esp32_touch_status(const cydui_esp32 *d)
@@ -331,23 +352,24 @@ void cydui_esp32_touch_state(cydui_esp32 *d, cydui_esp32_touch_info *out)
     out->down = d->pressed;
 }
 
-void cydui_esp32_wait(cydui_esp32 *d, uint32_t ms)
+bool cydui_esp32_wait(cydui_esp32 *d, uint32_t ms)
 {
-    cydui_event ev;
+    touch_item it;
 
     while (ms > 0) {
         uint32_t chunk = ms > 500 ? 500 : ms;
 
         (void)esp_task_wdt_reset(); /* an application that sleeps is alive: not subscribed is fine */
         if (d->touch_q) {
-            if (xQueuePeek(d->touch_q, &ev, pdMS_TO_TICKS(chunk)) == pdTRUE) {
-                return; /* a touch event is waiting */
+            if (xQueuePeek(d->touch_q, &it, pdMS_TO_TICKS(chunk)) == pdTRUE) {
+                return true; /* a touch event is waiting */
             }
         } else {
             vTaskDelay(pdMS_TO_TICKS(chunk));
         }
         ms -= chunk;
     }
+    return false;
 }
 
 /* ---- the calibration on screen ---- */
@@ -383,7 +405,7 @@ static esp_err_t cal_point(cydui_esp32 *d, uint32_t timeout_ms, float *rx, float
 
     if (period < 1) period = 1;
     for (;;) {
-        cydui_event ev;
+        touch_item ev;
         uint32_t last;
         int n = 0;
         double sx = 0, sy = 0;
@@ -391,7 +413,7 @@ static esp_err_t cal_point(cydui_esp32 *d, uint32_t timeout_ms, float *rx, float
 
         xQueueReset(d->touch_q);
         for (;;) { /* a finger goes down */
-            if (xQueueReceive(d->touch_q, &ev, pdMS_TO_TICKS(100)) == pdTRUE && ev.type == CYDUI_EVENT_DOWN) {
+            if (xQueueReceive(d->touch_q, &ev, pdMS_TO_TICKS(100)) == pdTRUE && ev.ev.type == CYDUI_EVENT_DOWN) {
                 break;
             }
             (void)esp_task_wdt_reset();
@@ -427,9 +449,12 @@ static esp_err_t cal_point(cydui_esp32 *d, uint32_t timeout_ms, float *rx, float
                 return ESP_ERR_TIMEOUT;
             }
         }
-        while (d->pressed) { /* wait for it to be lifted */
-            vTaskDelay(period);
-            (void)esp_task_wdt_reset();
+        {
+            int64_t lift_by = esp_timer_get_time() + 5000000;
+            while (d->pressed && esp_timer_get_time() < lift_by) { /* wait for it to be lifted (not forever) */
+                vTaskDelay(period);
+                (void)esp_task_wdt_reset();
+            }
         }
         vTaskDelay(pdMS_TO_TICKS(150));
         if (!lost) {

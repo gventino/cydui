@@ -252,11 +252,18 @@ void cydui_esp32_set_backlight(cydui_esp32 *d, int percent)
 
 /* ---- the backend ---- */
 
+/* A transfer that does not end in a second is given up (NFR-60: nothing may hang the firmware). */
+#define LCD_TIMEOUT pdMS_TO_TICKS(1000)
+
 static void lcd_wait(cydui_esp32 *d)
 {
     if (d->lcd_pending) {
         spi_transaction_t *done;
-        spi_device_get_trans_result(d->lcd, &done, portMAX_DELAY);
+        if (spi_device_get_trans_result(d->lcd, &done, LCD_TIMEOUT) != ESP_OK) {
+            if (d->rejected++ == 0) {
+                ESP_LOGE(TAG, "a transfer to the panel did not end in a second");
+            }
+        }
         d->lcd_pending = false;
     }
 }
@@ -300,7 +307,7 @@ static void esp32_flush(void *user, const cydui_rect *area, const cydui_color *p
         px[i] = (cydui_color)__builtin_bswap16(px[i]);
     }
     d->lcd_trans = (spi_transaction_t){.length = n * 16, .tx_buffer = px, .user = (void *)1};
-    if (spi_device_queue_trans(d->lcd, &d->lcd_trans, portMAX_DELAY) == ESP_OK) {
+    if (spi_device_queue_trans(d->lcd, &d->lcd_trans, LCD_TIMEOUT) == ESP_OK) {
         d->lcd_pending = true;
         d->flushes++;
     } else {
@@ -310,7 +317,13 @@ static void esp32_flush(void *user, const cydui_rect *area, const cydui_color *p
 
 static void esp32_frame_end(void *user)
 {
-    lcd_wait((cydui_esp32 *)user); /* every transfer is complete when the frame is over */
+    cydui_esp32 *d = (cydui_esp32 *)user;
+
+    lcd_wait(d); /* every transfer is complete when the frame is over */
+    if (d->down_pending_us) { /* the picture of a press is on its way out: how long did it take? */
+        cydui_lat_add(&d->lat, (uint32_t)(esp_timer_get_time() - d->down_pending_us));
+        d->down_pending_us = 0;
+    }
 #ifdef CONFIG_CYDUI_ESP32_TASK_WDT
     (void)esp_task_wdt_reset(); /* the UI loop is alive */
 #endif
@@ -330,6 +343,7 @@ esp_err_t cydui_esp32_init(cydui_esp32 *d, const cydui_esp32_config *cfg)
         return ESP_ERR_INVALID_ARG;
     }
     memset(d, 0, sizeof(*d));
+    cydui_lat_init(&d->lat);
     d->max_strip_bytes = cfg->max_strip_bytes;
     d->be.user = d;
     d->be.width = LCD_WIDTH;
@@ -352,6 +366,11 @@ esp_err_t cydui_esp32_init(cydui_esp32 *d, const cydui_esp32_config *cfg)
     }
 #endif
     return e;
+}
+
+void cydui_esp32_latency(const cydui_esp32 *d, cydui_lat_stats *out)
+{
+    cydui_lat_stats_get(&d->lat, out);
 }
 
 const cydui_backend *cydui_esp32_backend(cydui_esp32 *d)

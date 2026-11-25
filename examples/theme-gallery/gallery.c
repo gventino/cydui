@@ -88,6 +88,11 @@ static void touch_page(cydui_ui *ui, gallery *g)
             cydui_draw_rrect(&ui->ctx, (cydui_rect){(int16_t)(cx - 3), (int16_t)(cy - 3), 6, 6}, 3, st->accent, 255);
         }
     }
+    if (g->touch.known && g->touch.lat_n > 0) { /* only where there is something to measure: the PC page is unchanged */
+        snprintf(text, sizeof(text), "latencia p95 %u ms, mediana %u ms, n=%d", g->touch.lat_p95_us / 1000u,
+                 g->touch.lat_p50_us / 1000u, g->touch.lat_n);
+        cydui_draw_text_in(ui, area, area.x + 8, area.y + 6, text, strlen(text), st->text_muted);
+    }
     if (resp.clicked && g->check_n < GALLERY_CHECKS) {
         int cx = area.x + area.w * tx[g->check_n] / 100, cy = area.y + area.h * ty[g->check_n] / 100;
         int dx = resp.x - cx, dy = resp.y - cy;

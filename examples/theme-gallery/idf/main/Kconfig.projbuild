@@ -4,7 +4,7 @@ menu "theme-gallery"
         bool "Print the hash of every page in every theme at boot (to compare with the PC)"
         default y
         help
-            The nine hashes are in the format of `theme-gallery --headless --hash` on the PC; the same
+            The hashes are in the format of `theme-gallery --headless --hash` on the PC; the same
             number means the pixels sent to the panel are the pixels the PC renders.
 
     config GALLERY_CALIBRATE_AT_BOOT
@@ -16,8 +16,25 @@ menu "theme-gallery"
         default n
 
     config GALLERY_BENCH_SECONDS
-        int "Seconds to measure a full redraw of every frame at boot (0: skip)"
+        int "Seconds for each of the speed measurements at boot: full redraw, animation with and without dirty regions (0: skip them)"
         range 0 30
         default 3
+
+    config GALLERY_PROFILE
+        bool "Time every kind of draw command on its own (the data for optimizing the rasterizer)"
+        default y
+
+    config GALLERY_MEMORY_REPORT
+        bool "Print the size of the objects the application holds and the free heap"
+        default y
+
+    config GALLERY_BUDGET_TEST
+        bool "Prove the frame budget: one deliberately slow frame with a 1 ms budget"
+        default y
+
+    config GALLERY_IDLE_SECONDS
+        int "Seconds of idle time to measure the CPU use of every task at boot (0: skip)"
+        range 0 60
+        default 10
 
 endmenu
