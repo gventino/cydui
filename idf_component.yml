@@ -1,5 +1,33 @@
 version: "1.0.0-rc.2"
-description: Immediate-mode UI library for small embedded displays (ESP32 / CYD).
+description: Immediate-mode touch UI library in pure C99 for the ESP32 Cheap Yellow Display (CYD, ESP32-2432S028R) and small TFT screens - no malloc, no framebuffer, themes, on-screen keyboard.
+url: https://github.com/gventino/cydui
+repository: https://github.com/gventino/cydui.git
+issues: https://github.com/gventino/cydui/issues
+documentation: https://github.com/gventino/cydui/blob/main/docs/12-guide.md
 license: MIT
+tags:
+  - gui
+  - user-interface
+  - display
+  - touch
+  - touchscreen
+  - lcd
+  - tft
+  - cyd
+  - ili9341
+  - xpt2046
+  - embedded-gui
+maintainers:
+  - gventino
 dependencies:
   idf: ">=5.5"
+files:
+  exclude:
+    - "build/**/*"
+    - "**/build/**/*"
+    - "tools/.venv/**/*"
+    - "**/__pycache__/**/*"
+    - "tests/**/*"
+    - "third_party/**/*"
+    - "slow-unit-*"
+    - "docs/img/**/*"
