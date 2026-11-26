@@ -268,6 +268,7 @@ typedef struct cydui_ui {
     bool active_capture; /**< that widget asked to keep the press (CYDUI_CAPTURE) */
     cydui_input in;
     cydui_mods mods;
+    struct { const cydui_font *font; cydui_color color; uint8_t alpha; bool has_color, has_alpha; } label; /**< cydui_next_font/color/alpha */
     cydui_region regions[CYDUI_MAX_LAYOUT_DEPTH + 1]; /**< [0] is the whole screen */
     uint8_t depth;   /**< containers open right now */
     uint8_t skipped; /**< containers that were too deep to open, whose end must be skipped too */
@@ -443,6 +444,16 @@ void cydui_next_fill(cydui_ui *ui);
 /** Take all the room across the main axis (a column's width, a row's height). */
 void cydui_next_stretch(cydui_ui *ui);
 void cydui_next_disabled(cydui_ui *ui);
+
+/**
+ * Text modifiers for the next widget only, like the size modifiers, honoured by cydui_label and cydui_label_wrapped and
+ * ignored (and forgotten) by every other widget: the font of the text (a NULL font, or one that cannot be used, keeps the
+ * theme's), its color (instead of the theme's text color, and the same whether the label is disabled or not), and its alpha
+ * (0 draws nothing, 255 is opaque, the default).
+ */
+void cydui_next_font(cydui_ui *ui, const cydui_font *font);
+void cydui_next_color(cydui_ui *ui, cydui_color color);
+void cydui_next_alpha(cydui_ui *ui, uint8_t alpha);
 
 /** Reads and clears the pending modifiers. For widgets; widgets that ignore them can skip this. */
 cydui_mods cydui_take_mods(cydui_ui *ui);

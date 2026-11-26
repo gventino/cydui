@@ -57,10 +57,28 @@ void cydui_next_disabled(cydui_ui *ui)
     ui->mods.disabled = true;
 }
 
+void cydui_next_font(cydui_ui *ui, const cydui_font *font)
+{
+    ui->label.font = font;
+}
+
+void cydui_next_color(cydui_ui *ui, cydui_color color)
+{
+    ui->label.color = color;
+    ui->label.has_color = true;
+}
+
+void cydui_next_alpha(cydui_ui *ui, uint8_t alpha)
+{
+    ui->label.alpha = alpha;
+    ui->label.has_alpha = true;
+}
+
 cydui_mods cydui_take_mods(cydui_ui *ui)
 {
     cydui_mods m = ui->mods;
     mods_reset(&ui->mods);
+    memset(&ui->label, 0, sizeof(ui->label)); /* the text modifiers are for one widget too (a label has copied them before this) */
     return m;
 }
 

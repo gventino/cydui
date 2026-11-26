@@ -23,6 +23,8 @@ cydui_style cydui_style_default(const cydui_font *font)
     s.spacing = 8;
     s.min_target = 32;
     s.anim_ms = 0;
+    s.font_small = NULL;
+    s.font_title = NULL;
     return s;
 }
 
@@ -150,7 +152,24 @@ cydui_theme_status cydui_theme_validate(const cydui_theme *t)
     if (!cydui_font_fallback(t->style.font)) {
         return CYDUI_THEME_ERR_FONT;
     }
+    if ((t->style.font_small && !cydui_font_fallback(t->style.font_small)) || (t->style.font_title && !cydui_font_fallback(t->style.font_title))) {
+        return CYDUI_THEME_ERR_FONT;
+    }
     return CYDUI_THEME_OK;
+}
+
+const cydui_font *cydui_theme_font(const cydui_theme *theme, cydui_font_role role)
+{
+    if (!theme) {
+        return NULL;
+    }
+    if (role == CYDUI_FONT_SMALL && theme->style.font_small) {
+        return theme->style.font_small;
+    }
+    if (role == CYDUI_FONT_TITLE && theme->style.font_title) {
+        return theme->style.font_title;
+    }
+    return theme->style.font;
 }
 
 /* ---- painting ---- */

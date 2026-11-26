@@ -162,6 +162,10 @@ SURFACE(void, cydui_focus_clear, (cydui_ui *ui))
 SURFACE(bool, cydui_has_focus, (const cydui_ui *ui))
 SURFACE(void, cydui_ui_stats_get, (const cydui_ui *ui, cydui_ui_stats *out))
 SURFACE(void, cydui_ui_stats_reset, (cydui_ui *ui))
+SURFACE(const cydui_font *, cydui_theme_font, (const cydui_theme *theme, cydui_font_role role))
+SURFACE(void, cydui_next_font, (cydui_ui *ui, const cydui_font *font))
+SURFACE(void, cydui_next_color, (cydui_ui *ui, cydui_color color))
+SURFACE(void, cydui_next_alpha, (cydui_ui *ui, uint8_t alpha))
 SURFACE(size_t, cydui_text_fit, (const cydui_font *f, const char *s, size_t len, int16_t max_w))
 SURFACE(size_t, cydui_text_ellipsize, (const cydui_font *f, const char *s, size_t len, int16_t max_w, char *out, size_t cap, bool *cut))
 SURFACE(size_t, cydui_textedit_len, (const char *buf, size_t cap))
@@ -266,6 +270,10 @@ CT_ASSERT(CYDUI_STATE_FOCUSED, (long long)(CYDUI_STATE_FOCUSED) == 4LL);
 CT_ASSERT(CYDUI_STATE_HOVER, (long long)(CYDUI_STATE_HOVER) == 1LL);
 CT_ASSERT(CYDUI_STATE_NORMAL, (long long)(CYDUI_STATE_NORMAL) == 0LL);
 CT_ASSERT(CYDUI_STATE_PRESSED, (long long)(CYDUI_STATE_PRESSED) == 2LL);
+CT_ASSERT(CYDUI_FONT_BODY, (long long)(CYDUI_FONT_BODY) == 0LL);
+CT_ASSERT(CYDUI_FONT_SMALL, (long long)(CYDUI_FONT_SMALL) == 1LL);
+CT_ASSERT(CYDUI_FONT_TITLE, (long long)(CYDUI_FONT_TITLE) == 2LL);
+CT_ASSERT(CYDUI_FONT_ROLE_COUNT, (long long)(CYDUI_FONT_ROLE_COUNT) == 3LL);
 CT_ASSERT(CYDUI_THEME_ERR_FONT, (long long)(CYDUI_THEME_ERR_FONT) == 2LL);
 CT_ASSERT(CYDUI_THEME_ERR_NULL, (long long)(CYDUI_THEME_ERR_NULL) == 1LL);
 CT_ASSERT(CYDUI_THEME_OK, (long long)(CYDUI_THEME_OK) == 0LL);
@@ -542,6 +550,8 @@ static void structs_have_their_fields(void)
         { uint8_t *p = &v.spacing; (void)p; }
         { uint8_t *p = &v.min_target; (void)p; }
         { uint16_t *p = &v.anim_ms; (void)p; }
+        { const cydui_font * *p = &v.font_small; (void)p; }
+        { const cydui_font * *p = &v.font_title; (void)p; }
     }
     {
         cydui_text_extent v;
@@ -761,6 +771,10 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_has_focus);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_stats_get);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_stats_reset);
+    TEST_ASSERT_NOT_NULL(surface_cydui_theme_font);
+    TEST_ASSERT_NOT_NULL(surface_cydui_next_font);
+    TEST_ASSERT_NOT_NULL(surface_cydui_next_color);
+    TEST_ASSERT_NOT_NULL(surface_cydui_next_alpha);
     TEST_ASSERT_NOT_NULL(surface_cydui_text_fit);
     TEST_ASSERT_NOT_NULL(surface_cydui_text_ellipsize);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_len);

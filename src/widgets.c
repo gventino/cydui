@@ -96,31 +96,59 @@ static void look_tween(cydui_ui *ui, cydui_id id, bool on, bool select, cydui_pa
 
 /* ---- widgets ---- */
 
+/* what cydui_next_font/color/alpha asked for, resolved against the theme */
+typedef struct {
+    const cydui_font *font;
+    cydui_color color;
+    uint8_t alpha;
+} label_look;
+
+static label_look take_label_look(cydui_ui *ui, bool disabled)
+{
+    label_look l;
+    const cydui_style *st = &ui->theme->style;
+
+    l.font = ui->label.font && cydui_font_fallback(ui->label.font) ? ui->label.font : st->font;
+    l.color = ui->label.has_color ? ui->label.color : (disabled ? st->text_muted : st->text);
+    l.alpha = ui->label.has_alpha ? ui->label.alpha : 255;
+    return l;
+}
+
 void cydui_label(cydui_ui *ui, const char *text)
 {
-    cydui_mods m = cydui_take_mods(ui);
+    label_look look;
+    cydui_mods m;
     size_t n;
     cydui_text_extent e;
     cydui_rect r;
+    cydui_rect saved;
 
+    look = take_label_look(ui, ui->mods.disabled); /* before take_mods forgets the text modifiers */
+    m = cydui_take_mods(ui);
     if (!cydui_widget_begin(ui)) {
         return;
     }
     text = text ? text : "";
     n = cydui_label_len(text);
-    e = cydui_text_size(ui->theme->style.font, text, n, 0);
+    e = cydui_text_size(look.font, text, n, 0);
     r = cydui_alloc(ui, &m, e.w, e.h);
-    cydui_draw_text_in(ui, r, r.x, r.y, text, n, m.disabled ? ui->theme->style.text_muted : ui->theme->style.text);
+    saved = ui->ctx.clip;
+    cydui_set_clip(&ui->ctx, cydui_rect_intersect(saved, r));
+    cydui_draw_text(&ui->ctx, look.font, r.x, r.y, 0, CYDUI_ALIGN_LEFT, text, n, look.color, look.alpha);
+    ui->ctx.clip = saved;
 }
 
 void cydui_label_wrapped(cydui_ui *ui, const char *text)
 {
-    cydui_mods m = cydui_take_mods(ui);
+    label_look look;
+    cydui_mods m;
     int wrap;
     size_t n;
     cydui_text_extent e;
     cydui_rect r;
 
+    look = take_label_look(ui, ui->mods.disabled);
+    m = cydui_take_mods(ui);
     if (!cydui_widget_begin(ui)) {
         return;
     }
@@ -130,13 +158,12 @@ void cydui_label_wrapped(cydui_ui *ui, const char *text)
     if (wrap < 1) {
         wrap = 1;
     }
-    e = cydui_text_size(ui->theme->style.font, text, n, (int16_t)wrap);
+    e = cydui_text_size(look.font, text, n, (int16_t)wrap);
     r = cydui_alloc(ui, &m, e.w, e.h);
     {
         cydui_rect saved = ui->ctx.clip;
         cydui_set_clip(&ui->ctx, cydui_rect_intersect(saved, r));
-        cydui_draw_text(&ui->ctx, ui->theme->style.font, r.x, r.y, (int16_t)wrap, CYDUI_ALIGN_LEFT, text, n,
-                        m.disabled ? ui->theme->style.text_muted : ui->theme->style.text, 255);
+        cydui_draw_text(&ui->ctx, look.font, r.x, r.y, (int16_t)wrap, CYDUI_ALIGN_LEFT, text, n, look.color, look.alpha);
         ui->ctx.clip = saved;
     }
 }

@@ -29,10 +29,25 @@ typedef struct {
     uint8_t spacing;
     uint8_t min_target; /**< smallest touch target in pixels (R-04) */
     uint16_t anim_ms;   /**< how long a widget takes to change its look (FR-53); 0 = at once, which is also what a backend without a clock gets */
+    /**
+     * Optional other fonts of the theme, for text that is smaller or bigger than the body (a caption, a heading). NULL means
+     * `font`. The widgets of the library keep using `font`; the others are for the application's own labels and widgets, found
+     * with cydui_theme_font() and used with cydui_next_font().
+     */
+    const cydui_font *font_small, *font_title;
 } cydui_style;
+
+/** The fonts a theme can offer. */
+typedef enum {
+    CYDUI_FONT_BODY,  /**< style.font */
+    CYDUI_FONT_SMALL, /**< style.font_small, or the body font */
+    CYDUI_FONT_TITLE, /**< style.font_title, or the body font */
+    CYDUI_FONT_ROLE_COUNT
+} cydui_font_role;
 
 /** A dark style around `font`. */
 cydui_style cydui_style_default(const cydui_font *font);
+
 
 typedef enum {
     CYDUI_WIDGET_BUTTON,
@@ -149,6 +164,9 @@ cydui_theme_status cydui_theme_validate(const cydui_theme *t);
 
 /** Fills `t` with the built-in dark theme around `font`. */
 void cydui_theme_default(cydui_theme *t, const cydui_font *font);
+
+/** The font of `role` in `theme`: the body font for an unset role or a role that does not exist. NULL only for a NULL theme. */
+const cydui_font *cydui_theme_font(const cydui_theme *theme, cydui_font_role role);
 
 /**
  * Builds the table of `t` from its palette, with the same rules as the built-in theme: a pressed
