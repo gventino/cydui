@@ -126,6 +126,13 @@ struct cydui_theme {
      * cydui_now() and cydui_effects_level().
      */
     const cydui_post_effect *post;
+    /**
+     * Optional: anything the application wants its painters to find again, for example the palette the
+     * theme was built from. The library never reads it. A painter gets the theme it belongs to
+     * (`const cydui_theme *`), so `theme->user` is there without a lookup by name. It must outlive the
+     * theme. NULL (what cydui_theme_default leaves) for themes that do not use it.
+     */
+    const void *user;
 };
 
 typedef enum {

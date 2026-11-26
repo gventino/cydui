@@ -692,6 +692,38 @@ static void test_a_thousand_switches_change_nothing_else(void)
     TEST_ASSERT_TRUE(first != 0 && last != 0);
 }
 
+/* ---- the application's own pointer in a theme ---- */
+
+static const void *seen_user;
+static void painter_that_reads_the_user_pointer(cydui_ui *ui, const cydui_theme *theme, const cydui_paint_info *info)
+{
+    seen_user = theme->user;
+    cydui_paint_default(ui, theme, info);
+}
+
+static void test_a_theme_carries_a_pointer_that_its_painters_find_again(void)
+{
+    static const int palette_a = 1, palette_b = 2;
+    cydui_theme second;
+    start();
+    TEST_ASSERT_NULL_MESSAGE(rig.theme.user, "a default theme has none");
+    rig.theme.user = &palette_a;
+    rig.theme.paint[CYDUI_WIDGET_BUTTON] = painter_that_reads_the_user_pointer;
+    second = rig.theme;
+    second.user = &palette_b;
+    seen_user = NULL;
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_button(&rig.ui, "A");
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_PTR(&palette_a, seen_user);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_set_theme(&rig.ui, &second));
+    cydui_ui_begin(&rig.ui, 0);
+    cydui_button(&rig.ui, "A");
+    cydui_ui_end(&rig.ui);
+    TEST_ASSERT_EQUAL_PTR(&palette_b, seen_user);
+    TEST_ASSERT_EQUAL_UINT32(0, cydui_ui_errors(&rig.ui));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -720,5 +752,6 @@ int main(void)
     RUN_TEST(test_a_widget_with_no_size_casts_no_shadow);
     RUN_TEST(test_a_scroll_bar_with_nothing_to_scroll_is_not_painted_and_not_divided_by);
     RUN_TEST(test_text_that_is_not_there_is_not_drawn);
+    RUN_TEST(test_a_theme_carries_a_pointer_that_its_painters_find_again);
     return UNITY_END();
 }

@@ -572,6 +572,7 @@ static void structs_have_their_fields(void)
         (void)sizeof(v.table);
         (void)sizeof(v.paint);
         { const cydui_post_effect * *p = &v.post; (void)p; }
+        { const void * *p = &v.user; (void)p; }
     }
     {
         cydui_ui_stats v;
