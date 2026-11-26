@@ -1,0 +1,11 @@
+CONFIG_IDF_TARGET="esp32"
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# The classic CYD (ESP32-2432S028R): the pins, the panel and the touch controller of this board.
+# Colors inverted, red and blue swapped or a mirrored touch? See docs/13-troubleshooting.md of the library.
+CONFIG_CYDUI_ESP32_PROFILE_CYD=y
+
+# -O2 instead of the debug default: the rasterizer is several times faster.
+CONFIG_COMPILER_OPTIMIZATION_PERF=y

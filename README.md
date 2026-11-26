@@ -1,32 +1,74 @@
 # cydui
 
-Immediate-mode UI library in C for small embedded displays, targeting the ESP32 "Cheap Yellow Display" (ESP32-2432S028R: ILI9341 320x240 + XPT2046 touch). egui-style API, strip-based rendering (no full framebuffer), swappable themes from clean/modern to retro to cyberpunk.
+**A touch UI for the ESP32 "Cheap Yellow Display" that you can read in an afternoon.** Buttons, lists, text fields with an on-screen keyboard, themes and animations in pure C99, on the cheap 320x240 ILI9341 + XPT2046 board (CYD, ESP32-2432S028R). No malloc, no framebuffer, no code generator: you call a function, you get a widget.
 
-**Status:** release candidate **1.0.0-rc.2** (the findings of the first real application are in). The core is stable since 0.4.0 and fuzzed (see "Security and limits" below); `v1.0.0` comes after a real application, [`cyd-todo`](https://github.com/gventino/cyd-todo) (a quest log and calendar with a server and a phone), has been written on it. What is in: the drawing core and a fast strip rasterizer (a full frame draws in 11.5 ms on the ESP32), in-memory, SDL and ESP32 backends, UTF-8 text with bitmap fonts, an immediate-mode UI (ids, state, touch, layout, widgets, scroll areas, lists, text fields, popups and a keyboard on the screen), themes switchable at run time (`clean` light and dark, `retro`, `cyberpunk`), tweens and a per-strip post-effect hook, and an API for widgets of your own. See [`docs/`](docs/) for requirements, threat model, the iteration plan and the [core design](docs/10-core-design.md); the [changelog](CHANGELOG.md) lists what changed.
+[![License: MIT](https://img.shields.io/github/license/gventino/cydui)](LICENSE) [![Release](https://img.shields.io/github/v/tag/gventino/cydui?label=release)](https://github.com/gventino/cydui/tags) ![C99](https://img.shields.io/badge/C-99-blue) ![ESP-IDF 5.5](https://img.shields.io/badge/ESP--IDF-5.5-red)
 
-![The theme gallery](docs/img/gallery-clean.png) ![in the dark theme](docs/img/gallery-clean-dark.png) ![a list of 200 tasks](docs/img/gallery-list.png) ![a custom widget](docs/img/gallery-stars.png) ![the retro theme](docs/img/gallery-retro.png) ![the cyberpunk theme](docs/img/gallery-cyberpunk.png)
+![The theme gallery](docs/img/gallery-clean.png) ![in the dark theme](docs/img/gallery-clean-dark.png) ![a list of 200 tasks](docs/img/gallery-list.png) ![a custom widget](docs/img/gallery-stars.png)
 
 ```c
-CYDUI_STORAGE(storage, 320, 240, 20, 192, 1024, 32);   /* all the memory, as one static object */
-
-cydui_ui ui;
-cydui_ui_init(&ui, &CYDUI_CONFIG(storage, &backend, &theme));
-while (cydui_ui_begin(&ui, theme.style.bg)) {
-    CYDUI_CARD(&ui) {
-        cydui_label(&ui, "New task");
-        CYDUI_ROW(&ui) {
-            cydui_set_main_align(&ui, CYDUI_PLACE_END);
-            if (cydui_button(&ui, "Cancel")) cancel();
-            if (cydui_button(&ui, "Add")) add();
-        }
+CYDUI_CARD(&ui) {
+    cydui_label(&ui, "New task");
+    cydui_text_input(&ui, "Name", name, sizeof name, 24, 0);          /* tap it: a keyboard appears */
+    CYDUI_ROW(&ui) {
+        if (cydui_button(&ui, "Cancel")) cancel();
+        if (cydui_button(&ui, "Add"))    add(name);
     }
-    cydui_ui_end(&ui);
 }
 ```
 
-## Guide
+## From zero to a button on your board in 5 minutes
 
-[`docs/12-guide.md`](docs/12-guide.md) is the short practical guide: memory budgeting, writing a theme, a painter, a post-effect, a widget and a backend, animation, text fields. [`docs/11-api.md`](docs/11-api.md) is the contract and the headers are the reference.
+```sh
+git clone https://github.com/gventino/cydui && cd cydui
+tools/doctor.sh                          # what is missing on this computer, and how to get it
+tools/new-project.sh ~/my-gadget         # a ready ESP-IDF project for the CYD, already pointing at this library
+cd ~/my-gadget && source ~/esp/esp-idf/export.sh    # (or this library's tools/env.sh)
+idf.py build flash monitor               # the first start asks for five touches to calibrate the screen
+```
+
+No board yet, or just curious? The same widgets run in a window on your PC (needs SDL2; `--headless` writes a PNG without it):
+
+```sh
+cmake -S . -B build -G Ninja && cmake --build build
+./build/examples/theme-gallery/theme-gallery    # every widget in five themes; the mouse is the touch screen
+```
+
+Something looks wrong on the real screen (inverted colors, mirrored touch)? [`docs/13-troubleshooting.md`](docs/13-troubleshooting.md) is a table of symptoms and the one option that fixes each.
+
+## Why this and not LVGL or TFT_eSPI widgets?
+
+- **You own the memory.** One `CYDUI_STORAGE(...)` static block that you size; the library never allocates, and `cydui_ui_stats_get()` tells you how much a screen really uses. Nothing to tune in a config header the size of a novel.
+- **Immediate mode.** The screen is a function of your state, rebuilt every frame: `if (cydui_button(&ui, "Add")) add();`. No widget tree to create, hold and free.
+- **Fast enough on a cheap board.** A full frame draws in 11.5 ms on the ESP32; with dirty regions only the strips that changed are sent (an animation runs at about 100 fps).
+- **Small enough to read.** About 5,700 lines of C99 in `src/`. When something looks wrong you can find out why.
+- **Hard to crash.** Hostile text and touches cannot corrupt memory or hang the screen; the core is fuzzed and sanitizer-tested, and every picture is pinned by a golden hash that the board reproduces bit for bit.
+- **A real application behind it:** [cyd-todo](https://github.com/gventino/cyd-todo), a quest-log to-do list and calendar with a Rust server and Wi-Fi setup by QR code, was written on this API and sent its findings back (that is what 1.0.0-rc.2 is).
+
+Not for you if you need rich vector graphics, a design tool, many fonts and languages out of the box, or a screen other than a small TFT (it is built for 320x240; the display backend is a few hundred lines if you want to port one).
+
+## What is in it
+
+| | |
+|---|---|
+| **Widgets** | label, wrapped label, button, check box, switch, slider, progress, tabs, scroll areas, virtual lists, text field and text area, popups (modal), the keyboard on the screen (letters, numbers, symbols, Latin-1 accents) |
+| **Look** | themes as a table plus painters: `clean` (light and dark), `retro`, `cyberpunk` (glow, scanlines, glitch); fonts as constant bitmap data (Liberation Sans bundled, make your own with `tools/fontgen.py`); tweens and easings |
+| **Yours** | a documented way to write your own widget, painter, post-effect and backend (`docs/12-guide.md`) |
+| **Board** | ESP-IDF 5.5 component: display driver, XPT2046 touch with a filter and a five-point calibration kept in the flash, backlight, a pixel hash to compare with the PC |
+| **PC** | SDL window and a headless mode; unit tests, golden images, fuzzers |
+
+## Where to go next
+
+| I want to... | Read |
+|---|---|
+| fix a wrong color, a mirrored touch, a black screen | [`docs/13-troubleshooting.md`](docs/13-troubleshooting.md) |
+| size the memory, write a theme, a widget, animate | [`docs/12-guide.md`](docs/12-guide.md) |
+| know exactly what is stable | [`docs/11-api.md`](docs/11-api.md) and the comments in `include/cydui/*.h` |
+| see a whole application | [cyd-todo](https://github.com/gventino/cyd-todo) |
+| know what changed | [`CHANGELOG.md`](CHANGELOG.md) |
+| report a vulnerability | [`SECURITY.md`](SECURITY.md) |
+
+**Status:** release candidate **1.0.0-rc.2**. The API has been frozen since 0.4.0 (additions only; each is listed in the changelog) and `v1.0.0` comes when the application that stresses it ships its first release.
 
 ## Text input
 
@@ -93,6 +135,8 @@ There is no hosted CI. Checks run on the developer machine (an untracked `ci.sh`
 The public API is the one in `docs/11-api.md`; `tests/test_api_surface.c` stops the build if a signature, an enumerator or a field changes. To add API, add lines to it (`tools/gen_api_surface.py` writes the entries); to change API, follow the rules at the end of `docs/11-api.md`.
 
 ## ESP-IDF
+
+To start a project of your own use `tools/new-project.sh` (above). This section is for the examples of the repository.
 
 ESP-IDF v5.5.x is expected in `~/esp/esp-idf`. Load it with:
 

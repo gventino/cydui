@@ -8,10 +8,13 @@ CYDUI_IDF_PATH="${CYDUI_IDF_PATH:-$HOME/esp/esp-idf}"
 CYDUI_IDF_PYTHON_DIR="${CYDUI_IDF_PYTHON_DIR:-$HOME/.local/share/uv/python/cpython-3.13-linux-x86_64-gnu/bin}"
 
 if [ ! -f "$CYDUI_IDF_PATH/export.sh" ]; then
-    echo "env.sh: ESP-IDF not found at $CYDUI_IDF_PATH" >&2
+    echo "env.sh: ESP-IDF not found at $CYDUI_IDF_PATH (set CYDUI_IDF_PATH, or install it: https://docs.espressif.com/projects/esp-idf/en/v5.5/esp32/get-started/)" >&2
     return 1 2>/dev/null || exit 1
 fi
 
-export PATH="$CYDUI_IDF_PYTHON_DIR:$PATH"
+# the uv-managed Python is only put first when it is there; otherwise ESP-IDF uses the Python it finds
+if [ -d "$CYDUI_IDF_PYTHON_DIR" ]; then
+    export PATH="$CYDUI_IDF_PYTHON_DIR:$PATH"
+fi
 # shellcheck disable=SC1091
 . "$CYDUI_IDF_PATH/export.sh" >/dev/null

@@ -2,6 +2,10 @@
 
 Versions are tagged per iteration. The API has been frozen since 0.4.0 (see `docs/11-api.md`); every change is listed under "API changes".
 
+## Unreleased — an easier start
+
+No change to the library. `tools/new-project.sh <dir>` makes a ready ESP-IDF project for the CYD pointing at this copy of the library (`templates/cyd-starter`: a label, a button, the calibration at the first start; `ci.sh` builds it), `tools/doctor.sh` says what a computer is missing and how to get it, `docs/13-troubleshooting.md` is a table of symptoms and the option that fixes each, `tools/env.sh` no longer needs the uv Python of the author, and the README starts with what the library is for and the five-minute way to a button on a board.
+
 ## 1.0.0-rc.2 — the findings of the first real application
 
 `cyd-todo` (a quest log and calendar on the CYD, with a server and a phone) found what the library made hard. Everything here is an **addition**: no function, enumerator, flag bit or documented behavior changed, `sizeof(cydui_cmd)` is still 48, and every existing picture (the goldens and the gallery hashes) is byte-identical.
