@@ -428,12 +428,44 @@ bool cydui_ui_end(cydui_ui *ui)
     for (i = 0; i < kb_n; i++) { /* what the keys of the keyboard typed is for the field in the next frame */
         k_push(&ui->in, kb_out[i]);
     }
+    ui->peak_cmds = ui->ctx.cmd_len > ui->peak_cmds ? ui->ctx.cmd_len : ui->peak_cmds;
+    ui->peak_text = ui->ctx.text_arena.used > ui->peak_text ? (uint32_t)ui->ctx.text_arena.used : ui->peak_text;
+    ui->peak_tweens = ui->tweens_now > ui->peak_tweens ? ui->tweens_now : ui->peak_tweens;
+    ui->peak_widgets = ui->widgets > ui->peak_widgets ? ui->widgets : ui->peak_widgets;
     cydui_end_frame(&ui->ctx);
     ui->frame++;
     {
         bool more = ui->in.down || ui->in.q_len > 0 || ui->in.k_len > 0 || ui->relayout || ui->tweens_now > 0;
         ui->relayout = false;
         return more;
+    }
+}
+
+void cydui_ui_stats_get(const cydui_ui *ui, cydui_ui_stats *out)
+{
+    uint32_t i, used = 0;
+
+    if (!ui || !out) {
+        return;
+    }
+    for (i = 0; i < ui->state_cap; i++) {
+        used += ui->state[i].used ? 1u : 0u;
+    }
+    out->cmds_peak = ui->peak_cmds;
+    out->cmds_cap = ui->ctx.cmd_cap;
+    out->text_peak = ui->peak_text;
+    out->text_cap = (uint32_t)ui->ctx.text_arena.cap;
+    out->state_used = used;
+    out->state_cap = ui->state_cap;
+    out->tweens_peak = ui->peak_tweens;
+    out->tweens_cap = CYDUI_MAX_TWEENS;
+    out->widgets_peak = ui->peak_widgets;
+}
+
+void cydui_ui_stats_reset(cydui_ui *ui)
+{
+    if (ui) {
+        ui->peak_cmds = ui->peak_text = ui->peak_tweens = ui->peak_widgets = 0;
     }
 }
 
@@ -591,8 +623,14 @@ static cydui_state *state_get(cydui_ui *ui, cydui_id id, bool create, bool evict
     }
     if (free_slot == ui->state_cap && evict) {
         free_slot = oldest; /* full: replace the entry unused for the longest time */
+        if (free_slot != ui->state_cap && ui->frame - ui->state[free_slot].last_frame <= 1u) {
+            ui->ctx.errors |= CYDUI_ERR_STATE_FULL; /* ... and it was still in use: its state is lost */
+        }
     }
     if (free_slot == ui->state_cap) {
+        if (ui->state_cap && evict) {
+            ui->ctx.errors |= CYDUI_ERR_STATE_FULL; /* nothing could be replaced (a table of no entries is a choice, a tween that finds no room just jumps) */
+        }
         return NULL;
     }
     s = &ui->state[free_slot];

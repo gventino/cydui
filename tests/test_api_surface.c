@@ -160,6 +160,8 @@ SURFACE(unsigned, cydui_text_area, (cydui_ui *ui, const char *label, char *buf, 
 SURFACE(void, cydui_focus_set, (cydui_ui *ui, const char *label))
 SURFACE(void, cydui_focus_clear, (cydui_ui *ui))
 SURFACE(bool, cydui_has_focus, (const cydui_ui *ui))
+SURFACE(void, cydui_ui_stats_get, (const cydui_ui *ui, cydui_ui_stats *out))
+SURFACE(void, cydui_ui_stats_reset, (cydui_ui *ui))
 SURFACE(size_t, cydui_textedit_len, (const char *buf, size_t cap))
 SURFACE(size_t, cydui_textedit_chars, (const char *buf, size_t cap))
 SURFACE(void, cydui_textedit_normalize, (char *buf, size_t cap, size_t *cursor))
@@ -192,6 +194,7 @@ CT_ASSERT(CYDUI_ERR_BAD_BITMAP, (long long)(CYDUI_ERR_BAD_BITMAP) == 8LL);
 CT_ASSERT(CYDUI_ERR_CMD_OVERFLOW, (long long)(CYDUI_ERR_CMD_OVERFLOW) == 1LL);
 CT_ASSERT(CYDUI_ERR_FRAME_BUDGET, (long long)(CYDUI_ERR_FRAME_BUDGET) == 512LL);
 CT_ASSERT(CYDUI_ERR_TWEEN_LIMIT, (long long)(CYDUI_ERR_TWEEN_LIMIT) == 1024LL);
+CT_ASSERT(CYDUI_ERR_STATE_FULL, (long long)(CYDUI_ERR_STATE_FULL) == 2048LL);
 CT_ASSERT(CYDUI_ANIM_ONE, (long long)(CYDUI_ANIM_ONE) == 4096LL);
 CT_ASSERT(CYDUI_FX_NONE, (long long)(CYDUI_FX_NONE) == 0LL);
 CT_ASSERT(CYDUI_FX_LOW, (long long)(CYDUI_FX_LOW) == 1LL);
@@ -571,6 +574,19 @@ static void structs_have_their_fields(void)
         { const cydui_post_effect * *p = &v.post; (void)p; }
     }
     {
+        cydui_ui_stats v;
+        (void)v;
+        { uint32_t *p = &v.cmds_peak; (void)p; }
+        { uint32_t *p = &v.cmds_cap; (void)p; }
+        { uint32_t *p = &v.text_peak; (void)p; }
+        { uint32_t *p = &v.text_cap; (void)p; }
+        { uint32_t *p = &v.state_used; (void)p; }
+        { uint32_t *p = &v.state_cap; (void)p; }
+        { uint32_t *p = &v.tweens_peak; (void)p; }
+        { uint32_t *p = &v.tweens_cap; (void)p; }
+        { uint32_t *p = &v.widgets_peak; (void)p; }
+    }
+    {
         cydui_post_effect v;
         (void)v;
         { uint32_t (**p)(void *, int16_t, int16_t) = &v.key; (void)p; }
@@ -740,6 +756,8 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_focus_set);
     TEST_ASSERT_NOT_NULL(surface_cydui_focus_clear);
     TEST_ASSERT_NOT_NULL(surface_cydui_has_focus);
+    TEST_ASSERT_NOT_NULL(surface_cydui_ui_stats_get);
+    TEST_ASSERT_NOT_NULL(surface_cydui_ui_stats_reset);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_len);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_chars);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_normalize);

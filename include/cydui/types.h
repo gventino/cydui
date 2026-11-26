@@ -34,7 +34,8 @@ enum {
     CYDUI_ERR_TOO_MANY_WIDGETS = 1u << 7, /**< more than CYDUI_MAX_WIDGETS in a frame; extras ignored */
     CYDUI_ERR_THREAD = 1u << 8,         /**< UI called from a task other than the one that created it */
     CYDUI_ERR_FRAME_BUDGET = 1u << 9,   /**< the frame took longer than its time budget; the rest of its widgets were skipped */
-    CYDUI_ERR_TWEEN_LIMIT = 1u << 10    /**< more than CYDUI_MAX_TWEENS tweens running at once; the extra ones jumped to their target */
+    CYDUI_ERR_TWEEN_LIMIT = 1u << 10,   /**< more than CYDUI_MAX_TWEENS tweens running at once; the extra ones jumped to their target */
+    CYDUI_ERR_STATE_FULL = 1u << 11     /**< the state table was full and an entry that was still in use (looked up in this or the previous frame) had to be replaced, or none could be made; a table of no entries is a choice and a tween that finds no room just jumps to its target, neither raises it; see cydui_ui_stats */
 };
 
 /** Intersection of two rectangles; an empty result has w == h == 0. */

@@ -275,6 +275,7 @@ typedef struct cydui_ui {
     uint32_t frame;
     uint16_t widgets;
     uint8_t tweens_now; /**< tweens that are still moving in this frame */
+    uint32_t peak_cmds, peak_text, peak_tweens, peak_widgets; /**< cydui_ui_stats */
     uint8_t fx_level;   /**< cydui_set_effects_level */
     uint32_t theme_since; /**< the clock when the theme in use was put in use (stamped in the next frame) */
     bool theme_fresh;     /**< ... and it has not been stamped yet */
@@ -303,6 +304,25 @@ void cydui_ui_clear_errors(cydui_ui *ui);
 
 /** Number of frames completed. */
 uint32_t cydui_ui_frame(const cydui_ui *ui);
+
+/**
+ * How much of its memory a UI has used, so that the sizes given to CYDUI_STORAGE can be chosen by measuring the busiest
+ * screen instead of guessing. Peaks are the largest value of any frame since cydui_ui_init or the last
+ * cydui_ui_stats_reset; `*_cap` is what was configured; `state_used` is how many entries of the state table are in use now.
+ */
+typedef struct {
+    uint32_t cmds_peak, cmds_cap;     /**< draw commands in one frame */
+    uint32_t text_peak, text_cap;     /**< bytes of the frame's text memory (0 and 0 without text_mem) */
+    uint32_t state_used, state_cap;   /**< entries of the state table (losing one that is in use raises CYDUI_ERR_STATE_FULL) */
+    uint32_t tweens_peak, tweens_cap; /**< tweens moving at once (the cap is CYDUI_MAX_TWEENS) */
+    uint32_t widgets_peak;            /**< widgets called in one frame (the cap is CYDUI_MAX_WIDGETS) */
+} cydui_ui_stats;
+
+/** Fills `out` with the usage of `ui`; it does nothing if either is NULL. Cheap enough to call every frame. */
+void cydui_ui_stats_get(const cydui_ui *ui, cydui_ui_stats *out);
+
+/** Starts the peaks over (for measuring one screen at a time); the caps and `state_used` are not peaks and are not touched. */
+void cydui_ui_stats_reset(cydui_ui *ui);
 
 /* ---- time and animation ---- */
 
