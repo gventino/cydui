@@ -1,5 +1,7 @@
 #include "cydui/text.h"
 
+#include <string.h>
+
 static bool is_filtered(uint32_t cp)
 {
     if (cp < 0x20u || (cp >= 0x7Fu && cp <= 0x9Fu)) { /* C0 and C1 controls, including tab */
@@ -175,4 +177,128 @@ cydui_text_extent cydui_text_size(const cydui_font *f, const char *s, size_t len
     e.w = clamp16(widest);
     e.h = clamp16((long)e.lines * f->line_height);
     return e;
+}
+
+/* ---- fitting ---- */
+
+static bool is_continuation(const char *s, size_t i)
+{
+    return ((uint8_t)s[i] & 0xC0u) == 0x80u;
+}
+
+/* The largest boundary (the start of a character, or the end) at or before `i`. */
+static size_t boundary_down(const char *s, size_t n, size_t i)
+{
+    while (i > 0 && i < n && is_continuation(s, i)) {
+        i--;
+    }
+    return i;
+}
+
+/* The smallest boundary after `i` (i < n). */
+static size_t boundary_after(const char *s, size_t n, size_t i)
+{
+    i++;
+    while (i < n && is_continuation(s, i)) {
+        i++;
+    }
+    return i;
+}
+
+static bool fits(const cydui_font *f, const char *s, size_t k, int16_t max_w)
+{
+    return cydui_text_size(f, s, k, 0).w <= max_w;
+}
+
+size_t cydui_text_fit(const cydui_font *f, const char *s, size_t len, int16_t max_w)
+{
+    bool truncated;
+    size_t n, lo = 0, hi;
+
+    if (!s || max_w < 0 || !cydui_font_fallback(f)) {
+        return 0;
+    }
+    n = cydui_text_clip_len(s, len, &truncated);
+    if (fits(f, s, n, max_w)) {
+        return n;
+    }
+    hi = n - 1; /* the whole does not fit: the answer is in [0, n - 1] */
+    while (lo < hi) { /* lo always fits; the answer is in [lo, hi] */
+        size_t mid = lo + (hi - lo + 1) / 2, b = boundary_down(s, n, mid);
+
+        if (b <= lo) { /* mid is inside the character that starts at lo: only the next boundary is left to try */
+            size_t nb = boundary_after(s, n, lo);
+            if (nb <= hi && fits(f, s, nb, max_w)) {
+                lo = nb;
+                continue;
+            }
+            break;
+        }
+        if (fits(f, s, b, max_w)) {
+            lo = b;
+        } else {
+            hi = b - 1;
+        }
+    }
+    return lo;
+}
+
+size_t cydui_text_ellipsize(const cydui_font *f, const char *s, size_t len, int16_t max_w, char *out, size_t cap, bool *cut)
+{
+    static const char DOTS[] = "\xE2\x80\xA6";
+    const char *ell = DOTS;
+    size_t ell_len = 3, n, take, limit;
+    int ell_w;
+    bool truncated;
+    const cydui_glyph *g;
+
+    if (cut) {
+        *cut = false;
+    }
+    if (!out || cap == 0) {
+        return 0;
+    }
+    out[0] = '\0';
+    if (!s || !cydui_font_fallback(f)) {
+        return 0;
+    }
+    n = cydui_text_clip_len(s, len, &truncated);
+    if (max_w >= 0 && fits(f, s, n, max_w) && n < cap) {
+        memcpy(out, s, n);
+        out[n] = '\0';
+        return n;
+    }
+    if (cut) {
+        *cut = true;
+    }
+    g = cydui_font_lookup(f, 0x2026u);
+    if (!g || g->cp != 0x2026u) {
+        ell = "...";
+        ell_len = 3;
+    }
+    if (cap <= ell_len) { /* not even the ellipsis fits the buffer: what fits of it, whole characters only */
+        size_t m = cap - 1;
+        m = boundary_down(ell, ell_len, m);
+        memcpy(out, ell, m);
+        out[m] = '\0';
+        return m;
+    }
+    ell_w = cydui_text_size(f, ell, ell_len, 0).w;
+    limit = cap - 1 - ell_len;
+    /* the room left for the text; when the ellipsis alone does not fit, it is shown alone, the least there is */
+    take = max_w >= ell_w ? cydui_text_fit(f, s, n, (int16_t)(max_w - ell_w)) : 0;
+    if (take > limit) {
+        take = boundary_down(s, n, limit);
+    }
+    /* the whole as drawn is not the sum of its parts: back off a character at a time until it fits */
+    for (;;) {
+        memcpy(out, s, take);
+        memcpy(out + take, ell, ell_len);
+        if (take == 0 || cydui_text_size(f, out, take + ell_len, 0).w <= max_w) {
+            break;
+        }
+        take = boundary_down(s, n, take - 1);
+    }
+    out[take + ell_len] = '\0';
+    return take + ell_len;
 }

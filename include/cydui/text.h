@@ -90,6 +90,24 @@ bool cydui_text_next_line(cydui_text_iter *it, cydui_text_line *line);
 /** Size of `s` set in `f`; wrap_w <= 0 means no wrapping. Applies the CYDUI_MAX_STR limit. */
 cydui_text_extent cydui_text_size(const cydui_font *f, const char *s, size_t len, int16_t wrap_w);
 
+/**
+ * The number of bytes of `s` (`len`, or CYDUI_NTS) of the longest start of it, cut on a code point boundary, whose width as
+ * drawn is at most `max_w` pixels; the width is measured on the whole piece, as cydui_text_size does, because the font
+ * rounds the advance and a width is not the sum of the widths of its letters. Applies the CYDUI_MAX_STR limit, so the result
+ * is at most that. 0 if nothing fits (also for a negative `max_w` or a NULL string). For valid UTF-8 no longer piece fits;
+ * for malformed text the piece returned always fits but a longer one might too. Cost: about log2(len) measurements.
+ */
+size_t cydui_text_fit(const cydui_font *f, const char *s, size_t len, int16_t max_w);
+
+/**
+ * Writes into `out` (of `cap` bytes) `s` when it fits `max_w` pixels, otherwise the longest start of it that leaves room
+ * for an ellipsis, plus the ellipsis (U+2026 when the font has it, else three dots), so that the whole as drawn is at most
+ * `max_w` wide (when even the ellipsis alone is wider, the result is the ellipsis alone: the text of the least that can be
+ * shown). Always NUL terminated, never cut inside a character, never writes past `cap` (nothing at all if `cap` is 0).
+ * Returns the number of bytes written without the NUL; sets *cut (if not NULL) to whether the text was shortened.
+ */
+size_t cydui_text_ellipsize(const cydui_font *f, const char *s, size_t len, int16_t max_w, char *out, size_t cap, bool *cut);
+
 #ifdef __cplusplus
 }
 #endif

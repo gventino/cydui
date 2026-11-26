@@ -162,6 +162,8 @@ SURFACE(void, cydui_focus_clear, (cydui_ui *ui))
 SURFACE(bool, cydui_has_focus, (const cydui_ui *ui))
 SURFACE(void, cydui_ui_stats_get, (const cydui_ui *ui, cydui_ui_stats *out))
 SURFACE(void, cydui_ui_stats_reset, (cydui_ui *ui))
+SURFACE(size_t, cydui_text_fit, (const cydui_font *f, const char *s, size_t len, int16_t max_w))
+SURFACE(size_t, cydui_text_ellipsize, (const cydui_font *f, const char *s, size_t len, int16_t max_w, char *out, size_t cap, bool *cut))
 SURFACE(size_t, cydui_textedit_len, (const char *buf, size_t cap))
 SURFACE(size_t, cydui_textedit_chars, (const char *buf, size_t cap))
 SURFACE(void, cydui_textedit_normalize, (char *buf, size_t cap, size_t *cursor))
@@ -759,6 +761,8 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_has_focus);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_stats_get);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_stats_reset);
+    TEST_ASSERT_NOT_NULL(surface_cydui_text_fit);
+    TEST_ASSERT_NOT_NULL(surface_cydui_text_ellipsize);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_len);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_chars);
     TEST_ASSERT_NOT_NULL(surface_cydui_textedit_normalize);
