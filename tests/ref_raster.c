@@ -174,6 +174,22 @@ static void draw_bitmap(const cydui_cmd *c, const strip_t *s)
     if (!visible(c, s, &v) || !data) {
         return;
     }
+    if (c->u.bitmap.format == CYDUI_BITMAP_A1) { /* one pixel at a time: which bit is under it, and is it set */
+        int scale = c->u.bitmap.scale < 1 ? 1 : c->u.bitmap.scale;
+        int bits_w = c->rect.w / scale;
+        size_t row_bytes = ((size_t)bits_w + 7u) / 8u;
+
+        for (y = v.y; y < v.y + v.h; y++) {
+            cydui_color *p = pixel_at(s, v.x, y);
+            for (x = 0; x < v.w; x++) {
+                int sx = (v.x + x - c->rect.x) / scale, sy = (y - c->rect.y) / scale;
+                if ((data[(size_t)sy * row_bytes + (size_t)(sx / 8)] >> (7 - sx % 8)) & 1u) {
+                    put(&p[x], c->u.bitmap.tint, c->alpha);
+                }
+            }
+        }
+        return;
+    }
     if (c->u.bitmap.format == CYDUI_BITMAP_A4) {
         blit_a4(s, c->rect.x, c->rect.y, c->rect.w, c->rect.h, data, c->u.bitmap.tint, c->alpha,
                 &c->clip);

@@ -141,10 +141,24 @@ void cydui_draw_line(cydui_ctx *ctx, int16_t x0, int16_t y0, int16_t x1, int16_t
 /**
  * Draws a bitmap at r.x, r.y with size r.w x r.h. `len` is the size of `data` in bytes and must
  * cover the whole bitmap, otherwise the command is dropped with CYDUI_ERR_BAD_BITMAP. `data` must
- * stay valid until cydui_end_frame(). `tint` is used by CYDUI_BITMAP_A4 only.
+ * stay valid until cydui_end_frame(). `tint` is used by CYDUI_BITMAP_A4 and CYDUI_BITMAP_A1 only
+ * (an A1 bitmap drawn here has a scale of 1). A bitmap that is drawn again in the same place with other
+ * pixels but the same address and size looks unchanged to the dirty regions (they compare the address): an
+ * application that does that calls cydui_invalidate().
  */
 void cydui_draw_bitmap(cydui_ctx *ctx, cydui_rect r, const void *data, size_t len,
                        cydui_bitmap_format fmt, cydui_color tint, uint8_t alpha);
+
+/**
+ * Draws a 1 bit per pixel mask of w x h bits (CYDUI_BITMAP_A1: rows padded to a byte, most significant bit
+ * first, 1 = the tint) with its top-left at (x, y), every bit as a scale x scale square of pixels, so it
+ * covers w * scale x h * scale pixels. `scale` is 1 to 8, w and h are positive and the scaled size fits an
+ * int16, else the command is dropped with CYDUI_ERR_BAD_ARG; `len` must cover the whole mask, else
+ * CYDUI_ERR_BAD_BITMAP. `data` must stay valid until cydui_end_frame(). A QR code of 33 modules at scale 4
+ * is 140 bytes of mask instead of the 17 KB of an A4 mask of its drawn size.
+ */
+void cydui_draw_bitmap_a1(cydui_ctx *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t scale, const void *data,
+                          size_t len, cydui_color tint, uint8_t alpha);
 
 /**
  * Draws UTF-8 text with its top-left at (x, y). `len` is the byte length or CYDUI_NTS for a

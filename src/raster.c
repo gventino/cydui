@@ -238,6 +238,33 @@ static void blit_a4(const strip_t *s, int dx, int dy, int w, int h, const uint8_
     }
 }
 
+/* A1: every bit is a scale x scale square; runs of bits that are set are drawn as runs of pixels. */
+static void blit_a1(const cydui_cmd *c, const strip_t *s, const cydui_rect *v)
+{
+    const uint8_t *data = (const uint8_t *)c->u.bitmap.data;
+    int scale = c->u.bitmap.scale < 1 ? 1 : c->u.bitmap.scale;
+    int bits_w = c->rect.w / scale;
+    size_t row_bytes = ((size_t)bits_w + 7u) / 8u;
+    int y, sx0, sx1, sx;
+
+    sx0 = (v->x - c->rect.x) / scale;
+    sx1 = (v->x + v->w - 1 - c->rect.x) / scale;
+    for (y = v->y; y < v->y + v->h; y++) {
+        const uint8_t *row = data + (size_t)((y - c->rect.y) / scale) * row_bytes;
+        cydui_color *p = pixel_at(s, 0, y);
+
+        for (sx = sx0; sx <= sx1; sx++) {
+            if ((row[sx >> 3] >> (7 - (sx & 7))) & 1u) {
+                int x0 = c->rect.x + sx * scale, x1 = x0 + scale;
+
+                if (x0 < v->x) x0 = v->x;
+                if (x1 > v->x + v->w) x1 = v->x + v->w;
+                span_put(p + x0, x1 - x0, c->u.bitmap.tint, c->alpha);
+            }
+        }
+    }
+}
+
 static void draw_bitmap(const cydui_cmd *c, const strip_t *s)
 {
     cydui_rect v;
@@ -245,6 +272,10 @@ static void draw_bitmap(const cydui_cmd *c, const strip_t *s)
     int y, x;
 
     if (!visible(c, s, &v) || !data) {
+        return;
+    }
+    if (c->u.bitmap.format == CYDUI_BITMAP_A1) {
+        blit_a1(c, s, &v);
         return;
     }
     if (c->u.bitmap.format == CYDUI_BITMAP_A4) {

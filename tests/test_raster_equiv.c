@@ -84,7 +84,15 @@ static cydui_cmd random_cmd(int w, int h, int y0)
     case CYDUI_CMD_BITMAP:
         c.rect.w = (int16_t)rr(1, 60);
         c.rect.h = (int16_t)rr(1, 60);
-        if (rnd() % 2) {
+        if (rnd() % 3 == 0) { /* a 1 bit mask, every bit a square of 1 to 8 pixels */
+            int scale = rr(1, 8);
+            c.u.bitmap.format = CYDUI_BITMAP_A1;
+            c.u.bitmap.scale = (uint8_t)scale;
+            c.u.bitmap.tint = (cydui_color)rnd();
+            c.u.bitmap.data = mask;
+            c.rect.w = (int16_t)(rr(1, 40) * scale);
+            c.rect.h = (int16_t)(rr(1, 40) * scale);
+        } else if (rnd() % 2) {
             c.u.bitmap.format = CYDUI_BITMAP_A4;
             c.u.bitmap.tint = (cydui_color)rnd();
             c.u.bitmap.data = mask;

@@ -162,6 +162,7 @@ SURFACE(void, cydui_focus_clear, (cydui_ui *ui))
 SURFACE(bool, cydui_has_focus, (const cydui_ui *ui))
 SURFACE(void, cydui_ui_stats_get, (const cydui_ui *ui, cydui_ui_stats *out))
 SURFACE(void, cydui_ui_stats_reset, (cydui_ui *ui))
+SURFACE(void, cydui_draw_bitmap_a1, (cydui_ctx *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t scale, const void *data, size_t len, cydui_color tint, uint8_t alpha))
 SURFACE(const cydui_font *, cydui_theme_font, (const cydui_theme *theme, cydui_font_role role))
 SURFACE(void, cydui_next_font, (cydui_ui *ui, const cydui_font *font))
 SURFACE(void, cydui_next_color, (cydui_ui *ui, cydui_color color))
@@ -186,6 +187,7 @@ CT_ASSERT(CYDUI_ALIGN_CENTER, (long long)(CYDUI_ALIGN_CENTER) == 1LL);
 CT_ASSERT(CYDUI_ALIGN_LEFT, (long long)(CYDUI_ALIGN_LEFT) == 0LL);
 CT_ASSERT(CYDUI_ALIGN_RIGHT, (long long)(CYDUI_ALIGN_RIGHT) == 2LL);
 CT_ASSERT(CYDUI_BITMAP_A4, (long long)(CYDUI_BITMAP_A4) == 1LL);
+CT_ASSERT(CYDUI_BITMAP_A1, (long long)(CYDUI_BITMAP_A1) == 2LL);
 CT_ASSERT(CYDUI_BITMAP_RGB565, (long long)(CYDUI_BITMAP_RGB565) == 0LL);
 CT_ASSERT(CYDUI_CAPTURE, (long long)(CYDUI_CAPTURE) == 8LL);
 CT_ASSERT(CYDUI_CMD_BITMAP, (long long)(CYDUI_CMD_BITMAP) == 3LL);
@@ -771,6 +773,7 @@ static void test_every_function_is_there(void)
     TEST_ASSERT_NOT_NULL(surface_cydui_has_focus);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_stats_get);
     TEST_ASSERT_NOT_NULL(surface_cydui_ui_stats_reset);
+    TEST_ASSERT_NOT_NULL(surface_cydui_draw_bitmap_a1);
     TEST_ASSERT_NOT_NULL(surface_cydui_theme_font);
     TEST_ASSERT_NOT_NULL(surface_cydui_next_font);
     TEST_ASSERT_NOT_NULL(surface_cydui_next_color);

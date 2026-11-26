@@ -19,7 +19,10 @@ typedef enum {
 
 typedef enum {
     CYDUI_BITMAP_RGB565, /**< opaque pixels, 2 bytes each, native order, row-major */
-    CYDUI_BITMAP_A4      /**< 4-bit coverage mask tinted with a color; rows padded to a byte */
+    CYDUI_BITMAP_A4,     /**< 4-bit coverage mask tinted with a color; rows padded to a byte */
+    CYDUI_BITMAP_A1      /**< 1 bit per pixel, tinted with a color: 1 draws the tint, 0 draws nothing; the leftmost pixel is the
+                              most significant bit of a byte, and rows are padded to a byte. With cydui_draw_bitmap_a1 every
+                              bit can be scaled up by a whole number of pixels, so a QR code needs no mask of its own size */
 } cydui_bitmap_format;
 
 /**
@@ -47,8 +50,9 @@ typedef struct {
         } line;
         struct {
             const void *data;
-            cydui_color tint; /**< A4 only */
+            cydui_color tint; /**< A4 and A1 only */
             uint8_t format;
+            uint8_t scale;    /**< A1 only: each bit is scale x scale pixels (1 for the others); rect.w and rect.h are the scaled size */
         } bitmap;
         struct {
             cydui_color c0, c1;

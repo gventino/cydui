@@ -199,7 +199,8 @@ static uint64_t render(const uint8_t *data, size_t size, int rows)
         case 4: {
             cydui_rect q = rect16(&r);
             size_t len = (size_t)u8(&r) * 2u; /* 0..510, never larger than the real buffer */
-            cydui_bitmap_format fmt = (u8(&r) & 1u) ? CYDUI_BITMAP_A4 : CYDUI_BITMAP_RGB565;
+            unsigned kind = u8(&r) % 3u;
+            cydui_bitmap_format fmt = kind == 0 ? CYDUI_BITMAP_RGB565 : (kind == 1 ? CYDUI_BITMAP_A4 : CYDUI_BITMAP_A1);
             cydui_color tint = (cydui_color)(u8(&r) | (u8(&r) << 8));
             uint8_t seed[8];
             size_t i;
@@ -209,7 +210,11 @@ static uint64_t render(const uint8_t *data, size_t size, int rows)
             for (i = 0; i < 256; i++) { /* a short seed repeated: cheap, but not a flat color */
                 bitmap_mem[i] = (uint16_t)(seed[(2 * i) & 7u] | (seed[(2 * i + 1) & 7u] << 8));
             }
-            cydui_draw_bitmap(&ctx, q, bitmap_mem, len, fmt, tint, u8(&r));
+            if (fmt == CYDUI_BITMAP_A1) { /* the scaled form, with a scale that may be wrong and a length that may be short */
+                cydui_draw_bitmap_a1(&ctx, q.x, q.y, (int16_t)(q.w % 70), (int16_t)(q.h % 70), (uint8_t)(u8(&r) % 11u), bitmap_mem, len, tint, u8(&r));
+            } else {
+                cydui_draw_bitmap(&ctx, q, bitmap_mem, len, fmt, tint, u8(&r));
+            }
             break;
         }
         case 5: {

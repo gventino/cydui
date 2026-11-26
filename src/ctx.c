@@ -401,6 +401,8 @@ size_t cydui_bitmap_size(cydui_bitmap_format fmt, int16_t w, int16_t h)
         return W * H * 2u;
     case CYDUI_BITMAP_A4:
         return ((W + 1u) / 2u) * H;
+    case CYDUI_BITMAP_A1:
+        return ((W + 7u) / 8u) * H;
     default:
         return 0;
     }
@@ -428,6 +430,35 @@ void cydui_draw_bitmap(cydui_ctx *ctx, cydui_rect r, const void *data, size_t le
         c->u.bitmap.data = data;
         c->u.bitmap.tint = tint;
         c->u.bitmap.format = (uint8_t)fmt;
+        c->u.bitmap.scale = 1;
+    }
+}
+
+void cydui_draw_bitmap_a1(cydui_ctx *ctx, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t scale, const void *data,
+                          size_t len, cydui_color tint, uint8_t alpha)
+{
+    cydui_cmd *c;
+    size_t need;
+    long sw = (long)w * (long)scale, sh = (long)h * (long)scale;
+
+    if (w <= 0 || h <= 0) {
+        return; /* nothing to draw */
+    }
+    if (scale < 1 || scale > 8 || sw > 32767L || sh > 32767L) {
+        ctx->errors |= CYDUI_ERR_BAD_ARG;
+        return;
+    }
+    need = cydui_bitmap_size(CYDUI_BITMAP_A1, w, h);
+    if (!data || len < need) {
+        ctx->errors |= CYDUI_ERR_BAD_BITMAP;
+        return;
+    }
+    c = push(ctx, CYDUI_CMD_BITMAP, (cydui_rect){x, y, (int16_t)sw, (int16_t)sh}, alpha);
+    if (c) {
+        c->u.bitmap.data = data;
+        c->u.bitmap.tint = tint;
+        c->u.bitmap.format = (uint8_t)CYDUI_BITMAP_A1;
+        c->u.bitmap.scale = scale;
     }
 }
 
