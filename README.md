@@ -68,7 +68,7 @@ Not for you if you need rich vector graphics, a design tool, many fonts and lang
 | know what changed | [`CHANGELOG.md`](CHANGELOG.md) |
 | report a vulnerability | [`SECURITY.md`](SECURITY.md) |
 
-**Status:** release candidate **1.0.0-rc.2**. The API has been frozen since 0.4.0 (additions only; each is listed in the changelog) and `v1.0.0` comes when the application that stresses it ships its first release.
+**Status: 1.0.0.** The API has been stable since 0.4.0 and from 1.0.0 it changes only by additions (a minor version, each listed in the changelog) or by a new major version. The first real application, [cyd-todo](https://github.com/gventino/cyd-todo), was written on it and fed back what it found (that is what 1.0.0-rc.2 was).
 
 ## Text input
 

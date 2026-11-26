@@ -1,7 +1,7 @@
 # Security policy
 
 ## Supported versions
-The latest release (and the release candidate before 1.0.0). The public API is stable since 0.4.0; fixes go into the next release.
+The latest release. The public API is stable since 0.4.0 and, from 1.0.0, changes only by additions (a new minor version) or by a new major version; fixes go into the next release.
 
 ## Reporting a vulnerability
 Please **do not open a public issue** for something that can be exploited. Use GitHub's private reporting: the **Security** tab of this repository, "Report a vulnerability". Say what you did, the version or commit, and what happened (a crash with an AddressSanitizer report, or a minimal input, is ideal: the fuzz harnesses in `tests/` take raw bytes).

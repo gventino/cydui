@@ -2,9 +2,11 @@
 
 Versions are tagged per iteration. The API has been frozen since 0.4.0 (see `docs/11-api.md`); every change is listed under "API changes".
 
-## Unreleased — an easier start
+## 1.0.0
 
-No change to the library. `tools/new-project.sh <dir>` makes a ready ESP-IDF project for the CYD pointing at this copy of the library (`templates/cyd-starter`: a label, a button, the calibration at the first start; `ci.sh` builds it), `tools/doctor.sh` says what a computer is missing and how to get it, `docs/13-troubleshooting.md` is a table of symptoms and the option that fixes each, `tools/env.sh` no longer needs the uv Python of the author, and the README starts with what the library is for and the five-minute way to a button on a board.
+The release. The code is the one of 1.0.0-rc.2 (nothing in `src/`, `include/` or the backends changed), and what 1.0.0 adds is a promise: **the public API of `docs/11-api.md` is stable**, and from here it changes only by additions (a new minor version) or by a new major version. The first real application, `cyd-todo`, was written on it, proved it on the board (its 37 scenes and the library's own 42 gallery hashes are the PC's, bit for bit) and sent back the findings that 1.0.0-rc.2 resolved.
+
+Also in this release, no change to the library: `tools/new-project.sh <dir>` makes a ready ESP-IDF project for the CYD pointing at this copy of the library (`templates/cyd-starter`: a label, a button, the calibration at the first start; `ci.sh` builds it), `tools/doctor.sh` says what a computer is missing and how to get it, `tools/publish-registry.sh` publishes to the ESP Component Registry, `docs/13-troubleshooting.md` is a table of symptoms and the option that fixes each, `tools/env.sh` no longer needs the uv Python of the author, the manifest carries its links, tags and a file exclude list, and the README starts with what the library is for and the five-minute way to a button on a board.
 
 ## 1.0.0-rc.2 — the findings of the first real application
 

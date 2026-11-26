@@ -1,4 +1,4 @@
-# 11 — The Public API (frozen at 0.4.0, additions in 0.5.0, 0.6.0, 0.7.0 and 1.0.0-rc.2; release candidate 1.0.0-rc.2)
+# 11 — The Public API (frozen at 0.4.0, additions in 0.5.0, 0.6.0, 0.7.0 and 1.0.0; version 1.0.0)
 
 This is the contract of `include/cydui/*.h`. It is enforced by `tests/test_api_surface.c`: every function below is bound there to a pointer of its exact type, every enumerator and constant has its value, and every field of the stable structs has its type. A change to that file is an API change, and the rules of the last section apply.
 
@@ -130,7 +130,7 @@ Interaction flags: `CYDUI_SENSE_CLICK` 1, `CYDUI_SENSE_DRAG` 2, `CYDUI_DISABLED`
 
 ## Changing the API
 
-The API has been frozen since 0.4.0 and the release candidate keeps it. Until `v1.0.0` (which comes after `cyd-todo`, the application that stresses the API, has been written on it) a change of a signature is still possible, but only when all of this is in the same commit; from 1.0.0 it needs a new **major** version:
+The API has been frozen since 0.4.0 and 1.0.0 keeps it. Before 1.0.0 a change of a signature was possible when all of this was in the same commit; **from 1.0.0 it needs a new major version**, and additions need a new minor one:
 
 1. an entry in `CHANGELOG.md` under "API changes", saying what changed and how to adapt;
 2. `tests/test_api_surface.c` and this page updated (adding API means adding lines; changing or removing a line is the break);
@@ -138,4 +138,4 @@ The API has been frozen since 0.4.0 and the release candidate keeps it. Until `v
 
 A **patch** version never changes a signature, an enumerator value, a flag bit or a documented behavior. Adding API (a function, a macro, an enumerator at the end, a new error bit) does not break anything and only needs the lines in the test.
 
-The tag is per iteration (`v0.4.0`, `v0.5.0`, ..., `v1.0.0-rc.1`, `v1.0.0-rc.2`).
+The tag is per iteration (`v0.4.0`, `v0.5.0`, ..., `v1.0.0-rc.1`, `v1.0.0-rc.2`, `v1.0.0`).

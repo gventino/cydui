@@ -15,12 +15,12 @@ extern "C" {
 /**
  * The version of the library, semantic versioning: a new MINOR only adds to the API, a new PATCH only fixes
  * (docs/11-api.md says how a change of the API is announced). The numbers are those of the release; the string
- * also carries the pre-release suffix of a release candidate ("1.0.0-rc.1").
+ * also carries the pre-release suffix of a release candidate ("1.0.0-rc.1"); a release has none ("1.0.0").
  */
 #define CYDUI_VERSION_MAJOR 1
 #define CYDUI_VERSION_MINOR 0
 #define CYDUI_VERSION_PATCH 0
-#define CYDUI_VERSION_STRING "1.0.0-rc.2"
+#define CYDUI_VERSION_STRING "1.0.0"
 
 /** Returns the library version as a static string, "MAJOR.MINOR.PATCH" with an optional "-suffix" (CYDUI_VERSION_STRING). */
 const char *cydui_version(void);

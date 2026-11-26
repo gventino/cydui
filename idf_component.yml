@@ -1,4 +1,4 @@
-version: "1.0.0-rc.2"
+version: "1.0.0"
 description: Immediate-mode touch UI library in pure C99 for the ESP32 Cheap Yellow Display (CYD, ESP32-2432S028R) and small TFT screens - no malloc, no framebuffer, themes, on-screen keyboard.
 url: https://github.com/gventino/cydui
 repository: https://github.com/gventino/cydui.git
