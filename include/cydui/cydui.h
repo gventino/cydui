@@ -20,7 +20,7 @@ extern "C" {
 #define CYDUI_VERSION_MAJOR 1
 #define CYDUI_VERSION_MINOR 0
 #define CYDUI_VERSION_PATCH 0
-#define CYDUI_VERSION_STRING "1.0.0-rc.1"
+#define CYDUI_VERSION_STRING "1.0.0-rc.2"
 
 /** Returns the library version as a static string, "MAJOR.MINOR.PATCH" with an optional "-suffix" (CYDUI_VERSION_STRING). */
 const char *cydui_version(void);

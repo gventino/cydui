@@ -404,7 +404,11 @@ void cydui_end_grid(cydui_ui *ui);
 void cydui_begin_padding(cydui_ui *ui, int px);
 void cydui_end_padding(cydui_ui *ui);
 
-/** Gap before each of the next children of the current container (the style's spacing by default). */
+/**
+ * Gap before each of the next children of the current container (the style's spacing by default). The margin of the root
+ * layout, around everything, is the style's spacing too: a theme with `spacing` 0 goes edge to edge, and a container that wants
+ * a gap then asks for one here.
+ */
 void cydui_set_spacing(cydui_ui *ui, int px);
 
 /**

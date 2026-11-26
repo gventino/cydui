@@ -22,6 +22,23 @@ The smallest program is `examples/hello/main.c`: a `CYDUI_STORAGE` (all the memo
 
 Ask `cydui_ui_errors(&ui)` now and then in development: every limit that was hit leaves a bit there.
 
+**Measure instead of guessing.** `cydui_ui_stats_get` reports the largest frame so far (commands, text bytes, tweens, widgets), how many state entries are in use, and what was configured; `cydui_ui_stats_reset` starts the peaks over so that one screen at a time can be measured. Run the busiest screens of the application, read the numbers, and size `CYDUI_STORAGE` from them with some room:
+
+```c
+/* ---- measuring the memory of a screen ---- */
+void report(const cydui_ui *ui)
+{
+    cydui_ui_stats s;
+
+    cydui_ui_stats_get(ui, &s);
+    printf("commands %u of %u, text %u of %u bytes, state %u of %u, tweens %u of %u, widgets %u\n", (unsigned)s.cmds_peak, (unsigned)s.cmds_cap,
+           (unsigned)s.text_peak, (unsigned)s.text_cap, (unsigned)s.state_used, (unsigned)s.state_cap, (unsigned)s.tweens_peak, (unsigned)s.tweens_cap,
+           (unsigned)s.widgets_peak);
+}
+```
+
+A state table that has to replace an entry that is still in use (a scroll offset, a text field's cursor) raises `CYDUI_ERR_STATE_FULL`: a bigger `state_entries` is the cure. A table of no entries is a choice and raises nothing, and a tween that finds no room just jumps to its target.
+
 ## 2. On the board
 
 `examples/theme-gallery/idf` is a complete ESP-IDF 5.5 project for the CYD (`source tools/env.sh`, `idf.py build flash`); `backends/esp32/Kconfig` has the pins, the SPI clock (40 MHz by default, 80 works), the rotation and the touch options; `hw-probe` checks a new board without the library. A touch calibration is asked at the first boot and kept in the flash. At 40 MHz sending a whole screen takes 34.5 ms (26 fps) however fast the drawing is, so keep animations to what changes (the library only draws and sends the strips that changed when you give it `dirty_mem`, as the gallery does) or use 80 MHz.
@@ -46,7 +63,7 @@ void my_theme(cydui_theme *t)
 }
 ```
 
-`cydui_theme_derive_table` builds the table from the palette (pressed = darker, disabled = faded); after it you can set single entries. `cydui_theme_validate` (run by `cydui_ui_init` and `cydui_set_theme`) refuses a theme without a usable font and keeps the one in use.
+A theme may carry more than one font: `style.font` is the body (what the widgets of the library use), `style.font_small` and `style.font_title` are optional (NULL means the body font), and `cydui_theme_font(theme, CYDUI_FONT_SMALL)` finds them. `theme->user` is a pointer of the application's own that the library never reads, so a painter finds the palette its theme was built from without a lookup by name (section 9). `cydui_theme_derive_table` builds the table from the palette (pressed = darker, disabled = faded); after it you can set single entries. `cydui_theme_validate` (run by `cydui_ui_init` and `cydui_set_theme`) refuses a theme without a usable font and keeps the one in use.
 
 ### A painter
 A painter draws one kind of widget. It may call `cydui_paint_default` and add to it, or draw everything with the `cydui_draw_*` functions of `ui->ctx`. Use `cydui_paint_look` (the table entry, blended while the widget changes) and `cydui_paint_amount` (how selected it is, 0 to `CYDUI_ANIM_ONE`) to take part in the transitions of a theme with `anim_ms`.
@@ -150,3 +167,184 @@ while (cydui_ui_begin(&ui, bg)) {
 - Two widgets act together: the same label twice in one scope. Use `"Label##2"` or `cydui_push_id_int`.
 - The screen does not settle: the loop keeps getting `true` from `cydui_ui_end`. A tween that moves for ever, or two widgets sharing an id and fighting over their state.
 - Not the same picture on the PC and on the board: look for a `float` in your own drawing code, or a clock that is not the one of the frame.
+
+## 9. Patterns from a real application
+
+These come from `cyd-todo`, a quest log on the CYD (the first application written on the library), and each one cost its author an afternoon. All the code below is compiled with `-std=c99 -pedantic -Wall -Wextra -Werror` and the sanitizers.
+
+### A bitmap that changes in the same buffer
+The dirty regions decide what to send by hashing the commands of each strip, and for a bitmap the hash takes **the address and the size**, not the pixels. A QR code drawn again with new content into the same buffer, at the same size, looks unchanged and is not sent. Call `cydui_invalidate(&ui.ctx)` when the content of a buffer you keep drawing changes. (A new size is noticed by itself, which hides the problem until two codes happen to have the same size.)
+
+### A mask of one bit per pixel, at a whole-number scale
+A QR code is one bit per module. `CYDUI_BITMAP_A1` and `cydui_draw_bitmap_a1` draw such a mask with every bit as a `scale` x `scale` square (1 to 8), so the code costs its own size (165 bytes for the 33 modules of a version 4 code, 246 with a quiet zone of four modules in the mask) and not that of a 4-bit mask of the drawn picture (13.4 KB for the same code with its quiet zone at scale 4). The result is pixel for pixel what the 4-bit mask gave.
+
+```c
+/* ---- a 1 bit mask drawn at a whole-number scale: a QR code ---- */
+void draw_qr(cydui_ui *ui, int x, int y, int modules, const uint8_t *mask, size_t mask_len, cydui_color ink)
+{
+    cydui_draw_bitmap_a1(&ui->ctx, (int16_t)x, (int16_t)y, (int16_t)modules, (int16_t)modules, 4, mask, mask_len, ink, 255);
+}
+```
+
+### Text that does not fit
+`cydui_text_fit(font, s, len, max_w)` is the number of bytes of the longest start of a string whose width **as drawn** fits `max_w` (the font rounds the advance, so a width is not the sum of the widths of the letters, and a cut found by adding them up is a few pixels off), and `cydui_text_ellipsize` writes that start plus an ellipsis into a buffer of yours:
+
+```c
+/* ---- text that does not fit ---- */
+void title_that_fits(cydui_ui *ui, const char *title, int room)
+{
+    char buf[64];
+    bool cut;
+
+    cydui_text_ellipsize(cydui_theme_of(ui)->style.font, title, CYDUI_NTS, (int16_t)room, buf, sizeof buf, &cut);
+    cydui_label(ui, buf);
+}
+```
+
+### Labels in another font, color or alpha
+`cydui_next_font`, `cydui_next_color` and `cydui_next_alpha` are modifiers for the next label (or wrapped label) only, like `cydui_next_width`; any other widget forgets them. Combined with the fonts of the theme they make a heading, a caption or a faded line without a widget of your own:
+
+```c
+/* ---- a bold, colored, wrapped label ---- */
+void heading(cydui_ui *ui, const char *text, cydui_color gold)
+{
+    cydui_next_font(ui, cydui_theme_font(cydui_theme_of(ui), CYDUI_FONT_TITLE));
+    cydui_next_color(ui, gold);
+    cydui_label_wrapped(ui, text);
+}
+```
+
+### The theme's own pointer, and painters built from rectangles
+A painter gets the theme it belongs to, and the theme carries the application's data in `user`:
+
+```c
+/* ---- the application's own pointer in the theme ---- */
+typedef struct { cydui_color gold, wood; } palette;
+static const palette PARCHMENT = {0xFEA0, 0x8A22};
+
+void set_up_the_theme(cydui_theme *t)
+{
+    t->user = &PARCHMENT;
+}
+
+void my_painter(cydui_ui *ui, const cydui_theme *theme, const cydui_paint_info *info)
+{
+    const palette *p = (const palette *)theme->user;
+
+    cydui_paint_default(ui, theme, info);
+    cydui_draw_rect(&ui->ctx, info->rect, p->gold, 64);
+}
+```
+
+When a table cannot say what a widget looks like (a card with a gold bar on one side, an edge of two colors, a tab whose active state is the page itself) the painter is a few stacked rectangles, and the idiom that does most of it is an edge and a face, a rectangle inside a rectangle. Three to six commands per widget, and `cydui_paint_default` still draws the content:
+
+```c
+/* ---- the two-rectangle idiom: an edge and a face, three or four commands for a card ---- */
+void boxed(cydui_ctx *c, cydui_rect r, int edge_w, cydui_color edge, cydui_color face)
+{
+    cydui_rect inner = {(int16_t)(r.x + edge_w), (int16_t)(r.y + edge_w), (int16_t)(r.w - 2 * edge_w), (int16_t)(r.h - 2 * edge_w)};
+
+    cydui_draw_rect(c, r, edge, 255);
+    cydui_draw_rect(c, inner, face, 255);
+}
+```
+
+### The root margin is the theme's spacing
+The margin of the root layout is `style.spacing`, the same number as the gap between widgets. A screen that goes edge to edge (tabs flush with the top, a status line flush with the bottom) sets `spacing = 0` for the whole theme and asks for a gap where it wants one:
+
+```c
+/* ---- the root margin is the theme's spacing ---- */
+void edge_to_edge(cydui_theme *t, cydui_ui *ui)
+{
+    t->style.spacing = 0;      /* tabs flush with the top, a status line flush with the bottom ... */
+    cydui_set_spacing(ui, 8);  /* ... and a gap where a container wants one */
+}
+```
+
+### A target that is wide but short
+`style.min_target` is 32 pixels, but a month of six rows in the 192 pixels under a tab bar leaves 22 per row. When the cells cannot be bigger, make the whole grid **one** target and work the cell out from where the finger was (`resp.x`, `resp.y` are the position of the press that this widget owns):
+
+```c
+/* ---- a wide but short target: one interaction over the whole grid ---- */
+int cell_tapped(cydui_ui *ui, int cols, int rows)
+{
+    cydui_rect r = cydui_alloc_rect(ui, 320, 22 * rows);
+    cydui_response resp = cydui_interact(ui, cydui_id_str(ui, "month"), r, CYDUI_SENSE_CLICK);
+
+    if (!resp.clicked) {
+        return -1;
+    }
+    return ((resp.y - r.y) / (r.h / rows)) * cols + (resp.x - r.x) / (r.w / cols);
+}
+```
+
+### Watching the touches from outside the library
+The backend is a struct of functions, so an application can wrap `poll_event` to learn when the screen was last touched (to dim the backlight after a minute, to start a screensaver) without the library knowing. The event goes on unchanged: the touch that wakes a dimmed screen is also a tap, and nothing is swallowed.
+
+```c
+/* ---- observing touches from outside the library ---- */
+static cydui_backend real_backend;
+static uint32_t last_touch_ms;
+
+static bool poll_noting_touch(void *user, cydui_event *ev)
+{
+    bool got = real_backend.poll_event(real_backend.user, ev);
+
+    (void)user;
+    if (got && ev->type == CYDUI_EVENT_DOWN) {
+        last_touch_ms = real_backend.now_ms(real_backend.user);
+    }
+    return got;
+}
+
+void wrap_the_backend(const cydui_backend *be, cydui_backend *to_give_to_the_ui)
+{
+    real_backend = *be;
+    *to_give_to_the_ui = *be;
+    to_give_to_the_ui->poll_event = poll_noting_touch; /* the event goes on unchanged: the touch that wakes the screen is also a tap */
+}
+
+bool idle_for(uint32_t ms)
+{
+    return real_backend.now_ms(real_backend.user) - last_touch_ms >= ms; /* unsigned: safe when the clock wraps */
+}
+```
+
+### Animating once per occurrence
+`cydui_animate` moves only when its target **changes**, which is why nothing animates when a list loads or a card scrolls into view. An effect that should happen once each time an event happens (a toast that fades out, a flash when a level is gained) has no target that changes, so salt the id with a counter of your own: every occurrence is a new tween that starts at `from`, and 0 can mean "never", so nothing starts at boot.
+
+```c
+/* ---- animating once per occurrence ---- */
+static uint16_t toast_seq; /* the application counts its toasts; 0 = none yet */
+
+void show_toast(void)
+{
+    toast_seq++;
+}
+
+int toast_alpha(cydui_ui *ui, bool fading)
+{
+    int a;
+
+    cydui_push_id_int(ui, toast_seq); /* each toast is a new tween, which starts at `from` */
+    a = (int)cydui_animate(ui, cydui_id_str(ui, "fade"), 255, fading ? 0 : 255, 300, CYDUI_EASE_LINEAR);
+    cydui_pop_id(ui);
+    return a;
+}
+```
+
+### A loop that sleeps
+`cydui_ui_end` returns true while anything is still moving or pending (a tween, a press, a scroll coasting, a queued event, a layout that is settling). When it returns false nothing will change until the next event, so the loop may sleep for as long as the platform allows (a quarter of a second is a good ceiling, to keep the timers of the application alive); an animation keeps the loop awake for exactly as long as it lasts.
+
+```c
+/* ---- a loop that sleeps ---- */
+void run(cydui_ui *ui, void (*build)(cydui_ui *), void (*wait_for_an_event)(void))
+{
+    while (cydui_ui_begin(ui, 0)) {
+        build(ui);
+        if (!cydui_ui_end(ui)) {
+            wait_for_an_event(); /* nothing moves and nothing is pending: sleep */
+        }
+    }
+}
+```

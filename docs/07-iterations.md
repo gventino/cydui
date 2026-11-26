@@ -80,6 +80,10 @@ Rule: an iteration only closes when its **acceptance criteria** pass. Each itera
 
 - **Result:** done. Coverage 97.5 % (gcov), every public function documented (`tools/check_docs.py`), two new fuzz harnesses (touch filter and calibration, easings) and 30-minute campaigns of six harnesses (one finding, a harness oracle), the rasterizer compared with its plain reference in every run, a STRIDE review against the code (`05`, with findings), four new abuse cases, the guide (`12`), `SECURITY.md`, `CONTRIBUTING.md`, the "Security and limits" section of the README and the release candidate number `1.0.0-rc.1`. **Deviations:** (1) the slow input of the fuzzer turned out not to be a library problem and the rasterizer got no time budget (it would make the picture depend on the speed of the machine); the worst frame is measured and documented; (2) no work on the board beyond the usual hashes and self-test (the user's decision); the items still not verified on the hardware are listed in the CHANGELOG; (3) no separate example for writing a theme: the guide's code is compiled and run, and `retro` and `cyberpunk` are the worked examples.
 
+## Batch for 1.0.0-rc.2 — the findings of the first application
+- **Deliverables:** what `cyd-todo` (the first real application) found, decided by the owner: usage counters and a flag for a full state table, a `user` pointer in the theme, `cydui_text_fit` and `cydui_text_ellipsize`, fonts by role and the font, color and alpha modifiers of labels, a 1-bit bitmap with an integer scale; the guide's section 9 documents the patterns (same-buffer bitmaps, the two-rectangle painter, the root margin, wide but short targets, wrapping `poll_event`, animating once, the sleeping loop). The API grew only by additions (`11`, "Additions of 1.0.0-rc.2").
+- **Result:** done, see the CHANGELOG. Pending on the hardware: the pictures of the application on the board with the 1-bit QR (checked with the application's own scene hashes).
+
 ## Post-0.1 (separate repo)
 - `cyd-todo`: todo/calendar app + lightweight backend in the homelab, applying CT-16..22 (TLS, response limits, secrets, privacy).
 

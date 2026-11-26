@@ -1,4 +1,4 @@
-# 11 — The Public API (frozen at 0.4.0, additions in 0.5.0, 0.6.0 and 0.7.0; release candidate 1.0.0-rc.1)
+# 11 — The Public API (frozen at 0.4.0, additions in 0.5.0, 0.6.0, 0.7.0 and 1.0.0-rc.2; release candidate 1.0.0-rc.2)
 
 This is the contract of `include/cydui/*.h`. It is enforced by `tests/test_api_surface.c`: every function below is bound there to a pointer of its exact type, every enumerator and constant has its value, and every field of the stable structs has its type. A change to that file is an API change, and the rules of the last section apply.
 
@@ -41,7 +41,7 @@ The comments in the headers are the reference for each function (arguments, limi
 | `cydui_invalidate` (0.5.0) | Makes the next frame send every strip again. With `cydui_config.dirty_mem` the core sends only the strips whose commands changed since the previous frame; with `strip_buffers = 2` it alternates two strip buffers so the backend can send one while the next is drawn (`backend.h` has the contract). Both are optional and off by default. |
 
 ### Drawing primitives (all clipped, all integer)
-`cydui_draw_rect`, `cydui_draw_rrect`, `cydui_draw_rrect_outline`, `cydui_draw_line`, `cydui_draw_bitmap` (RGB565 or 4-bit mask), `cydui_draw_gradient`, `cydui_draw_text`, `cydui_set_clip`, `cydui_reset_clip`, and `cydui_raster_strip` (what a backend calls). Colors: `cydui_blend`, `cydui_color_unpack`, `CYDUI_RGB`. Geometry: `cydui_rect_intersect`, `cydui_rect_empty`.
+`cydui_draw_rect`, `cydui_draw_rrect`, `cydui_draw_rrect_outline`, `cydui_draw_line`, `cydui_draw_bitmap` (RGB565, 4-bit mask or, since 1.0.0-rc.2, a 1-bit mask), `cydui_draw_bitmap_a1` (a 1-bit mask with every bit a whole-number scale of pixels), `cydui_draw_gradient`, `cydui_draw_text`, `cydui_set_clip`, `cydui_reset_clip`, and `cydui_raster_strip` (what a backend calls). Colors: `cydui_blend`, `cydui_color_unpack`, `CYDUI_RGB`. Geometry: `cydui_rect_intersect`, `cydui_rect_empty`.
 
 ### Text and fonts
 `cydui_text_size`, `cydui_text_iter_init`, `cydui_text_next_line`, `cydui_text_resolve`, `cydui_text_clip_len`, `cydui_utf8_decode`, `cydui_font_validate`, `cydui_font_lookup`, `cydui_font_fallback`, `cydui_font_glyph_data`, `cydui_glyph_bytes`, `cydui_bitmap_size`, `cydui_arena_init`, `cydui_arena_alloc`, `cydui_arena_reset`. Text is UTF-8, at most `CYDUI_MAX_STR` bytes are used; invalid bytes become the fallback glyph.
@@ -88,6 +88,16 @@ The comments in the headers are the reference for each function (arguments, limi
 | `cydui_theme.post`, `cydui_style.anim_ms` | A theme can carry a post-effect (it receives the `cydui_ui` as `user`) and a duration for the changes of look of its widgets (buttons, check boxes, switches, tabs, the dimming of a popup); 0 = at once, which is what every theme built before 0.7.0 gets. |
 | `cydui_paint_look`, `cydui_paint_amount`, `cydui_paint_info.mix/from_state/from_selected` | For a painter: the look of the widget between two states while it changes, and how selected it is (a switch places its knob with it). `mix` 0 means settled. |
 
+### Additions of 1.0.0-rc.2 (from the first real application)
+| | |
+|---|---|
+| `cydui_ui_stats_get`, `cydui_ui_stats_reset`, `cydui_ui_stats` | The peaks of commands, text bytes, tweens and widgets in any frame, the state entries in use, and the configured sizes: what to measure to size `CYDUI_STORAGE`. `CYDUI_ERR_STATE_FULL` is raised when a state entry that is still in use had to be replaced or none could be made (not for a table of no entries, not for a tween that finds no room). |
+| `cydui_theme.user` | A `const void *` of the application, never read by the library, that a painter finds as `theme->user`. NULL by default. |
+| `cydui_text_fit`, `cydui_text_ellipsize` | The bytes of the longest start of a text that fits a width **as drawn**, cut on a character boundary; and the same with an ellipsis (U+2026, or three dots if the font lacks it) into a buffer that is never overrun and always terminated. |
+| `cydui_style.font_small`, `cydui_style.font_title`, `cydui_font_role`, `cydui_theme_font` | Optional other fonts of a theme (NULL = the body font); the body font stays `style.font` and is what the widgets of the library use. A theme with an unusable optional font is refused like one with an unusable body font. |
+| `cydui_next_font`, `cydui_next_color`, `cydui_next_alpha` | One-shot modifiers for the next `cydui_label` or `cydui_label_wrapped` (font, text color, alpha); every other widget forgets them. |
+| `CYDUI_BITMAP_A1`, `cydui_draw_bitmap_a1`, `cydui_cmd.u.bitmap.scale` | One bit per pixel (most significant bit first, rows padded to a byte), tinted, every bit a `scale` x `scale` square (1 to 8). `sizeof(cydui_cmd)` does not change. |
+
 ### Themes
 | | |
 |---|---|
@@ -114,6 +124,7 @@ Structs the application fills or reads: `cydui_config`, `cydui_ui_config`, `cydu
 | `CYDUI_ERR_THREAD` | 256 | called from another task than the one that created the UI |
 | `CYDUI_ERR_FRAME_BUDGET` | 512 | (0.5.0) the frame passed `frame_budget_ms`; the widgets still to be called were skipped |
 | `CYDUI_ERR_TWEEN_LIMIT` | 1024 | (0.7.0) more than `CYDUI_MAX_TWEENS` tweens moving at once; the extra ones jumped to their target |
+| `CYDUI_ERR_STATE_FULL` | 2048 | (1.0.0-rc.2) the state table was full and an entry still in use had to be replaced, or none could be made |
 
 Interaction flags: `CYDUI_SENSE_CLICK` 1, `CYDUI_SENSE_DRAG` 2, `CYDUI_DISABLED` 4, `CYDUI_CAPTURE` 8. `cydui_style` and `cydui_paint_info` grew at their end in 0.7.0 (`anim_ms`; `mix`, `from_state`, `from_selected`) and `cydui_theme` got `post` at its end: code that fills them by name and zeroes the rest is unchanged. Widget kinds and states (`cydui_widget_kind`, `cydui_widget_state`) have the order in `theme.h`; new kinds are only added at the end (0.6.0 adds `CYDUI_WIDGET_TEXT_INPUT`, `CYDUI_WIDGET_POPUP` and `CYDUI_WIDGET_KEY`, so `cydui_theme` is bigger; a theme built by `cydui_theme_derive_table` or a `clean` one has them, a theme filled by hand gets plain panels).
 
@@ -127,4 +138,4 @@ The API has been frozen since 0.4.0 and the release candidate keeps it. Until `v
 
 A **patch** version never changes a signature, an enumerator value, a flag bit or a documented behavior. Adding API (a function, a macro, an enumerator at the end, a new error bit) does not break anything and only needs the lines in the test.
 
-The tag is per iteration (`v0.4.0`, `v0.5.0`, ..., `v1.0.0-rc.1`).
+The tag is per iteration (`v0.4.0`, `v0.5.0`, ..., `v1.0.0-rc.1`, `v1.0.0-rc.2`).

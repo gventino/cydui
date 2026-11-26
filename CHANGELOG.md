@@ -2,6 +2,25 @@
 
 Versions are tagged per iteration. The API has been frozen since 0.4.0 (see `docs/11-api.md`); every change is listed under "API changes".
 
+## 1.0.0-rc.2 — the findings of the first real application
+
+`cyd-todo` (a quest log and calendar on the CYD, with a server and a phone) found what the library made hard. Everything here is an **addition**: no function, enumerator, flag bit or documented behavior changed, `sizeof(cydui_cmd)` is still 48, and every existing picture (the goldens and the gallery hashes) is byte-identical.
+
+### Added
+- `cydui_ui_stats_get`, `cydui_ui_stats_reset` and `cydui_ui_stats`: the peaks of commands, text bytes, tweens and widgets in any frame, the state entries in use and the configured sizes. `CYDUI_ERR_STATE_FULL` (bit 2048): a state entry that was still in use had to be replaced, or none could be made (not raised for a table of no entries or for a tween that finds no room).
+- `cydui_theme.user`, a `const void *` for the application's own data that painters find as `theme->user`.
+- `cydui_text_fit` (the bytes of the longest start of a text that fits a width as drawn) and `cydui_text_ellipsize` (the same with an ellipsis, into a buffer that is never overrun).
+- `cydui_style.font_small` and `font_title` (optional, NULL = the body font), `cydui_font_role` and `cydui_theme_font`; `cydui_next_font`, `cydui_next_color` and `cydui_next_alpha`, one-shot modifiers honoured by `cydui_label` and `cydui_label_wrapped`.
+- `CYDUI_BITMAP_A1` and `cydui_draw_bitmap_a1`: one bit per pixel, tinted, every bit a `scale` x `scale` square (1 to 8); `cydui_cmd.u.bitmap.scale`. A QR code of 33 modules is 165 bytes of mask instead of 13.4 KB. The rasterizer, the plain reference rasterizer, `cydui_bitmap_size` and `fuzz_cmds` know it; it is pixel for pixel the A4 mask of the drawn size.
+- Guide section 9 (patterns from a real application), with code that is compiled with `-std=c99 -pedantic -Wall -Wextra -Werror` and the sanitizers.
+- Tests: `test_ui_stats`, `test_text_fit`, `test_ui_label_mods`, `test_bitmap_a1`, and a test for `theme.user` in `test_theme`.
+
+### API changes (all additions; see `docs/11-api.md`)
+`cydui_style` grew at its end (`font_small`, `font_title`), `cydui_theme` grew at its end (`user`), `cydui_cmd.u.bitmap` got `scale` in what was padding, and enumerators were appended (`CYDUI_BITMAP_A1`, `CYDUI_FONT_*`, `CYDUI_ERR_STATE_FULL`). An application that builds its themes with `cydui_theme_default` (or zero-initialises them) needs no change.
+
+### Documented
+Findings that needed words and not code: a bitmap redrawn into the same buffer needs `cydui_invalidate`; the two-rectangle painter idiom; the root margin is `style.spacing`; a wide but short target is one `cydui_interact` over the grid; wrapping `poll_event` to learn about touches; animating once per occurrence with an id salted by a counter; what the return value of `cydui_ui_end` means for a sleeping loop. The header comments of `cydui_draw_bitmap` and `cydui_set_spacing` say so too.
+
 ## 1.0.0-rc.1 — iteration 8: hardening and the release candidate
 
 The API is the one of 0.7.0; this release is checks, fuzzing, documentation and the pre-release number.
